@@ -8,8 +8,9 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SuperAdminService } from './super-admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -37,10 +38,17 @@ export class SuperAdminController {
   }
 
   @Get('schools')
-  @ApiOperation({ summary: 'Get all schools (Super Admin only)' })
-  @ApiResponse({ status: 200, description: 'List of schools' })
-  getAllSchools() {
-    return this.superAdminService.getAllSchools();
+  @ApiOperation({ summary: 'Get all schools with pagination (Super Admin only)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of schools' })
+  getAllSchools(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return this.superAdminService.getAllSchools(pageNum, limitNum);
   }
 
   @Get('schools/:id')

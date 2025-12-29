@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlus, FiEdit, FiTrash2, FiLoader, FiHome, FiEye } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiLoader, FiHome, FiEye, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import api from '../../services/api';
-import Modal from '../../components/Modal';
 import { School } from '../../types';
+
+interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
 
 export default function SuperAdminSchools() {
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -19,16 +26,38 @@ export default function SuperAdminSchools() {
     status: 'active' as 'active' | 'inactive' | 'suspended',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
 
   useEffect(() => {
     loadSchools();
-  }, []);
+  }, [page]);
 
   const loadSchools = async () => {
     try {
       setLoading(true);
-      const response = await api.instance.get('/super-admin/schools');
-      setSchools(response.data);
+      const response = await api.instance.get('/super-admin/schools', {
+        params: { page, limit },
+      });
+      
+      // Handle both old format (array) and new format (paginated)
+      if (response.data.data && response.data.meta) {
+        setSchools(response.data.data);
+        setPaginationMeta(response.data.meta);
+      } else {
+        // Fallback for old format
+        setSchools(response.data);
+        setPaginationMeta({
+          total: response.data.length,
+          page: 1,
+          limit: response.data.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        });
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load schools');
     } finally {
@@ -59,7 +88,6 @@ export default function SuperAdminSchools() {
       address: school.address || '',
       status: school.status,
     });
-    setShowModal(true);
     setError('');
   };
 
@@ -67,14 +95,18 @@ export default function SuperAdminSchools() {
     e.preventDefault();
     try {
       setError('');
+      setSuccess('');
       if (editingSchool) {
         await api.instance.patch(`/super-admin/schools/${editingSchool.id}`, formData);
+        setSuccess('School updated successfully!');
       } else {
         await api.instance.post('/super-admin/schools', formData);
+        setSuccess('School created successfully!');
       }
-      setShowModal(false);
       resetForm();
       loadSchools();
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save school');
     }
@@ -94,34 +126,134 @@ export default function SuperAdminSchools() {
     <div className="space-y-6">
       {/* Header */}
       <div className="card-modern rounded-2xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-              Schools Management
-            </h1>
-            <p className="text-gray-600 mt-2">Manage all schools in the system</p>
-          </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="btn-primary flex items-center gap-2"
-          >
-            <FiPlus /> Add School
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+            Schools Management
+          </h1>
+          <p className="text-gray-600 mt-2">Manage all schools in the system</p>
         </div>
       </div>
 
-      {/* Error Display */}
-      {error && !showModal && (
-        <div className="card-modern rounded-2xl p-4 bg-red-50 border-l-4 border-red-400">
-          <p className="text-red-700">{error}</p>
-        </div>
-      )}
+      {/* Split Layout: Form on Left, List on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Side - Add/Edit Form */}
+        <div className="lg:col-span-1">
+          <div className="card-modern rounded-xl p-4 sticky top-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-800">
+                {editingSchool ? 'Edit School' : 'Add School'}
+              </h2>
+              {editingSchool && (
+                <button
+                  onClick={resetForm}
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-smooth"
+                  title="Cancel editing"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-      {/* Schools Table */}
-      <div className="card-modern rounded-2xl overflow-hidden">
+            {/* Success Message */}
+            {success && (
+              <div className="mb-3 p-2 bg-green-50 border-l-2 border-green-400 rounded-r text-xs text-green-700">
+                {success}
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-3 p-2 bg-red-50 border-l-2 border-red-400 rounded-r text-xs text-red-700">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  School Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Subdomain *
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white"
+                  value={formData.subdomain}
+                  onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Address</label>
+                <textarea
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white resize-none"
+                  rows={2}
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Status *</label>
+                <select
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button type="submit" className="btn-primary flex-1 text-sm py-2">
+                  {editingSchool ? 'Update' : 'Create'}
+                </button>
+                {editingSchool && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="btn-secondary text-sm py-2 px-4"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Right Side - Schools List */}
+        <div className="lg:col-span-2">
+          <div className="card-modern rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <FiLoader className="w-8 h-8 animate-spin text-indigo-600" />
@@ -193,100 +325,78 @@ export default function SuperAdminSchools() {
             </table>
           </div>
         )}
-      </div>
-
-      {/* Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          resetForm();
-        }}
-        title={editingSchool ? 'Edit School' : 'Add New School'}
-      >
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
-            <p className="text-sm text-red-700">{error}</p>
+        
+        {/* Pagination */}
+        {paginationMeta && paginationMeta.totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {(page - 1) * limit + 1} to {Math.min(page * limit, paginationMeta.total)} of {paginationMeta.total} schools
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(page - 1)}
+                disabled={!paginationMeta.hasPrevPage}
+                className={`p-2 rounded-lg transition-smooth ${
+                  paginationMeta.hasPrevPage
+                    ? 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-300 cursor-not-allowed'
+                }`}
+              >
+                <FiChevronLeft className="w-5 h-5" />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: paginationMeta.totalPages }, (_, i) => i + 1)
+                  .filter((p) => {
+                    // Show first page, last page, current page, and pages around current
+                    return (
+                      p === 1 ||
+                      p === paginationMeta.totalPages ||
+                      (p >= page - 1 && p <= page + 1)
+                    );
+                  })
+                  .map((p, idx, arr) => {
+                    // Add ellipsis if there's a gap
+                    const prev = arr[idx - 1];
+                    const showEllipsis = prev && p - prev > 1;
+                    
+                    return (
+                      <div key={p} className="flex items-center gap-1">
+                        {showEllipsis && (
+                          <span className="px-2 text-gray-400">...</span>
+                        )}
+                        <button
+                          onClick={() => setPage(p)}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-smooth ${
+                            p === page
+                              ? 'bg-indigo-600 text-white'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+              
+              <button
+                onClick={() => setPage(page + 1)}
+                disabled={!paginationMeta.hasNextPage}
+                className={`p-2 rounded-lg transition-smooth ${
+                  paginationMeta.hasNextPage
+                    ? 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-300 cursor-not-allowed'
+                }`}
+              >
+                <FiChevronRight className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">School Name *</label>
-            <input
-              type="text"
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Subdomain *</label>
-            <input
-              type="text"
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
-              value={formData.subdomain}
-              onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-            <input
-              type="email"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-            <input
-              type="tel"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
-            <textarea
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
-              rows={3}
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
-            <select
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="suspended">Suspended</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-4">
-            <button type="submit" className="btn-primary flex-1">
-              {editingSchool ? 'Update' : 'Create'} School
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowModal(false);
-                resetForm();
-              }}
-              className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-smooth"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      </div>
     </div>
   );
 }

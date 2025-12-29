@@ -35,8 +35,27 @@ export class SuperAdminService {
     return await this.schoolsService.create(createSchoolDto, createdById);
   }
 
-  async getAllSchools() {
-    return await this.schoolsService.findAll();
+  async getAllSchools(page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+    
+    const [schools, total] = await this.schoolsRepository.findAndCount({
+      relations: ['createdBy'],
+      order: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    return {
+      data: schools,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
+      },
+    };
   }
 
   async getSchool(id: number) {
