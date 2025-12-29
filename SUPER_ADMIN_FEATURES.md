@@ -82,20 +82,13 @@
   - Advanced filtering options
 
 #### 4. **Financial Management**
-- **Payment Overview**
-  - All payments across all schools
-  - Payment status breakdown
-  - Payment method distribution
-  - Failed payments monitoring
-  - Refund management
-  - Payment trends
-
 - **Financial Reports**
   - Revenue reports (custom date ranges)
   - Payment reports by school
   - Outstanding payments report
   - Payment method reports
   - Export financial data (CSV/PDF)
+  - Revenue analytics (shown in dashboard)
 
 ---
 
@@ -217,12 +210,13 @@
 4. ✅ Advanced filtering and search
 5. ✅ Revenue analytics (basic charts)
 
+**Note**: Payment Overview Page removed from Phase 1 - payment data will be accessible through School Details View instead.
+
 ### Phase 2 (Short-term - Next month)
 1. Financial reports (exportable)
-2. Payment overview across all schools
-3. Activity logs
-4. Bulk operations (basic)
-5. System health monitoring (basic)
+2. Activity logs
+3. Bulk operations (basic)
+4. System health monitoring (basic)
 
 ### Phase 3 (Medium-term - Next 2-3 months)
 1. Advanced analytics (trends, forecasts)
@@ -272,10 +266,6 @@ Super Admin Panel
 │   ├── All Users (list with filters)
 │   ├── User Details (individual view)
 │   └── Create User
-├── Payments (NEW)
-│   ├── All Payments
-│   ├── Payment Analytics
-│   └── Reports
 ├── Analytics (NEW)
 │   ├── Revenue Analytics
 │   ├── School Performance
@@ -301,8 +291,6 @@ GET    /super-admin/analytics/schools
 GET    /super-admin/analytics/users
 GET    /super-admin/schools/:id/details
 GET    /super-admin/users/:id/details
-GET    /super-admin/payments
-GET    /super-admin/payments/analytics
 GET    /super-admin/reports/financial
 POST   /super-admin/export/data
 GET    /super-admin/activity-logs

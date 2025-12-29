@@ -10,13 +10,19 @@ import Schools from './pages/Schools';
 import SuperAdminDashboard from './pages/super-admin/Dashboard';
 import SuperAdminSchools from './pages/super-admin/Schools';
 import SuperAdminUsers from './pages/super-admin/Users';
+import SuperAdminSchoolDetails from './pages/super-admin/SchoolDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -38,6 +44,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <SuperAdminSchools />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/schools/:id/details"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SuperAdminSchoolDetails />
                 </Layout>
               </ProtectedRoute>
             }

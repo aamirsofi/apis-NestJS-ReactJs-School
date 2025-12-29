@@ -40,13 +40,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(userData);
           
           // If user has a schoolId but no subdomain is set, fetch it
-          if (userData.schoolId && !localStorage.getItem('school_subdomain')) {
+          // Only super admin can access /api/schools/:id, so skip for regular users
+          if (userData.schoolId && !localStorage.getItem('school_subdomain') && userData.role === 'super_admin') {
             try {
               const school = await schoolsService.getById(userData.schoolId);
               if (school && school.subdomain) {
                 localStorage.setItem('school_subdomain', school.subdomain);
               }
             } catch (error) {
+              // Silently fail - school might not exist or user doesn't have access
               console.warn('Failed to fetch school subdomain:', error);
             }
           }
@@ -69,7 +71,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(response.user);
     
     // If user has a schoolId, fetch the school and set subdomain in localStorage
-    if (response.user.schoolId) {
+    // Only super admin can access /api/schools/:id endpoint
+    if (response.user.schoolId && response.user.role === 'super_admin') {
       try {
         const school = await schoolsService.getById(response.user.schoolId);
         if (school && school.subdomain) {

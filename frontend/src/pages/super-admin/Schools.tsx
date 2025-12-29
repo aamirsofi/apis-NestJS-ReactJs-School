@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit, FiTrash2, FiLoader, FiHome } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
+import { FiPlus, FiEdit, FiTrash2, FiLoader, FiHome, FiEye } from 'react-icons/fi';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 import { School } from '../../types';
@@ -163,15 +164,24 @@ export default function SuperAdminSchools() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
+                        <Link
+                          to={`/super-admin/schools/${school.id}/details`}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-smooth"
+                          title="View Details"
+                        >
+                          <FiEye />
+                        </Link>
                         <button
                           onClick={() => handleEdit(school)}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-smooth"
+                          title="Edit"
                         >
                           <FiEdit />
                         </button>
                         <button
                           onClick={() => handleDelete(school.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-smooth"
+                          title="Delete"
                         >
                           <FiTrash2 />
                         </button>

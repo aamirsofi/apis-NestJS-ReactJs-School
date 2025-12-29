@@ -50,6 +50,13 @@ export class SuperAdminController {
     return this.superAdminService.getSchool(+id);
   }
 
+  @Get('schools/:id/details')
+  @ApiOperation({ summary: 'Get comprehensive school details with all related data' })
+  @ApiResponse({ status: 200, description: 'School details with students, users, payments, and fee structures' })
+  getSchoolDetails(@Param('id') id: string) {
+    return this.superAdminService.getSchoolDetails(+id);
+  }
+
   @Patch('schools/:id')
   @ApiOperation({ summary: 'Update school (Super Admin only)' })
   @ApiResponse({ status: 200, description: 'School updated successfully' })

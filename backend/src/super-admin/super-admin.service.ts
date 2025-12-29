@@ -11,6 +11,7 @@ import { SchoolsService } from '../schools/schools.service';
 import { UsersService } from '../users/users.service';
 import { Student } from '../students/entities/student.entity';
 import { Payment } from '../payments/entities/payment.entity';
+import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
 
 @Injectable()
 export class SuperAdminService {
@@ -23,6 +24,8 @@ export class SuperAdminService {
     private studentsRepository: Repository<Student>,
     @InjectRepository(Payment)
     private paymentsRepository: Repository<Payment>,
+    @InjectRepository(FeeStructure)
+    private feeStructuresRepository: Repository<FeeStructure>,
     private schoolsService: SchoolsService,
     private usersService: UsersService,
   ) {}
@@ -38,6 +41,78 @@ export class SuperAdminService {
 
   async getSchool(id: number) {
     return await this.schoolsService.findOne(id);
+  }
+
+  async getSchoolDetails(id: number) {
+    // Get school with creator info
+    const school = await this.schoolsRepository.findOne({
+      where: { id },
+      relations: ['createdBy'],
+    });
+
+    if (!school) {
+      throw new NotFoundException(`School with ID ${id} not found`);
+    }
+
+    // Get all related data in parallel
+    const [students, users, payments, feeStructures] = await Promise.all([
+      // Students
+      this.studentsRepository.find({
+        where: { schoolId: id },
+        order: { createdAt: 'desc' },
+        take: 100, // Limit to recent 100 for performance
+      }),
+      // Users assigned to this school
+      this.usersRepository.find({
+        where: { schoolId: id },
+        select: ['id', 'name', 'email', 'role', 'schoolId', 'createdAt', 'updatedAt'],
+        order: { createdAt: 'desc' },
+      }),
+      // Payments
+      this.paymentsRepository.find({
+        where: { schoolId: id },
+        relations: ['student', 'feeStructure'],
+        order: { createdAt: 'desc' },
+        take: 100, // Limit to recent 100 for performance
+      }),
+      // Fee Structures
+      this.feeStructuresRepository.find({
+        where: { schoolId: id },
+        relations: ['category'],
+        order: { createdAt: 'desc' },
+      }),
+    ]);
+
+    // Calculate statistics
+    const stats = {
+      totalStudents: await this.studentsRepository.count({ where: { schoolId: id } }),
+      activeStudents: await this.studentsRepository.count({
+        where: { schoolId: id, status: 'active' },
+      }),
+      totalUsers: users.length,
+      totalPayments: await this.paymentsRepository.count({ where: { schoolId: id } }),
+      completedPayments: await this.paymentsRepository.count({
+        where: { schoolId: id, status: 'completed' },
+      }),
+      totalRevenue: await this.paymentsRepository
+        .createQueryBuilder('payment')
+        .select('SUM(payment.amount)', 'total')
+        .where('payment.schoolId = :schoolId', { schoolId: id })
+        .andWhere('payment.status = :status', { status: 'completed' })
+        .getRawOne()
+        .then((result) => parseFloat(result?.total || '0')),
+      totalFeeStructures: feeStructures.length,
+      activeFeeStructures: feeStructures.filter((fs) => fs.status === 'active').length,
+    };
+
+    return {
+      school,
+      students,
+      users,
+      payments,
+      feeStructures,
+      stats,
+    };
   }
 
   async updateSchool(id: number, updateSchoolDto: UpdateSchoolDto) {
