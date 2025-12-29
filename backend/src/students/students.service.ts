@@ -76,7 +76,7 @@ export class StudentsService {
         section: createStudentDto.section?.trim() || null,
         status: status as any,
         schoolId,
-      });
+      } as Student);
       return await this.studentsRepository.save(student);
     } catch (error: any) {
       // Log the error for debugging

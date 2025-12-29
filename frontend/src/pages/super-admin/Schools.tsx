@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit, FiTrash2, FiLoader, FiSchool } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiLoader, FiHome } from 'react-icons/fi';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 import { School } from '../../types';
@@ -127,7 +127,7 @@ export default function SuperAdminSchools() {
           </div>
         ) : schools.length === 0 ? (
           <div className="text-center py-12">
-            <FiSchool className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <FiHome className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No schools found</p>
           </div>
         ) : (

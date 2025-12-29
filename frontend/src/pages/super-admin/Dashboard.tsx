@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { FiDollarSign, FiUsers, FiBook, FiTrendingUp, FiSchool, FiLoader } from 'react-icons/fi';
+import { FiDollarSign, FiUsers, FiBook, FiTrendingUp, FiHome, FiLoader } from 'react-icons/fi';
 import api from '../../services/api';
 
 interface DashboardStats {
@@ -60,7 +60,7 @@ export default function SuperAdminDashboard() {
               <p className="text-3xl font-bold text-indigo-600">{stats?.totalSchools || 0}</p>
             </div>
             <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <FiSchool className="w-6 h-6 text-indigo-600" />
+              <FiHome className="w-6 h-6 text-indigo-600" />
             </div>
           </div>
         </div>
