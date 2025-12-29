@@ -23,3 +23,75 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface School {
+  id: number;
+  name: string;
+  subdomain: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  logo?: string;
+  settings?: Record<string, any>;
+  status: 'active' | 'inactive' | 'suspended';
+  createdById?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Student {
+  id: number;
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  class: string;
+  section?: string;
+  status: 'active' | 'inactive' | 'graduated';
+  schoolId: number;
+  userId?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeeCategory {
+  id: number;
+  name: string;
+  description?: string;
+  status: 'active' | 'inactive';
+  schoolId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeeStructure {
+  id: number;
+  name: string;
+  description?: string;
+  amount: number;
+  categoryId: number;
+  academicYear: string;
+  dueDate?: string;
+  applicableClasses?: string[];
+  status: 'active' | 'inactive';
+  schoolId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Payment {
+  id: number;
+  studentId: number;
+  feeStructureId: number;
+  amount: number;
+  paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'online';
+  paymentDate: string;
+  receiptNumber?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  notes?: string;
+  schoolId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+

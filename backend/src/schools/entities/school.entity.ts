@@ -5,9 +5,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Student } from '../../students/entities/student.entity';
+import { FeeCategory } from '../../fee-categories/entities/fee-category.entity';
+import { FeeStructure } from '../../fee-structures/entities/fee-structure.entity';
+import { Payment } from '../../payments/entities/payment.entity';
 
 export enum SchoolStatus {
   ACTIVE = 'active',
@@ -18,47 +23,59 @@ export enum SchoolStatus {
 @Entity('schools')
 export class School {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ length: 255 })
-  name: string;
+  name!: string;
 
   @Column({ unique: true, length: 255 })
-  subdomain: string;
+  subdomain!: string;
 
   @Column({ nullable: true, length: 255 })
-  email: string;
+  email?: string;
 
   @Column({ nullable: true, length: 255 })
-  phone: string;
+  phone?: string;
 
   @Column({ type: 'text', nullable: true })
-  address: string;
+  address?: string;
 
   @Column({ nullable: true, length: 255 })
-  logo: string;
+  logo?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  settings: Record<string, any>;
+  settings?: Record<string, any>;
 
   @Column({
     type: 'enum',
     enum: SchoolStatus,
     default: SchoolStatus.ACTIVE,
   })
-  status: SchoolStatus;
+  status!: SchoolStatus;
 
   @Column({ nullable: true })
-  createdById: number;
+  createdById?: number;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'createdById' })
-  createdBy: User;
+  createdBy!: User;
+
+  @OneToMany(() => Student, (student) => student.school)
+  students!: Student[];
+
+  @OneToMany(() => FeeCategory, (category) => category.school)
+  feeCategories!: FeeCategory[];
+
+  @OneToMany(() => FeeStructure, (feeStructure) => feeStructure.school)
+  feeStructures!: FeeStructure[];
+
+  @OneToMany(() => Payment, (payment) => payment.school)
+  payments!: Payment[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 

@@ -45,10 +45,25 @@ docker-compose logs -f postgres
 
 ### Step 4: Access Your Application
 
+Once containers are running, access:
+
 - 🌐 **Frontend**: http://localhost:5173
+  - Login page and user interface
+  
 - 🔌 **Backend API**: http://localhost:3000/api
+  - REST API endpoints
+  - Health check endpoint
+  
 - 📚 **Swagger Docs**: http://localhost:3000/api-docs
+  - Interactive API documentation
+  - Test endpoints directly
+  
 - 🗄️ **PostgreSQL**: localhost:5432
+  - Database: fee_management
+  - Username: postgres
+  - Password: postgres
+
+**See `URLS.md` for detailed URL information and first steps.**
 
 ### Step 5: Test the API
 

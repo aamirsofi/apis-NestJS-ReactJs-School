@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Use relative URL when using Vite proxy, or full URL if VITE_API_URL is set
+const API_URL = (import.meta.env?.VITE_API_URL as string) || '/api';
 
 class ApiService {
   private api: AxiosInstance;
@@ -13,13 +14,20 @@ class ApiService {
       },
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor to add auth token and school subdomain
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('access_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        
+        // Add school subdomain header for localhost testing
+        const subdomain = localStorage.getItem('school_subdomain');
+        if (subdomain) {
+          config.headers['X-School-Subdomain'] = subdomain;
+        }
+        
         return config;
       },
       (error) => {

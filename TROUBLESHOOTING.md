@@ -3,6 +3,7 @@
 ## Docker Desktop API Errors (500 Internal Server Error)
 
 If you see errors like:
+
 ```
 request returned 500 Internal Server Error for API route
 unable to get image 'fee-frontend'
@@ -13,18 +14,22 @@ This usually means Docker Desktop is not running properly.
 ### Solution 1: Restart Docker Desktop
 
 1. **Close Docker Desktop completely**
+
    - Right-click Docker icon in system tray
    - Click "Quit Docker Desktop"
    - Wait for it to fully close
 
 2. **Restart Docker Desktop**
+
    - Open Docker Desktop from Start Menu
    - Wait for it to fully start (whale icon should be steady, not animating)
 
 3. **Verify Docker is running**
+
    ```bash
    docker ps
    ```
+
    Should return empty list or running containers (not an error)
 
 4. **Try again**
@@ -37,9 +42,11 @@ This usually means Docker Desktop is not running properly.
 If restart doesn't work:
 
 1. **Open Docker Desktop Settings**
+
    - Click gear icon (⚙️) in Docker Desktop
 
 2. **Troubleshoot → Reset to factory defaults**
+
    - This will reset Docker Desktop but keep your images/containers
 
 3. **Or use WSL2 backend** (if on Windows)
@@ -82,11 +89,13 @@ docker-compose up -d --build
 If using WSL2:
 
 1. **Ensure WSL2 is installed**
+
    ```bash
    wsl --list --verbose
    ```
 
 2. **Update WSL2**
+
    ```bash
    wsl --update
    ```
@@ -134,25 +143,30 @@ npm run dev
 ## Common Error Messages
 
 ### "unable to get image"
+
 - **Cause**: Docker Desktop not running or API not accessible
 - **Fix**: Restart Docker Desktop
 
 ### "500 Internal Server Error"
+
 - **Cause**: Docker Desktop daemon issue
 - **Fix**: Restart Docker Desktop or reset to factory defaults
 
 ### "Cannot connect to Docker daemon"
+
 - **Cause**: Docker Desktop not started
 - **Fix**: Start Docker Desktop application
 
 ### Port already in use
+
 - **Cause**: Another service using the port
-- **Fix**: 
+- **Fix**:
+
   ```bash
   # Windows - find process using port
   netstat -ano | findstr :3000
   netstat -ano | findstr :5173
-  
+
   # Kill the process (replace PID with actual process ID)
   taskkill /PID <PID> /F
   ```
@@ -160,12 +174,15 @@ npm run dev
 ## Still Having Issues?
 
 1. **Check Docker Desktop logs**
+
    - Docker Desktop → Troubleshoot → View logs
 
 2. **Check Windows Event Viewer**
+
    - Look for Docker-related errors
 
 3. **Reinstall Docker Desktop**
+
    - Download latest from docker.com
    - Uninstall current version
    - Install fresh copy
@@ -192,4 +209,3 @@ docker run hello-world
 # 4. If all above work, try your project
 docker-compose up -d
 ```
-

@@ -20,41 +20,41 @@ export enum UserRole {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ length: 255 })
-  name: string;
+  name!: string;
 
   @Column({ unique: true, length: 255 })
-  email: string;
+  email!: string;
 
   @Column({ nullable: true })
-  emailVerifiedAt: Date;
+  emailVerifiedAt?: Date;
 
   @Column()
   @Exclude()
-  password: string;
+  password!: string;
 
   @Column({
     type: 'enum',
     enum: UserRole,
     default: UserRole.STUDENT,
   })
-  role: UserRole;
+  role!: UserRole;
 
   @Column({ nullable: true })
-  rememberToken: string;
+  rememberToken?: string;
 
   @Column({ nullable: true })
-  schoolId: number;
+  schoolId?: number;
 
   @OneToMany(() => School, (school) => school.createdBy)
-  schools: School[];
+  schools!: School[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 

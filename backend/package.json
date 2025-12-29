@@ -21,7 +21,11 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "create:admin": "ts-node -r tsconfig-paths/register src/scripts/create-admin.ts",
+    "create:school": "ts-node -r tsconfig-paths/register src/scripts/create-test-school.ts",
+    "setup:admin": "npm run create:admin && npm run create:school && npm run assign:school",
+    "assign:school": "ts-node -r tsconfig-paths/register src/scripts/assign-school-to-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

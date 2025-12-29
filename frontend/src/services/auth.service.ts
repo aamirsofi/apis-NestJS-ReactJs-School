@@ -17,6 +17,7 @@ export const authService = {
 
   async getCurrentUser(): Promise<any> {
     const response = await api.instance.get('/auth/me');
+    // The backend returns the user object directly
     return response.data;
   },
 

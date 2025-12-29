@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -7,6 +7,13 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { SchoolsModule } from './schools/schools.module';
+import { StudentsModule } from './students/students.module';
+import { FeeCategoriesModule } from './fee-categories/fee-categories.module';
+import { FeeStructuresModule } from './fee-structures/fee-structures.module';
+import { PaymentsModule } from './payments/payments.module';
+import { StudentFeeStructuresModule } from './student-fee-structures/student-fee-structures.module';
+import { SchoolContextModule } from './middleware/school-context.module';
 import { DatabaseConfig } from './database/database.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -23,30 +30,50 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
       useClass: DatabaseConfig,
     }),
 
-    // Rate limiting
+    // Rate limiting - Disabled in development, enabled in production
     ThrottlerModule.forRoot([
       {
         ttl: parseInt(process.env.THROTTLE_TTL || '60') * 1000,
-        limit: parseInt(process.env.THROTTLE_LIMIT || '10'),
+        limit: process.env.NODE_ENV === 'production' 
+          ? parseInt(process.env.THROTTLE_LIMIT || '100')
+          : 10000, // Very high limit for development
       },
     ]),
+
+    // Middleware
+    SchoolContextModule,
 
     // Feature modules
     AuthModule,
     UsersModule,
+    SchoolsModule,
+    StudentsModule,
+    FeeCategoriesModule,
+    FeeStructuresModule,
+    PaymentsModule,
+    StudentFeeStructuresModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // Only enable throttling in production
+    ...(process.env.NODE_ENV === 'production'
+      ? [
+          {
+            provide: APP_GUARD,
+            useClass: ThrottlerGuard,
+          },
+        ]
+      : []),
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // School context middleware is applied in SchoolContextModule
+  }
+}
 
