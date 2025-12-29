@@ -5,12 +5,14 @@ Follow these steps to get your Fee Management System up and running:
 ## Step 1: Install Dependencies
 
 ### Backend
+
 ```bash
 cd backend
 npm install
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 npm install
@@ -19,12 +21,14 @@ npm install
 ## Step 2: Set Up Environment Variables
 
 ### Backend Environment
+
 ```bash
 cd backend
 cp .env.example .env
 ```
 
 Edit `backend/.env` and ensure these values are set:
+
 ```env
 NODE_ENV=development
 PORT=3000
@@ -47,7 +51,9 @@ THROTTLE_LIMIT=10
 **Note:** When using Docker Compose, `DB_HOST` should be `postgres` (the service name), not `localhost`.
 
 ### Frontend Environment (Optional)
+
 Create `frontend/.env` if you need to override the API URL:
+
 ```env
 VITE_API_URL=http://localhost:3000/api
 ```
@@ -68,6 +74,7 @@ docker-compose up -d
 ## Step 4: Wait for Services to Start
 
 Check if all services are running:
+
 ```bash
 docker-compose ps
 ```
@@ -92,15 +99,18 @@ npm run migration:run
 ## Step 6: Verify Everything is Working
 
 ### Check Backend
+
 - Open: http://localhost:3000/api
 - Should see: Health check response
 - Swagger Docs: http://localhost:3000/api-docs
 
 ### Check Frontend
+
 - Open: http://localhost:5173
 - Should see: Login page
 
 ### Check Database
+
 ```bash
 # Connect to PostgreSQL
 docker-compose exec postgres psql -U postgres -d fee_management
@@ -115,6 +125,7 @@ docker-compose exec postgres psql -U postgres -d fee_management
 ## Step 7: Test Authentication
 
 1. **Register a new user** via Swagger or API:
+
    ```bash
    POST http://localhost:3000/api/auth/register
    {
@@ -125,6 +136,7 @@ docker-compose exec postgres psql -U postgres -d fee_management
    ```
 
 2. **Login**:
+
    ```bash
    POST http://localhost:3000/api/auth/login
    {
@@ -142,20 +154,26 @@ docker-compose exec postgres psql -U postgres -d fee_management
 ## Common Issues & Solutions
 
 ### Issue: Backend can't connect to database
+
 **Solution:** Make sure PostgreSQL container is running and healthy:
+
 ```bash
 docker-compose ps
 docker-compose logs postgres
 ```
 
 ### Issue: Port already in use
+
 **Solution:** Stop the conflicting service or change ports in docker-compose.yml
 
 ### Issue: Frontend can't reach backend
+
 **Solution:** Check CORS_ORIGIN in backend/.env matches frontend URL
 
 ### Issue: Database connection errors
-**Solution:** 
+
+**Solution:**
+
 - Verify DB_HOST is `postgres` (not `localhost`) when using Docker
 - Check database credentials match docker-compose.yml
 - Ensure PostgreSQL container is healthy
@@ -163,6 +181,7 @@ docker-compose logs postgres
 ## Development Workflow
 
 ### Start Development
+
 ```bash
 # Start all services
 docker-compose up -d
@@ -176,22 +195,26 @@ docker-compose logs -f frontend
 ```
 
 ### Stop Services
+
 ```bash
 docker-compose down
 ```
 
 ### Rebuild After Changes
+
 ```bash
 docker-compose up -d --build
 ```
 
 ### Run Backend Locally (without Docker)
+
 ```bash
 cd backend
 npm run start:dev
 ```
 
 ### Run Frontend Locally (without Docker)
+
 ```bash
 cd frontend
 npm run dev
@@ -232,4 +255,3 @@ docker-compose logs -f                  # View all logs
 docker-compose exec backend bash        # Access backend container
 docker-compose exec postgres psql -U postgres -d fee_management  # Access database
 ```
-

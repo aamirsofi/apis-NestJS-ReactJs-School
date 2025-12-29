@@ -1,4 +1,8 @@
+# Database only - Use this if you want to run backend/frontend locally
+# Usage: docker-compose -f docker-compose.db-only.yml up -d
+
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: fee_management_db
@@ -8,14 +12,20 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: fee_management
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - fee_management_network
+
+networks:
+  fee_management_network:
+    driver: bridge
 
 volumes:
   postgres_data:

@@ -1,3 +1,6 @@
+# Full Docker Compose setup - runs PostgreSQL, Backend, and Frontend
+# Usage: docker-compose -f docker-compose.full.yml up -d
+
 services:
   # PostgreSQL Database
   postgres:
@@ -76,3 +79,4 @@ networks:
 
 volumes:
   postgres_data:
+
