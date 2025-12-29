@@ -1,4 +1,4 @@
-import React, { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -57,33 +57,7 @@ export default function Layout({ children }: LayoutProps) {
     }));
   };
 
-  // Check if user is super admin (define early)
-  const isSuperAdmin = user?.role === "super_admin";
-
-  // Update sidebar state when user changes
-  useEffect(() => {
-    setSidebarOpen(isSuperAdmin);
-  }, [isSuperAdmin]);
-
-  // Auto-expand sections that have active children
-  useEffect(() => {
-    if (isSuperAdmin) {
-      superAdminSections.forEach((section) => {
-        if (section.section && section.children) {
-          const hasActive = section.children.some((child) => isActive(child.path));
-          if (hasActive && !expandedSections[section.section]) {
-            setExpandedSections((prev) => ({
-              ...prev,
-              [section.section!]: true,
-            }));
-          }
-        }
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, isSuperAdmin]);
-
-  // Super Admin Sidebar Navigation Structure
+  // Super Admin Sidebar Navigation Structure (define before use)
   const superAdminSections = [
     {
       name: "Dashboard",
@@ -171,6 +145,34 @@ export default function Layout({ children }: LayoutProps) {
       ],
     },
   ];
+
+  // Check if user is super admin (define after superAdminSections)
+  const isSuperAdmin = user?.role === "super_admin";
+
+  // Update sidebar state when user changes
+  useEffect(() => {
+    setSidebarOpen(isSuperAdmin);
+  }, [isSuperAdmin]);
+
+  // Auto-expand sections that have active children
+  useEffect(() => {
+    if (isSuperAdmin) {
+      superAdminSections.forEach((section) => {
+        if (section.section && section.children) {
+          const hasActive = section.children.some((child) =>
+            isActive(child.path)
+          );
+          if (hasActive && !expandedSections[section.section]) {
+            setExpandedSections((prev) => ({
+              ...prev,
+              [section.section!]: true,
+            }));
+          }
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, isSuperAdmin]);
 
   // Regular Admin Navigation
   const regularNavigation = [
@@ -304,7 +306,11 @@ export default function Layout({ children }: LayoutProps) {
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
                     )}
                     <div className="flex items-center">
-                      <Icon className={`w-4 h-4 flex-shrink-0 ${hasActiveChild ? "text-indigo-600" : ""}`} />
+                      <Icon
+                        className={`w-4 h-4 flex-shrink-0 ${
+                          hasActiveChild ? "text-indigo-600" : ""
+                        }`}
+                      />
                       {sidebarOpen && (
                         <span className="ml-2.5 font-semibold">
                           {section.name}
@@ -340,7 +346,11 @@ export default function Layout({ children }: LayoutProps) {
                             {isChildActive && (
                               <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-full" />
                             )}
-                            <ChildIcon className={`w-3.5 h-3.5 mr-2 ${isChildActive ? "text-indigo-600" : ""}`} />
+                            <ChildIcon
+                              className={`w-3.5 h-3.5 mr-2 ${
+                                isChildActive ? "text-indigo-600" : ""
+                              }`}
+                            />
                             {child.name}
                           </Link>
                         );
