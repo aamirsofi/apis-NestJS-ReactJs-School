@@ -12,7 +12,6 @@ import {
 } from "react-icons/fi";
 import api from "../../services/api";
 import { School } from "../../types";
-import CustomDropdown from "../../components/ui/CustomDropdown";
 
 interface PaginationMeta {
   total: number;
@@ -417,22 +416,24 @@ export default function SuperAdminSchools() {
                           {paginationMeta.total} schools
                         </div>
                         <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600">Per page:</label>
-                      <select
-                        value={limit}
-                        onChange={(e) => {
-                          setLimit(Number(e.target.value));
-                          setPage(1); // Reset to first page when changing limit
-                        }}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                      >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    </div>
+                          <label className="text-sm text-gray-600">
+                            Per page:
+                          </label>
+                          <select
+                            value={limit}
+                            onChange={(e) => {
+                              setLimit(Number(e.target.value));
+                              setPage(1); // Reset to first page when changing limit
+                            }}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-0 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          >
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
                       </div>
 
                       {/* Right: Page Navigation - Always show when there's data */}

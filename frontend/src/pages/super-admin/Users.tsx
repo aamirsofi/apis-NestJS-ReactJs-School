@@ -556,7 +556,7 @@ export default function SuperAdminUsers() {
                           setLimit(Number(e.target.value));
                           setPage(1); // Reset to first page when changing limit
                         }}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-0 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                       >
                         <option value={5}>5</option>
                         <option value={10}>10</option>
