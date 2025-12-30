@@ -203,12 +203,25 @@ export class SuperAdminService {
       }
 
       const [users, total] = await this.usersRepository.findAndCount({
-        select: ['id', 'name', 'email', 'role', 'schoolId', 'createdAt', 'updatedAt'],
-        relations: ['schools'],
+        relations: ['school'],
         where: whereConditions,
         order: { createdAt: 'desc' },
         skip,
         take,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          schoolId: true,
+          createdAt: true,
+          updatedAt: true,
+          school: {
+            id: true,
+            name: true,
+            subdomain: true,
+          },
+        },
       });
 
       return createPaginatedResponse(users, total, page, limit);

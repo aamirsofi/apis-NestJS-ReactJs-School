@@ -552,7 +552,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex-1 lg:ml-0 transition-all duration-300 flex flex-col">
           {/* Top Bar */}
           <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-            <div className="px-4 lg:px-6 py-3">
+            <div className="px-4 lg:px-6 py-2">
               <div className="flex items-center justify-between">
                 {/* Mobile Menu Button */}
                 {!sidebarOpen && (
@@ -611,7 +611,7 @@ export default function Layout({ children }: LayoutProps) {
                         setShowUserMenu(!showUserMenu);
                         setShowNotifications(false);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-smooth"
+                      className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded-lg transition-smooth"
                     >
                       <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-md">
                         <FiUser className="w-4 h-4 text-white" />

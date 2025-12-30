@@ -12,6 +12,7 @@ import {
 } from "react-icons/fi";
 import api from "../../services/api";
 import { School } from "../../types";
+import CustomDropdown from "../../components/ui/CustomDropdown";
 
 interface PaginationMeta {
   total: number;
@@ -416,23 +417,26 @@ export default function SuperAdminSchools() {
                           {paginationMeta.total} schools
                         </div>
                         <div className="flex items-center gap-2">
-                          <label className="text-sm text-gray-600">
+                          <label className="text-sm text-gray-600 whitespace-nowrap">
                             Per page:
                           </label>
-                          <select
-                            value={limit}
-                            onChange={(e) => {
-                              setLimit(Number(e.target.value));
-                              setPage(1); // Reset to first page when changing limit
-                            }}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                          >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={20}>20</option>
-                            <option value={50}>50</option>
-                            <option value={100}>100</option>
-                          </select>
+                          <div className="w-20 min-w-20 relative">
+                            <CustomDropdown
+                              options={[
+                                { value: 5, label: "5" },
+                                { value: 10, label: "10" },
+                                { value: 20, label: "20" },
+                                { value: 50, label: "50" },
+                                { value: 100, label: "100" },
+                              ]}
+                              value={limit}
+                              onChange={(value) => {
+                                setLimit(Number(value));
+                                setPage(1); // Reset to first page when changing limit
+                              }}
+                              placeholder="Select..."
+                            />
+                          </div>
                         </div>
                       </div>
 

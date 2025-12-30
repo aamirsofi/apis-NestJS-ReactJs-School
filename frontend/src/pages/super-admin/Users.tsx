@@ -18,6 +18,11 @@ interface User {
   email: string;
   role: string;
   schoolId?: number;
+  school?: {
+    id: number;
+    name: string;
+    subdomain: string;
+  };
   createdAt: string;
 }
 
@@ -474,7 +479,7 @@ export default function SuperAdminUsers() {
                         Role
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        School ID
+                        School
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                         Actions
@@ -498,8 +503,12 @@ export default function SuperAdminUsers() {
                             {user.role.replace("_", " ")}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-600 font-mono">
-                          {user.schoolId || (
+                        <td className="px-4 py-2 text-sm text-gray-600">
+                          {user.school ? (
+                            <span className="font-medium text-gray-900">
+                              {user.school.name}
+                            </span>
+                          ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </td>

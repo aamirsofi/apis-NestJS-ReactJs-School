@@ -5,6 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { School } from '../../schools/entities/school.entity';
@@ -47,6 +49,10 @@ export class User {
 
   @Column({ nullable: true })
   schoolId?: number;
+
+  @ManyToOne(() => School, { nullable: true })
+  @JoinColumn({ name: 'schoolId' })
+  school?: School;
 
   @OneToMany(() => School, (school) => school.createdBy)
   schools!: School[];
