@@ -44,9 +44,12 @@ export default function Layout({ children }: LayoutProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<string | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -176,7 +179,7 @@ export default function Layout({ children }: LayoutProps) {
   useEffect(() => {
     if (isSuperAdmin) {
       const newExpandedSections: Record<string, boolean> = {};
-      
+
       superAdminSections.forEach((section) => {
         if (section.section && section.children) {
           const hasActive = section.children.some((child) =>
@@ -186,7 +189,7 @@ export default function Layout({ children }: LayoutProps) {
           newExpandedSections[section.section] = hasActive;
         }
       });
-      
+
       // Update all sections at once - collapse inactive ones, expand active one
       setExpandedSections((prev) => ({
         ...prev,
@@ -315,7 +318,7 @@ export default function Layout({ children }: LayoutProps) {
 
               // Sections with children
               return (
-                <div 
+                <div
                   key={section.section}
                   ref={(el) => {
                     if (section.section) {
@@ -345,8 +348,9 @@ export default function Layout({ children }: LayoutProps) {
                       }
                       // Delay hiding to allow moving to popover
                       hoverTimeoutRef.current = setTimeout(() => {
-                        const popover = document.querySelector('.hover-popover');
-                        if (!popover?.matches(':hover')) {
+                        const popover =
+                          document.querySelector(".hover-popover");
+                        if (!popover?.matches(":hover")) {
                           setHoveredSection(null);
                           setPopoverPosition(null);
                         }
@@ -381,7 +385,9 @@ export default function Layout({ children }: LayoutProps) {
                           </span>
                         </div>
                         {section.children && (
-                          <div className={hasActiveChild ? "text-indigo-600" : ""}>
+                          <div
+                            className={hasActiveChild ? "text-indigo-600" : ""}
+                          >
                             {isExpanded ? (
                               <FiChevronDown className="w-3.5 h-3.5" />
                             ) : (
@@ -441,7 +447,6 @@ export default function Layout({ children }: LayoutProps) {
                           }`}
                         />
                       </button>
-
                     </>
                   )}
                 </div>
@@ -450,69 +455,76 @@ export default function Layout({ children }: LayoutProps) {
           </nav>
 
           {/* Render popover via portal outside sidebar */}
-          {hoveredSection && popoverPosition && !sidebarOpen && (() => {
-            const section = superAdminSections.find(s => s.section === hoveredSection);
-            if (!section?.children) return null;
-            
-            return createPortal(
-              <div 
-                className="hover-popover fixed w-48 bg-white rounded-xl shadow-2xl border border-gray-200 py-2"
-                style={{
-                  top: `${popoverPosition.top}px`,
-                  left: `${popoverPosition.left}px`,
-                  zIndex: 99999,
-                  pointerEvents: 'auto',
-                }}
-                onMouseEnter={(e) => {
-                  e.stopPropagation();
-                  // Clear any pending timeout when entering popover
-                  if (hoverTimeoutRef.current) {
-                    clearTimeout(hoverTimeoutRef.current);
-                    hoverTimeoutRef.current = null;
-                  }
-                  setHoveredSection(hoveredSection);
-                }}
-                onMouseLeave={(e) => {
-                  e.stopPropagation();
-                  // Delay hiding when leaving popover
-                  hoverTimeoutRef.current = setTimeout(() => {
-                    setHoveredSection(null);
-                    setPopoverPosition(null);
-                    hoverTimeoutRef.current = null;
-                  }, 200);
-                }}
-              >
-                <div className="px-3 py-2 border-b border-gray-200">
-                  <p className="text-xs font-semibold text-gray-900">{section.name}</p>
-                </div>
-                <div className="py-1">
-                  {section.children.map((child) => {
-                    const ChildIcon = child.icon;
-                    const isChildActive = isActive(child.path);
-                    return (
-                      <Link
-                        key={child.path}
-                        to={child.path}
-                        onClick={() => {
-                          setHoveredSection(null);
-                          setPopoverPosition(null);
-                        }}
-                        className={`${
-                          isChildActive
-                            ? "bg-indigo-50 text-indigo-700 font-semibold"
-                            : "text-gray-700 hover:bg-gray-50"
-                        } flex items-center gap-2 px-3 py-2 text-sm transition-smooth`}
-                      >
-                        <ChildIcon className="w-4 h-4" />
-                        <span>{child.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>,
-              document.body
-            );
-          })()}
+          {hoveredSection &&
+            popoverPosition &&
+            !sidebarOpen &&
+            (() => {
+              const section = superAdminSections.find(
+                (s) => s.section === hoveredSection
+              );
+              if (!section?.children) return null;
+
+              return createPortal(
+                <div
+                  className="hover-popover fixed w-48 bg-white rounded-xl shadow-2xl border border-gray-200 py-2"
+                  style={{
+                    top: `${popoverPosition.top}px`,
+                    left: `${popoverPosition.left}px`,
+                    zIndex: 99999,
+                    pointerEvents: "auto",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.stopPropagation();
+                    // Clear any pending timeout when entering popover
+                    if (hoverTimeoutRef.current) {
+                      clearTimeout(hoverTimeoutRef.current);
+                      hoverTimeoutRef.current = null;
+                    }
+                    setHoveredSection(hoveredSection);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.stopPropagation();
+                    // Delay hiding when leaving popover
+                    hoverTimeoutRef.current = setTimeout(() => {
+                      setHoveredSection(null);
+                      setPopoverPosition(null);
+                      hoverTimeoutRef.current = null;
+                    }, 200);
+                  }}
+                >
+                  <div className="px-3 py-2 border-b border-gray-200">
+                    <p className="text-xs font-semibold text-gray-900">
+                      {section.name}
+                    </p>
+                  </div>
+                  <div className="py-1">
+                    {section.children.map((child) => {
+                      const ChildIcon = child.icon;
+                      const isChildActive = isActive(child.path);
+                      return (
+                        <Link
+                          key={child.path}
+                          to={child.path}
+                          onClick={() => {
+                            setHoveredSection(null);
+                            setPopoverPosition(null);
+                          }}
+                          className={`${
+                            isChildActive
+                              ? "bg-indigo-50 text-indigo-700 font-semibold"
+                              : "text-gray-700 hover:bg-gray-50"
+                          } flex items-center gap-2 px-3 py-2 text-sm transition-smooth`}
+                        >
+                          <ChildIcon className="w-4 h-4" />
+                          <span>{child.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>,
+                document.body
+              );
+            })()}
 
           {/* Sidebar Footer - Only show when open */}
           {sidebarOpen && (
@@ -552,7 +564,6 @@ export default function Layout({ children }: LayoutProps) {
                   </button>
                 )}
                 <div className="flex-1" /> {/* Spacer */}
-                
                 {/* Right Side: Notifications & User Menu */}
                 <div className="flex items-center gap-2">
                   {/* Notifications */}
@@ -569,7 +580,7 @@ export default function Layout({ children }: LayoutProps) {
                       {/* Notification Badge */}
                       <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                     </button>
-                    
+
                     {/* Notifications Dropdown */}
                     {showNotifications && (
                       <>
@@ -579,7 +590,9 @@ export default function Layout({ children }: LayoutProps) {
                         />
                         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
                           <div className="p-4 border-b border-gray-200">
-                            <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                            <h3 className="text-sm font-semibold text-gray-900">
+                              Notifications
+                            </h3>
                           </div>
                           <div className="max-h-96 overflow-y-auto">
                             <div className="p-4 text-center text-sm text-gray-500">
@@ -604,7 +617,9 @@ export default function Layout({ children }: LayoutProps) {
                         <FiUser className="w-4 h-4 text-white" />
                       </div>
                       <div className="hidden md:block text-left">
-                        <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user?.name}
+                        </p>
                         <p className="text-xs text-gray-500 capitalize">
                           {user?.role?.replace("_", " ")}
                         </p>
@@ -625,22 +640,30 @@ export default function Layout({ children }: LayoutProps) {
                         />
                         <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
                           <div className="p-4 border-b border-gray-200">
-                            <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">{user?.email}</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {user?.name}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {user?.email}
+                            </p>
                             <p className="text-xs text-gray-400 mt-1 capitalize">
                               {user?.role?.replace("_", " ")}
                             </p>
                           </div>
                           <div className="py-2">
                             <Link
-                              to={user?.role === 'super_admin' ? '/super-admin/profile' : '/profile'}
+                              to={
+                                user?.role === "super_admin"
+                                  ? "/super-admin/profile"
+                                  : "/profile"
+                              }
                               onClick={() => setShowUserMenu(false)}
                               className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-smooth"
                             >
                               <FiUser className="w-4 h-4" />
                               <span>Profile</span>
                             </Link>
-                            {user?.role === 'super_admin' && (
+                            {user?.role === "super_admin" && (
                               <Link
                                 to="/super-admin/settings"
                                 onClick={() => setShowUserMenu(false)}

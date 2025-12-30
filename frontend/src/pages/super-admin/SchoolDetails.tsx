@@ -1,20 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import {
   FiLoader,
-  FiHome,
   FiUsers,
   FiDollarSign,
-  FiCreditCard,
   FiBook,
   FiArrowLeft,
   FiMail,
   FiPhone,
   FiMapPin,
   FiCalendar,
-  FiTrendingUp,
-} from 'react-icons/fi';
-import api from '../../services/api';
+} from "react-icons/fi";
+import api from "../../services/api";
 
 interface SchoolDetails {
   school: {
@@ -95,25 +92,20 @@ interface SchoolDetails {
 
 export default function SchoolDetails() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [data, setData] = useState<SchoolDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (id) {
-      loadSchoolDetails();
-    }
-  }, [id]);
+  const [error, setError] = useState("");
 
   const loadSchoolDetails = async () => {
     try {
       setLoading(true);
-      setError('');
-      const response = await api.instance.get(`/super-admin/schools/${id}/details`);
+      setError("");
+      const response = await api.instance.get(
+        `/super-admin/schools/${id}/details`
+      );
       setData(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load school details');
+      setError(err.response?.data?.message || "Failed to load school details");
     } finally {
       setLoading(false);
     }
@@ -131,7 +123,7 @@ export default function SchoolDetails() {
     return (
       <div className="space-y-6">
         <div className="card-modern rounded-2xl p-6 bg-red-50 border-l-4 border-red-400">
-          <p className="text-red-700">{error || 'School not found'}</p>
+          <p className="text-red-700">{error || "School not found"}</p>
           <Link
             to="/super-admin/schools"
             className="mt-4 inline-flex items-center text-indigo-600 hover:text-indigo-700"
@@ -161,17 +153,19 @@ export default function SchoolDetails() {
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
               {school.name}
             </h1>
-            <p className="text-gray-600 text-sm mt-0.5">School Details & Analytics</p>
+            <p className="text-gray-600 text-sm mt-0.5">
+              School Details & Analytics
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span
             className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-              school.status === 'active'
-                ? 'bg-green-100 text-green-800'
-                : school.status === 'suspended'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-gray-100 text-gray-800'
+              school.status === "active"
+                ? "bg-green-100 text-green-800"
+                : school.status === "suspended"
+                ? "bg-red-100 text-red-800"
+                : "bg-gray-100 text-gray-800"
             }`}
           >
             {school.status}
@@ -185,8 +179,12 @@ export default function SchoolDetails() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Students</p>
-              <p className="text-3xl font-bold text-indigo-600">{stats.totalStudents}</p>
-              <p className="text-xs text-gray-500 mt-1">{stats.activeStudents} active</p>
+              <p className="text-3xl font-bold text-indigo-600">
+                {stats.totalStudents}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {stats.activeStudents} active
+              </p>
             </div>
             <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
               <FiUsers className="w-6 h-6 text-indigo-600" />
@@ -198,7 +196,9 @@ export default function SchoolDetails() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Total Users</p>
-              <p className="text-3xl font-bold text-purple-600">{stats.totalUsers}</p>
+              <p className="text-3xl font-bold text-purple-600">
+                {stats.totalUsers}
+              </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
               <FiUsers className="w-6 h-6 text-purple-600" />
@@ -227,8 +227,12 @@ export default function SchoolDetails() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Fee Structures</p>
-              <p className="text-3xl font-bold text-pink-600">{stats.totalFeeStructures}</p>
-              <p className="text-xs text-gray-500 mt-1">{stats.activeFeeStructures} active</p>
+              <p className="text-3xl font-bold text-pink-600">
+                {stats.totalFeeStructures}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {stats.activeFeeStructures} active
+              </p>
             </div>
             <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center">
               <FiBook className="w-6 h-6 text-pink-600" />
@@ -239,11 +243,15 @@ export default function SchoolDetails() {
 
       {/* School Information */}
       <div className="card-modern rounded-2xl p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">School Information</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">
+          School Information
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <p className="text-sm text-gray-600 mb-1">Subdomain</p>
-            <p className="text-lg font-semibold text-gray-900">{school.subdomain}</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {school.subdomain}
+            </p>
           </div>
           {school.email && (
             <div>
@@ -251,7 +259,9 @@ export default function SchoolDetails() {
                 <FiMail className="w-4 h-4" />
                 Email
               </p>
-              <p className="text-lg font-semibold text-gray-900">{school.email}</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {school.email}
+              </p>
             </div>
           )}
           {school.phone && (
@@ -260,7 +270,9 @@ export default function SchoolDetails() {
                 <FiPhone className="w-4 h-4" />
                 Phone
               </p>
-              <p className="text-lg font-semibold text-gray-900">{school.phone}</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {school.phone}
+              </p>
             </div>
           )}
           {school.address && (
@@ -269,7 +281,9 @@ export default function SchoolDetails() {
                 <FiMapPin className="w-4 h-4" />
                 Address
               </p>
-              <p className="text-lg font-semibold text-gray-900">{school.address}</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {school.address}
+              </p>
             </div>
           )}
           <div>
@@ -284,7 +298,9 @@ export default function SchoolDetails() {
           {school.createdBy && (
             <div>
               <p className="text-sm text-gray-600 mb-1">Created By</p>
-              <p className="text-lg font-semibold text-gray-900">{school.createdBy.name}</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {school.createdBy.name}
+              </p>
               <p className="text-sm text-gray-500">{school.createdBy.email}</p>
             </div>
           )}
@@ -294,7 +310,9 @@ export default function SchoolDetails() {
       {/* Students Section */}
       <div className="card-modern rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Students ({students.length})</h2>
+          <h2 className="text-xl font-bold text-gray-800">
+            Students ({students.length})
+          </h2>
           <span className="text-sm text-gray-500">
             Showing {students.length} of {stats.totalStudents}
           </span>
@@ -304,43 +322,46 @@ export default function SchoolDetails() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Student ID
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Class
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50 transition-smooth">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <tr
+                    key={student.id}
+                    className="hover:bg-indigo-50/50 transition-all duration-150 group"
+                  >
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-900 font-mono">
                       {student.studentId}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-900">
                       {student.firstName} {student.lastName}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-2 text-sm text-gray-600">
                       {student.class}
                       {student.section && ` - ${student.section}`}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          student.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : student.status === 'graduated'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
+                        className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full border ${
+                          student.status === "active"
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : student.status === "graduated"
+                            ? "bg-blue-100 text-blue-700 border-blue-200"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
                         }`}
                       >
                         {student.status}
@@ -357,40 +378,49 @@ export default function SchoolDetails() {
       {/* Users Section */}
       <div className="card-modern rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Users ({users.length})</h2>
+          <h2 className="text-xl font-bold text-gray-800">
+            Users ({users.length})
+          </h2>
         </div>
         {users.length === 0 ? (
           <p className="text-gray-500 text-center py-8">No users found</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Created
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-smooth">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{user.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800 capitalize">
-                        {user.role.replace('_', ' ')}
+                  <tr
+                    key={user.id}
+                    className="hover:bg-indigo-50/50 transition-all duration-150 group"
+                  >
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-900">
+                      {user.name}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-600">
+                      {user.email}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 capitalize">
+                        {user.role.replace("_", " ")}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-2 text-sm text-gray-600">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -404,7 +434,9 @@ export default function SchoolDetails() {
       {/* Payments Section */}
       <div className="card-modern rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Recent Payments ({payments.length})</h2>
+          <h2 className="text-xl font-bold text-gray-800">
+            Recent Payments ({payments.length})
+          </h2>
           <span className="text-sm text-gray-500">
             Showing {payments.length} of {stats.totalPayments}
           </span>
@@ -414,61 +446,68 @@ export default function SchoolDetails() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Student
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Fee Structure
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Method
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Date
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50 transition-smooth">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                      {payment.student
-                        ? `${payment.student.firstName} ${payment.student.lastName}`
-                        : 'N/A'}
+                  <tr
+                    key={payment.id}
+                    className="hover:bg-indigo-50/50 transition-all duration-150 group"
+                  >
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-900">
+                      {payment.student ? (
+                        `${payment.student.firstName} ${payment.student.lastName}`
+                      ) : (
+                        <span className="text-gray-400">N/A</span>
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {payment.feeStructure?.name || 'N/A'}
+                    <td className="px-4 py-2 text-sm text-gray-600">
+                      {payment.feeStructure?.name || (
+                        <span className="text-gray-400">N/A</span>
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                    <td className="px-4 py-2 text-sm font-bold text-indigo-600">
                       ${payment.amount.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 capitalize">
-                      {payment.paymentMethod.replace('_', ' ')}
+                    <td className="px-4 py-2 text-sm text-gray-600 capitalize">
+                      {payment.paymentMethod.replace("_", " ")}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          payment.status === 'completed'
-                            ? 'bg-green-100 text-green-800'
-                            : payment.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : payment.status === 'failed'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
+                        className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full border ${
+                          payment.status === "completed"
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : payment.status === "pending"
+                            ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                            : payment.status === "failed"
+                            ? "bg-red-100 text-red-700 border-red-200"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
                         }`}
                       >
                         {payment.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-2 text-sm text-gray-600">
                       {new Date(payment.paymentDate).toLocaleDateString()}
                     </td>
                   </tr>
@@ -487,50 +526,63 @@ export default function SchoolDetails() {
           </h2>
         </div>
         {feeStructures.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No fee structures found</p>
+          <p className="text-gray-500 text-center py-8">
+            No fee structures found
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Category
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Academic Year
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Class
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {feeStructures.map((fs) => (
-                  <tr key={fs.id} className="hover:bg-gray-50 transition-smooth">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{fs.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {fs.category?.name || 'N/A'}
+                  <tr
+                    key={fs.id}
+                    className="hover:bg-indigo-50/50 transition-all duration-150 group"
+                  >
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-900">
+                      {fs.name}
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                    <td className="px-4 py-2 text-sm text-gray-600">
+                      {fs.category?.name || (
+                        <span className="text-gray-400">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-sm font-bold text-indigo-600">
                       ${fs.amount.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{fs.academicYear}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{fs.class || 'All'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2 text-sm text-gray-600">
+                      {fs.academicYear}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-600">
+                      {fs.class || "All"}
+                    </td>
+                    <td className="px-4 py-2">
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          fs.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
+                        className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full border ${
+                          fs.status === "active"
+                            ? "bg-green-100 text-green-700 border-green-200"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
                         }`}
                       >
                         {fs.status}
@@ -546,4 +598,3 @@ export default function SchoolDetails() {
     </div>
   );
 }
-

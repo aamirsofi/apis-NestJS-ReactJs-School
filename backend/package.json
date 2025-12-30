@@ -2,7 +2,7 @@
   "name": "fee-management-backend",
   "version": "1.0.0",
   "description": "School ERP Platform Backend API",
-  "author": "",
+  "author": "Aamir Bashir",
   "private": true,
   "license": "MIT",
   "scripts": {

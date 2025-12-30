@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not, ILike } from 'typeorm';
 import { School } from '../schools/entities/school.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
 import { UpdateSchoolDto } from '../schools/dto/update-school.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -149,12 +149,44 @@ export class SuperAdminService {
     return await this.usersService.create(createUserDto);
   }
 
-  async getAllUsers() {
-    return await this.usersRepository.find({
-      select: ['id', 'name', 'email', 'role', 'schoolId', 'createdAt', 'updatedAt'],
-      relations: ['schools'],
-      order: { createdAt: 'desc' },
-    });
+  async getAllUsers(page: number = 1, limit: number = 10, search?: string) {
+    try {
+      const { skip, limit: take } = getPaginationParams(page, limit);
+      
+      // Build where clause - exclude super_admin users
+      let whereConditions: any = {
+        role: Not(UserRole.SUPER_ADMIN),
+      };
+
+      // Add search filter if provided
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        whereConditions = [
+          {
+            role: Not(UserRole.SUPER_ADMIN),
+            name: ILike(searchTerm),
+          },
+          {
+            role: Not(UserRole.SUPER_ADMIN),
+            email: ILike(searchTerm),
+          },
+        ];
+      }
+
+      const [users, total] = await this.usersRepository.findAndCount({
+        select: ['id', 'name', 'email', 'role', 'schoolId', 'createdAt', 'updatedAt'],
+        relations: ['schools'],
+        where: whereConditions,
+        order: { createdAt: 'desc' },
+        skip,
+        take,
+      });
+
+      return createPaginatedResponse(users, total, page, limit);
+    } catch (error) {
+      console.error('Error in getAllUsers:', error);
+      throw error;
+    }
   }
 
   async getUser(id: number) {
