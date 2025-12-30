@@ -84,6 +84,8 @@ export default function FeeHeading() {
   const [search, setSearch] = useState("");
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
   const [selectedType, setSelectedType] = useState<string>("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+  const [isSelectAll, setIsSelectAll] = useState(false);
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(
     null
   );
@@ -308,6 +310,137 @@ export default function FeeHeading() {
     setSuccess("");
   };
 
+  // Bulk operations
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = feeCategories.map((c) => c.id);
+      setSelectedCategoryIds(allIds);
+    } else {
+      setSelectedCategoryIds([]);
+    }
+    setIsSelectAll(checked);
+  };
+
+  const handleSelectCategory = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedCategoryIds([...selectedCategoryIds, id]);
+    } else {
+      setSelectedCategoryIds(selectedCategoryIds.filter((cid) => cid !== id));
+      setIsSelectAll(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCategoryIds.length === 0) {
+      setError("Please select at least one fee category to delete");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedCategoryIds.length} fee category(es)? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const deletePromises = selectedCategoryIds.map(async (id) => {
+        const category = feeCategories.find((c) => c.id === id);
+        if (category) {
+          return api.instance.delete(
+            `/super-admin/fee-categories/${id}?schoolId=${category.schoolId}`
+          );
+        }
+      });
+
+      await Promise.all(deletePromises);
+      setSelectedCategoryIds([]);
+      setIsSelectAll(false);
+      setSuccess(
+        `Successfully deleted ${selectedCategoryIds.length} fee category(es)!`
+      );
+      loadFeeCategories();
+      setTimeout(() => setSuccess(""), 5000);
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || "Failed to delete fee categories";
+      setError(errorMessage);
+      setTimeout(() => setError(""), 5000);
+    }
+  };
+
+  const handleExport = () => {
+    if (selectedCategoryIds.length === 0) {
+      setError("Please select at least one fee category to export");
+      return;
+    }
+
+    const selectedCategories = feeCategories.filter((c) =>
+      selectedCategoryIds.includes(c.id)
+    );
+
+    // Convert to CSV
+    const headers = [
+      "Name",
+      "Description",
+      "Type",
+      "Status",
+      "School",
+      "Applicable Months",
+      "Created At",
+    ];
+
+    const rows = selectedCategories.map((category) => [
+      category.name,
+      category.description || "",
+      category.type,
+      category.status,
+      category.school?.name || `School ID: ${category.schoolId}`,
+      category.applicableMonths && category.applicableMonths.length > 0
+        ? category.applicableMonths.join(",")
+        : "All months",
+      new Date(category.createdAt).toLocaleDateString(),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `fee_categories_export_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setSuccess(
+      `Exported ${selectedCategoryIds.length} fee category(es) successfully!`
+    );
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
+  // Sync select all checkbox
+  useEffect(() => {
+    if (feeCategories.length > 0) {
+      setIsSelectAll(
+        selectedCategoryIds.length === feeCategories.length &&
+          feeCategories.every((c) => selectedCategoryIds.includes(c.id))
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategoryIds, feeCategories]);
+
   // Download sample CSV
   const downloadSampleCSV = () => {
     if (!importSchoolId) {
@@ -329,10 +462,14 @@ export default function FeeHeading() {
       "Monthly tuition fee",
       "school",
       "active",
-      "1,2,3,4,5,6,7,8,9,10,11,12", // All months
+      "1,2,3,4,5,6,7,8,9,10,11,12", // All months (comma-separated numbers 1-12)
     ];
 
-    const csvContent = [headers.join(","), sampleRow.join(",")].join("\n");
+    // Properly quote CSV cells to handle commas in applicableMonths
+    const csvContent = [
+      headers.map((h) => `"${h}"`).join(","),
+      sampleRow.map((cell) => `"${cell}"`).join(","),
+    ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -1200,10 +1337,56 @@ export default function FeeHeading() {
             </div>
           ) : (
             <>
+              {/* Bulk Actions Bar */}
+              {selectedCategoryIds.length > 0 && (
+                <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-indigo-900">
+                      {selectedCategoryIds.length} fee category(es) selected
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleExport}
+                      className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-smooth flex items-center gap-2"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                      Export
+                    </button>
+                    <button
+                      onClick={handleBulkDelete}
+                      className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-smooth flex items-center gap-2"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                      Delete ({selectedCategoryIds.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedCategoryIds([]);
+                        setIsSelectAll(false);
+                      }}
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 transition-smooth"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                 <table className="w-full">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                     <tr>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-12">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isSelectAll}
+                            onChange={(e) => handleSelectAll(e.target.checked)}
+                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          />
+                        </label>
+                      </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                         Name
                       </th>
@@ -1228,8 +1411,29 @@ export default function FeeHeading() {
                     {feeCategories.map((category) => (
                       <tr
                         key={category.id}
-                        className="hover:bg-indigo-50/50 transition-all duration-150 group"
+                        className={`hover:bg-indigo-50/50 transition-all duration-150 group ${
+                          selectedCategoryIds.includes(category.id)
+                            ? "bg-indigo-50"
+                            : ""
+                        }`}
                       >
+                        <td className="px-4 py-3">
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedCategoryIds.includes(
+                                category.id
+                              )}
+                              onChange={(e) =>
+                                handleSelectCategory(
+                                  category.id,
+                                  e.target.checked
+                                )
+                              }
+                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                          </label>
+                        </td>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-gray-900">
                             {category.name}
