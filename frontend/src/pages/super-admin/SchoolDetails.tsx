@@ -97,6 +97,7 @@ export default function SchoolDetails() {
   const [error, setError] = useState("");
 
   const loadSchoolDetails = async () => {
+    if (!id) return;
     try {
       setLoading(true);
       setError("");
@@ -110,6 +111,10 @@ export default function SchoolDetails() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSchoolDetails();
+  }, [id]);
 
   if (loading) {
     return (
@@ -168,7 +173,7 @@ export default function SchoolDetails() {
                 : "bg-gray-100 text-gray-800"
             }`}
           >
-            {school.status}
+            {school.status.charAt(0).toUpperCase() + school.status.slice(1)}
           </span>
         </div>
       </div>
