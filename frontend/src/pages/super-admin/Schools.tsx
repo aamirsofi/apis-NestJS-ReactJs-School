@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   FiEdit,
   FiTrash2,
@@ -23,6 +23,8 @@ interface PaginationMeta {
 }
 
 export default function SuperAdminSchools() {
+  const location = useLocation();
+  const editProcessedRef = useRef(false);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
@@ -45,6 +47,40 @@ export default function SuperAdminSchools() {
   useEffect(() => {
     loadSchools();
   }, [page, limit]);
+
+  // Handle navigation from School Details page with edit intent
+  useEffect(() => {
+    const state = location.state as { editSchoolId?: string; schoolData?: any };
+    if (state?.editSchoolId && state?.schoolData && !editProcessedRef.current) {
+      console.log("Edit intent detected:", state);
+      // Use the provided schoolData directly (it's already loaded from School Details)
+      const schoolToEdit = state.schoolData;
+
+      if (schoolToEdit && schoolToEdit.id) {
+        console.log("Setting up edit form for school:", schoolToEdit);
+        editProcessedRef.current = true;
+        setEditingSchool(schoolToEdit);
+        setFormData({
+          name: schoolToEdit.name,
+          subdomain: schoolToEdit.subdomain,
+          email: schoolToEdit.email || "",
+          phone: schoolToEdit.phone || "",
+          address: schoolToEdit.address || "",
+          status: schoolToEdit.status,
+        });
+        setError("");
+      } else {
+        console.warn("Invalid school data:", schoolToEdit);
+      }
+    }
+  }, [location.state]);
+
+  // Reset edit processed flag when location changes (user navigates away and back)
+  useEffect(() => {
+    if (!location.state) {
+      editProcessedRef.current = false;
+    }
+  }, [location.pathname]);
 
   const loadSchools = async () => {
     try {

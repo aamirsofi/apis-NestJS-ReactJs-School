@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   FiLoader,
   FiUsers,
@@ -10,6 +10,8 @@ import {
   FiPhone,
   FiMapPin,
   FiCalendar,
+  FiRefreshCw,
+  FiEdit,
 } from "react-icons/fi";
 import api from "../../services/api";
 
@@ -92,29 +94,52 @@ interface SchoolDetails {
 
 export default function SchoolDetails() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [data, setData] = useState<SchoolDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadSchoolDetails = async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      setError("");
-      const response = await api.instance.get(
-        `/super-admin/schools/${id}/details`
-      );
-      setData(response.data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to load school details");
-    } finally {
-      setLoading(false);
-    }
+  const loadSchoolDetails = useCallback(
+    async (isRefresh = false) => {
+      if (!id) return;
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+        setError("");
+        const response = await api.instance.get(
+          `/super-admin/schools/${id}/details`
+        );
+        setData(response.data);
+      } catch (err: any) {
+        setError(
+          err.response?.data?.message || "Failed to load school details"
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [id]
+  );
+
+  const handleRefresh = () => {
+    loadSchoolDetails(true);
+  };
+
+  const handleEdit = () => {
+    // Navigate to schools page with school data in state for editing
+    navigate("/super-admin/schools", {
+      state: { editSchoolId: id, schoolData: data?.school },
+    });
   };
 
   useEffect(() => {
     loadSchoolDetails();
-  }, [id]);
+  }, [loadSchoolDetails]);
 
   if (loading) {
     return (
@@ -164,6 +189,23 @@ export default function SchoolDetails() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleEdit}
+            className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-smooth"
+            title="Edit school"
+          >
+            <FiEdit className="w-5 h-5" />
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh data"
+          >
+            <FiRefreshCw
+              className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`}
+            />
+          </button>
           <span
             className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
               school.status === "active"
@@ -281,7 +323,7 @@ export default function SchoolDetails() {
             </div>
           )}
           {school.address && (
-            <div className="md:col-span-2">
+            <div>
               <p className="text-sm text-gray-600 mb-1 flex items-center gap-2">
                 <FiMapPin className="w-4 h-4" />
                 Address
