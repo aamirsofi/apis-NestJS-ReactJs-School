@@ -149,24 +149,24 @@ export default function SchoolDetails() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="card-modern rounded-xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <Link
             to="/super-admin/schools"
-            className="p-2 hover:bg-gray-100 rounded-lg transition-smooth"
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-smooth"
           >
-            <FiArrowLeft className="w-5 h-5 text-gray-600" />
+            <FiArrowLeft className="w-4 h-4 text-gray-600" />
           </Link>
           <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
               {school.name}
             </h1>
-            <p className="text-gray-600 mt-1">School Details & Analytics</p>
+            <p className="text-gray-600 text-sm mt-0.5">School Details & Analytics</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`px-3 py-1 text-sm font-semibold rounded-full ${
+            className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
               school.status === 'active'
                 ? 'bg-green-100 text-green-800'
                 : school.status === 'suspended'

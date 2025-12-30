@@ -105,22 +105,22 @@ export default function SuperAdminUsers() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="card-modern rounded-2xl p-6">
+      <div className="card-modern rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
               Users Management
             </h1>
-            <p className="text-gray-600 mt-2">Manage all users in the system</p>
+            <p className="text-gray-600 text-sm mt-1">Manage all users in the system</p>
           </div>
           <button
             onClick={() => {
               resetForm();
               setShowModal(true);
             }}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
           >
             <FiPlus /> Add User
           </button>

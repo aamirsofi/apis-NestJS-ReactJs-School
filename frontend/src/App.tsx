@@ -11,6 +11,7 @@ import SuperAdminDashboard from './pages/super-admin/Dashboard';
 import SuperAdminSchools from './pages/super-admin/Schools';
 import SuperAdminUsers from './pages/super-admin/Users';
 import SuperAdminSchoolDetails from './pages/super-admin/SchoolDetails';
+import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -68,8 +69,28 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/super-admin/profile"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           
           {/* School Admin Routes */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

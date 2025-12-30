@@ -42,13 +42,13 @@ export default function SuperAdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="card-modern rounded-2xl p-6">
-        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+      <div className="card-modern rounded-xl p-4">
+        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
           Super Admin Dashboard
         </h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.name}</p>
+        <p className="text-gray-600 text-sm mt-1">Welcome back, {user?.name}</p>
       </div>
 
       {/* Stats Cards */}
