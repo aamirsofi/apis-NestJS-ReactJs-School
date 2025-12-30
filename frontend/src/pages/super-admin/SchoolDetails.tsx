@@ -12,8 +12,11 @@ import {
   FiCalendar,
   FiRefreshCw,
   FiEdit,
+  FiUpload,
+  FiX,
 } from "react-icons/fi";
 import api from "../../services/api";
+import StudentBulkImport from "../../components/StudentBulkImport";
 
 interface SchoolDetails {
   school: {
@@ -99,6 +102,9 @@ export default function SchoolDetails() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importSuccess, setImportSuccess] = useState("");
 
   const loadSchoolDetails = useCallback(
     async (isRefresh = false) => {
@@ -135,6 +141,23 @@ export default function SchoolDetails() {
     navigate("/super-admin/schools", {
       state: { editSchoolId: id, schoolData: data?.school },
     });
+  };
+
+  const handleImportSuccess = () => {
+    setImportSuccess("Students imported successfully!");
+    setImportError("");
+    setShowBulkImport(false);
+    // Reload school details to show new students
+    loadSchoolDetails(true);
+    // Clear success message after 5 seconds
+    setTimeout(() => setImportSuccess(""), 5000);
+  };
+
+  const handleImportError = (error: string) => {
+    setImportError(error);
+    setImportSuccess("");
+    // Clear error message after 5 seconds
+    setTimeout(() => setImportError(""), 5000);
   };
 
   useEffect(() => {
@@ -354,15 +377,36 @@ export default function SchoolDetails() {
         </div>
       </div>
 
+      {/* Success/Error Messages */}
+      {importSuccess && (
+        <div className="card-modern rounded-xl p-4 bg-green-50 border-l-4 border-green-400">
+          <p className="text-green-700">{importSuccess}</p>
+        </div>
+      )}
+      {importError && (
+        <div className="card-modern rounded-xl p-4 bg-red-50 border-l-4 border-red-400">
+          <p className="text-red-700">{importError}</p>
+        </div>
+      )}
+
       {/* Students Section */}
       <div className="card-modern rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800">
             Students ({students.length})
           </h2>
-          <span className="text-sm text-gray-500">
-            Showing {students.length} of {stats.totalStudents}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">
+              Showing {students.length} of {stats.totalStudents}
+            </span>
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+            >
+              <FiUpload className="w-4 h-4" />
+              Bulk Import
+            </button>
+          </div>
         </div>
         {students.length === 0 ? (
           <p className="text-gray-500 text-center py-8">No students found</p>
@@ -642,6 +686,39 @@ export default function SchoolDetails() {
           </div>
         )}
       </div>
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="card-modern rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                  Bulk Import Students
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Upload a CSV file to import multiple students at once
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowBulkImport(false);
+                  setImportError("");
+                  setImportSuccess("");
+                }}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-smooth"
+              >
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+            <StudentBulkImport
+              schoolId={school.id}
+              onImportSuccess={handleImportSuccess}
+              onImportError={handleImportError}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

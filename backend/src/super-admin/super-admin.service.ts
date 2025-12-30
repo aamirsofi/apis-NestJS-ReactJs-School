@@ -12,7 +12,12 @@ import { UsersService } from '../users/users.service';
 import { Student, StudentStatus } from '../students/entities/student.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
+import { FeeCategory, CategoryStatus, FeeCategoryType } from '../fee-categories/entities/fee-category.entity';
 import { getPaginationParams, createPaginatedResponse } from '../common/utils/pagination.util';
+import { BulkImportStudentsDto } from './dto/bulk-import-students.dto';
+import { CreateStudentDto } from '../students/dto/create-student.dto';
+import { CreateFeeCategoryDto } from '../fee-categories/dto/create-fee-category.dto';
+import { UpdateFeeCategoryDto } from '../fee-categories/dto/update-fee-category.dto';
 
 @Injectable()
 export class SuperAdminService {
@@ -27,6 +32,8 @@ export class SuperAdminService {
     private paymentsRepository: Repository<Payment>,
     @InjectRepository(FeeStructure)
     private feeStructuresRepository: Repository<FeeStructure>,
+    @InjectRepository(FeeCategory)
+    private feeCategoriesRepository: Repository<FeeCategory>,
     private schoolsService: SchoolsService,
     private usersService: UsersService,
   ) {}
@@ -350,6 +357,348 @@ export class SuperAdminService {
       totalRevenue: totalRevenue?.total || 0,
       recentSchools,
     };
+  }
+
+  async bulkImportStudents(
+    schoolId: number,
+    bulkImportDto: BulkImportStudentsDto,
+  ): Promise<{
+    success: number;
+    failed: number;
+    errors: Array<{ row: number; studentId?: string; email?: string; error: string }>;
+    created: Array<{ studentId: string; email: string; name: string }>;
+  }> {
+    // Verify school exists
+    const school = await this.schoolsRepository.findOne({
+      where: { id: schoolId },
+    });
+    if (!school) {
+      throw new NotFoundException(`School with ID ${schoolId} not found`);
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as Array<{ row: number; studentId?: string; email?: string; error: string }>,
+      created: [] as Array<{ studentId: string; email: string; name: string }>,
+    };
+
+    // Process each student
+    for (let i = 0; i < bulkImportDto.students.length; i++) {
+      const studentDto = bulkImportDto.students[i];
+      const rowNumber = i + 1; // 1-indexed for user-friendly error messages
+
+      try {
+        // Validate required fields
+        if (!studentDto.studentId?.trim()) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            error: 'Student ID is required',
+          });
+          continue;
+        }
+
+        if (!studentDto.firstName?.trim() || !studentDto.lastName?.trim()) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            studentId: studentDto.studentId,
+            error: 'First name and last name are required',
+          });
+          continue;
+        }
+
+        if (!studentDto.email?.trim()) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            studentId: studentDto.studentId,
+            error: 'Email is required',
+          });
+          continue;
+        }
+
+        if (!studentDto.class?.trim()) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            studentId: studentDto.studentId,
+            error: 'Class is required',
+          });
+          continue;
+        }
+
+        // Check for duplicates within the import batch
+        const duplicateInBatch = bulkImportDto.students
+          .slice(0, i)
+          .some(
+            (s) =>
+              s.studentId?.trim().toLowerCase() === studentDto.studentId.trim().toLowerCase() ||
+              s.email?.trim().toLowerCase() === studentDto.email.trim().toLowerCase(),
+          );
+
+        if (duplicateInBatch) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            studentId: studentDto.studentId,
+            email: studentDto.email,
+            error: 'Duplicate student ID or email in import file',
+          });
+          continue;
+        }
+
+        // Check if student already exists in database
+        const existingStudentId = await this.studentsRepository.findOne({
+          where: {
+            studentId: studentDto.studentId.trim(),
+            schoolId,
+          },
+        });
+
+        if (existingStudentId) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            studentId: studentDto.studentId,
+            error: `Student ID "${studentDto.studentId}" already exists for this school`,
+          });
+          continue;
+        }
+
+        const existingEmail = await this.studentsRepository.findOne({
+          where: {
+            email: studentDto.email.trim().toLowerCase(),
+            schoolId,
+          },
+        });
+
+        if (existingEmail) {
+          results.failed++;
+          results.errors.push({
+            row: rowNumber,
+            studentId: studentDto.studentId,
+            email: studentDto.email,
+            error: `Email "${studentDto.email}" already exists for this school`,
+          });
+          continue;
+        }
+
+        // Create the student
+        const studentData: Partial<Student> = {
+          studentId: studentDto.studentId.trim(),
+          firstName: studentDto.firstName.trim(),
+          lastName: studentDto.lastName.trim(),
+          email: studentDto.email.trim().toLowerCase(),
+          phone: studentDto.phone?.trim() || undefined,
+          address: studentDto.address?.trim() || undefined,
+          class: studentDto.class.trim(),
+          section: studentDto.section?.trim() || undefined,
+          status: (studentDto.status || StudentStatus.ACTIVE) as StudentStatus,
+          schoolId,
+        };
+
+        const student = this.studentsRepository.create(studentData);
+        const savedStudent = await this.studentsRepository.save(student);
+        results.success++;
+        results.created.push({
+          studentId: savedStudent.studentId,
+          email: savedStudent.email,
+          name: `${savedStudent.firstName} ${savedStudent.lastName}`,
+        });
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push({
+          row: rowNumber,
+          studentId: studentDto.studentId,
+          email: studentDto.email,
+          error: error.message || 'Failed to create student',
+        });
+      }
+    }
+
+    return results;
+  }
+
+  // ========== FEE CATEGORIES MANAGEMENT ==========
+  async getAllFeeCategories(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    schoolId?: number,
+    type?: FeeCategoryType,
+  ) {
+    const { skip, limit: take } = getPaginationParams(page, limit);
+
+    const queryBuilder = this.feeCategoriesRepository
+      .createQueryBuilder('feeCategory')
+      .leftJoinAndSelect('feeCategory.school', 'school')
+      .orderBy('feeCategory.createdAt', 'DESC');
+
+    // Build where conditions
+    const whereConditions: any[] = [];
+    const whereParams: any = {};
+
+    // Filter by school if provided
+    if (schoolId) {
+      whereConditions.push('feeCategory.schoolId = :schoolId');
+      whereParams.schoolId = schoolId;
+    }
+
+    // Filter by type if provided
+    if (type) {
+      whereConditions.push('feeCategory.type = :type');
+      whereParams.type = type;
+    }
+
+    // Apply where conditions
+    if (whereConditions.length > 0) {
+      queryBuilder.where(whereConditions.join(' AND '), whereParams);
+    }
+
+    // Search filter
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      if (whereConditions.length > 0) {
+        queryBuilder.andWhere(
+          '(feeCategory.name ILIKE :search OR feeCategory.description ILIKE :search)',
+          { search: searchTerm },
+        );
+      } else {
+        queryBuilder.where(
+          '(feeCategory.name ILIKE :search OR feeCategory.description ILIKE :search)',
+          { search: searchTerm },
+        );
+      }
+    }
+
+    const [data, total] = await queryBuilder
+      .skip(skip)
+      .take(take)
+      .getManyAndCount();
+
+    return createPaginatedResponse(data, total, page, take);
+  }
+
+  async getFeeCategoryById(id: number) {
+    const feeCategory = await this.feeCategoriesRepository.findOne({
+      where: { id },
+      relations: ['school', 'feeStructures'],
+    });
+
+    if (!feeCategory) {
+      throw new NotFoundException(`Fee category with ID ${id} not found`);
+    }
+
+    return feeCategory;
+  }
+
+  async createFeeCategory(createFeeCategoryDto: CreateFeeCategoryDto, schoolId: number) {
+    // Verify school exists
+    const school = await this.schoolsRepository.findOne({
+      where: { id: schoolId },
+    });
+
+    if (!school) {
+      throw new NotFoundException(`School with ID ${schoolId} not found`);
+    }
+
+    // Check for duplicate name within the same school
+    const existing = await this.feeCategoriesRepository.findOne({
+      where: {
+        name: createFeeCategoryDto.name.trim(),
+        schoolId,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        `Fee category with name "${createFeeCategoryDto.name}" already exists for this school`,
+      );
+    }
+
+    const feeCategory = this.feeCategoriesRepository.create({
+      ...createFeeCategoryDto,
+      name: createFeeCategoryDto.name.trim(),
+      type: createFeeCategoryDto.type || FeeCategoryType.SCHOOL,
+      categoryHeadId: createFeeCategoryDto.categoryHeadId,
+      schoolId,
+    });
+
+    return await this.feeCategoriesRepository.save(feeCategory);
+  }
+
+  async updateFeeCategory(
+    id: number,
+    updateFeeCategoryDto: UpdateFeeCategoryDto,
+    schoolId?: number,
+  ) {
+    const feeCategory = await this.feeCategoriesRepository.findOne({
+      where: { id },
+    });
+
+    if (!feeCategory) {
+      throw new NotFoundException(`Fee category with ID ${id} not found`);
+    }
+
+    // If schoolId is provided, verify it matches
+    if (schoolId && feeCategory.schoolId !== schoolId) {
+      throw new BadRequestException(
+        `Fee category does not belong to school with ID ${schoolId}`,
+      );
+    }
+
+    // Check for duplicate name if name is being updated
+    if (updateFeeCategoryDto.name && updateFeeCategoryDto.name.trim() !== feeCategory.name) {
+      const existing = await this.feeCategoriesRepository.findOne({
+        where: {
+          name: updateFeeCategoryDto.name.trim(),
+          schoolId: feeCategory.schoolId,
+        },
+      });
+
+      if (existing) {
+        throw new BadRequestException(
+          `Fee category with name "${updateFeeCategoryDto.name}" already exists for this school`,
+        );
+      }
+    }
+
+    Object.assign(feeCategory, {
+      ...updateFeeCategoryDto,
+      name: updateFeeCategoryDto.name?.trim() || feeCategory.name,
+    });
+
+    return await this.feeCategoriesRepository.save(feeCategory);
+  }
+
+  async deleteFeeCategory(id: number, schoolId?: number) {
+    const feeCategory = await this.feeCategoriesRepository.findOne({
+      where: { id },
+      relations: ['feeStructures'],
+    });
+
+    if (!feeCategory) {
+      throw new NotFoundException(`Fee category with ID ${id} not found`);
+    }
+
+    // If schoolId is provided, verify it matches
+    if (schoolId && feeCategory.schoolId !== schoolId) {
+      throw new BadRequestException(
+        `Fee category does not belong to school with ID ${schoolId}`,
+      );
+    }
+
+    // Check if fee category has associated fee structures
+    if (feeCategory.feeStructures && feeCategory.feeStructures.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete fee category. It has ${feeCategory.feeStructures.length} associated fee structure(s). Please remove or reassign them first.`,
+      );
+    }
+
+    await this.feeCategoriesRepository.remove(feeCategory);
+    return { message: 'Fee category deleted successfully' };
   }
 }
 

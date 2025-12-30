@@ -11,6 +11,9 @@ import SuperAdminDashboard from './pages/super-admin/Dashboard';
 import SuperAdminSchools from './pages/super-admin/Schools';
 import SuperAdminUsers from './pages/super-admin/Users';
 import SuperAdminSchoolDetails from './pages/super-admin/SchoolDetails';
+import BulkImportStudents from './pages/super-admin/BulkImportStudents';
+import FeeHeading from './pages/super-admin/FeeHeading';
+import CategoryHeads from './pages/super-admin/CategoryHeads';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -45,6 +48,36 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <SuperAdminSchools />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/schools/bulk-import"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <BulkImportStudents />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/settings/fee-settings/fee-heads/fee-heading"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <FeeHeading />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/settings/fee-settings/category-heads"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CategoryHeads />
                 </Layout>
               </ProtectedRoute>
             }

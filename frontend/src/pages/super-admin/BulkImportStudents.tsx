@@ -1,0 +1,232 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FiUpload, FiArrowLeft, FiLoader } from "react-icons/fi";
+import api from "../../services/api";
+import StudentBulkImport from "../../components/StudentBulkImport";
+import CustomDropdown from "../../components/ui/CustomDropdown";
+
+interface School {
+  id: number;
+  name: string;
+  subdomain: string;
+  status: string;
+}
+
+export default function BulkImportStudents() {
+  const navigate = useNavigate();
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+  const [loadingSchools, setLoadingSchools] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    loadSchools();
+  }, []);
+
+  const loadSchools = async () => {
+    try {
+      setLoadingSchools(true);
+      setError("");
+      // Fetch all active schools
+      const allSchools: School[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await api.instance.get("/super-admin/schools", {
+          params: { page, limit: 100, status: "active" },
+        });
+        const { data, meta } = response.data;
+        allSchools.push(...data);
+        hasMore = page < meta.totalPages;
+        page++;
+      }
+
+      setSchools(allSchools);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to load schools");
+    } finally {
+      setLoadingSchools(false);
+    }
+  };
+
+  const handleImportSuccess = () => {
+    setSuccess("Students imported successfully!");
+    setError("");
+    // Clear success message after 5 seconds
+    setTimeout(() => setSuccess(""), 5000);
+  };
+
+  const handleImportError = (errorMessage: string) => {
+    setError(errorMessage);
+    setSuccess("");
+    // Clear error message after 5 seconds
+    setTimeout(() => setError(""), 5000);
+  };
+
+  const selectedSchool = schools.find((s) => s.id === selectedSchoolId);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="card-modern rounded-xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/super-admin/schools")}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-smooth"
+          >
+            <FiArrowLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+              Bulk Import Students
+            </h1>
+            <p className="text-gray-600 text-sm mt-0.5">
+              Import multiple students from a CSV file
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="card-modern rounded-xl p-4 bg-green-50 border-l-4 border-green-400">
+          <p className="text-green-700">{success}</p>
+        </div>
+      )}
+      {error && (
+        <div className="card-modern rounded-xl p-4 bg-red-50 border-l-4 border-red-400">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* School Selection */}
+      <div className="card-modern rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          Select School
+        </h2>
+        {loadingSchools ? (
+          <div className="flex items-center justify-center py-8">
+            <FiLoader className="w-6 h-6 animate-spin text-indigo-600" />
+            <span className="ml-2 text-gray-600">Loading schools...</span>
+          </div>
+        ) : (
+          <div className="max-w-md">
+            <CustomDropdown
+              options={schools.map((school) => ({
+                value: school.id.toString(),
+                label: school.name,
+              }))}
+              value={selectedSchoolId?.toString() || ""}
+              onChange={(value) => setSelectedSchoolId(parseInt(value))}
+              placeholder="Select a school..."
+              className="w-full"
+            />
+            {selectedSchool && (
+              <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                <p className="text-sm text-gray-600 mb-1">Selected School:</p>
+                <p className="text-lg font-semibold text-indigo-900">
+                  {selectedSchool.name}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Subdomain: {selectedSchool.subdomain}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Import Component */}
+      {selectedSchoolId && (
+        <div className="card-modern rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            Upload CSV File
+          </h2>
+          <StudentBulkImport
+            schoolId={selectedSchoolId}
+            onImportSuccess={handleImportSuccess}
+            onImportError={handleImportError}
+          />
+        </div>
+      )}
+
+      {/* Instructions */}
+      <div className="card-modern rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          CSV Format Instructions
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              Required Columns:
+            </h3>
+            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">studentId</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">student_id</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Student ID</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">firstName</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">first_name</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">First Name</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">lastName</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">last_name</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Last Name</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">email</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Email</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">class</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Class</code>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              Optional Columns:
+            </h3>
+            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">phone</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Phone</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">address</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Address</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">section</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Section</code>
+              </li>
+              <li>
+                <code className="bg-gray-100 px-2 py-0.5 rounded">status</code>{" "}
+                or <code className="bg-gray-100 px-2 py-0.5 rounded">Status</code>{" "}
+                (defaults to "active")
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              Example CSV:
+            </h3>
+            <div className="bg-gray-100 rounded-lg p-4 overflow-x-auto">
+              <pre className="text-xs text-gray-700">
+{`studentId,firstName,lastName,email,phone,address,class,section,status
+STU001,John,Doe,john.doe@example.com,+1234567890,123 Main St,10th Grade,A,active
+STU002,Jane,Smith,jane.smith@example.com,+1234567891,456 Oak Ave,10th Grade,B,active`}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

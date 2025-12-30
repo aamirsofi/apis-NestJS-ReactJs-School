@@ -9,8 +9,9 @@ import {
   UseGuards,
   Request,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiOkResponse, ApiExtraModels } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiOkResponse, ApiExtraModels, ApiParam, ApiBody } from '@nestjs/swagger';
 import { SuperAdminService } from './super-admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -23,6 +24,13 @@ import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { PaginatedSchoolResponseDto } from './dto/paginated-school-response.dto';
 import { School } from '../schools/entities/school.entity';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { BulkImportStudentsDto } from './dto/bulk-import-students.dto';
+import { CreateFeeCategoryDto } from '../fee-categories/dto/create-fee-category.dto';
+import { UpdateFeeCategoryDto } from '../fee-categories/dto/update-fee-category.dto';
+import { CreateCategoryHeadDto } from '../category-heads/dto/create-category-head.dto';
+import { UpdateCategoryHeadDto } from '../category-heads/dto/update-category-head.dto';
+import { CategoryHeadsService } from '../category-heads/category-heads.service';
+import { FeeCategoryType } from '../fee-categories/entities/fee-category.entity';
 
 @ApiTags('Super Admin')
 @ApiBearerAuth('JWT-auth')
@@ -31,7 +39,10 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN)
 export class SuperAdminController {
-  constructor(private readonly superAdminService: SuperAdminService) {}
+  constructor(
+    private readonly superAdminService: SuperAdminService,
+    private readonly categoryHeadsService: CategoryHeadsService,
+  ) {}
 
   // ========== SCHOOL MANAGEMENT ==========
   @Post('schools')
@@ -162,6 +173,44 @@ export class SuperAdminController {
     return this.superAdminService.deleteSchool(+id);
   }
 
+  @Post('schools/:id/students/bulk-import')
+  @ApiOperation({
+    summary: 'Bulk import students for a school (Super Admin only)',
+    description: 'Import multiple students at once for a specific school. Returns success/failure counts and detailed errors.',
+  })
+  @ApiOkResponse({
+    description: 'Bulk import completed',
+    schema: {
+      example: {
+        success: 5,
+        failed: 2,
+        errors: [
+          {
+            row: 3,
+            studentId: 'STU003',
+            email: 'duplicate@example.com',
+            error: 'Email already exists for this school',
+          },
+        ],
+        created: [
+          {
+            studentId: 'STU001',
+            email: 'john.doe@example.com',
+            name: 'John Doe',
+          },
+        ],
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  bulkImportStudents(
+    @Param('id') id: string,
+    @Body() bulkImportDto: BulkImportStudentsDto,
+  ) {
+    return this.superAdminService.bulkImportStudents(+id, bulkImportDto);
+  }
+
   // ========== USER MANAGEMENT ==========
   @Post('users')
   @ApiOperation({ summary: 'Create a new user (Super Admin only)' })
@@ -248,12 +297,259 @@ export class SuperAdminController {
     return this.superAdminService.deleteUser(+id);
   }
 
+  // ========== FEE CATEGORIES MANAGEMENT ==========
+  @Get('fee-categories')
+  @ApiOperation({
+    summary: 'Get all fee categories with pagination and search (Super Admin only)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1, minimum: 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10, minimum: 1, maximum: 100)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search query to filter by name or description',
+    example: 'tuition',
+  })
+  @ApiQuery({
+    name: 'schoolId',
+    required: false,
+    type: Number,
+    description: 'Filter by school ID',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['school', 'transport'],
+    description: 'Filter by fee type (school or transport)',
+    example: 'school',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of fee categories',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            name: 'Tuition Fee',
+            description: 'Regular tuition fees',
+            status: 'active',
+            schoolId: 1,
+            school: { id: 1, name: 'Example School' },
+            createdAt: '2024-01-01T00:00:00.000Z',
+            updatedAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        meta: {
+          total: 10,
+          page: 1,
+          limit: 10,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      },
+    },
+  })
+  getAllFeeCategories(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('schoolId') schoolId?: string,
+    @Query('type') type?: FeeCategoryType,
+  ) {
+    return this.superAdminService.getAllFeeCategories(
+      page ? +page : 1,
+      limit ? +limit : 10,
+      search,
+      schoolId ? +schoolId : undefined,
+      type,
+    );
+  }
+
+  @Get('fee-categories/:id')
+  @ApiOperation({ summary: 'Get fee category by ID (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Fee category ID' })
+  @ApiResponse({ status: 200, description: 'Fee category found' })
+  @ApiResponse({ status: 404, description: 'Fee category not found' })
+  getFeeCategoryById(@Param('id') id: string) {
+    return this.superAdminService.getFeeCategoryById(+id);
+  }
+
+  @Post('fee-categories')
+  @ApiOperation({ summary: 'Create a new fee category (Super Admin only)' })
+  @ApiBody({ type: CreateFeeCategoryDto })
+  @ApiResponse({ status: 201, description: 'Fee category created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  createFeeCategory(
+    @Body() createFeeCategoryDto: CreateFeeCategoryDto,
+    @Query('schoolId') schoolId: string,
+  ) {
+    if (!schoolId) {
+      throw new BadRequestException('schoolId query parameter is required');
+    }
+    return this.superAdminService.createFeeCategory(createFeeCategoryDto, +schoolId);
+  }
+
+  @Patch('fee-categories/:id')
+  @ApiOperation({ summary: 'Update fee category (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Fee category ID' })
+  @ApiBody({ type: UpdateFeeCategoryDto })
+  @ApiResponse({ status: 200, description: 'Fee category updated successfully' })
+  @ApiResponse({ status: 404, description: 'Fee category not found' })
+  updateFeeCategory(
+    @Param('id') id: string,
+    @Body() updateFeeCategoryDto: UpdateFeeCategoryDto,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.superAdminService.updateFeeCategory(
+      +id,
+      updateFeeCategoryDto,
+      schoolId ? +schoolId : undefined,
+    );
+  }
+
+  @Delete('fee-categories/:id')
+  @ApiOperation({ summary: 'Delete fee category (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Fee category ID' })
+  @ApiResponse({ status: 200, description: 'Fee category deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Fee category not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - fee category has associated fee structures',
+  })
+  deleteFeeCategory(
+    @Param('id') id: string,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.superAdminService.deleteFeeCategory(+id, schoolId ? +schoolId : undefined);
+  }
+
   // ========== DASHBOARD & STATS ==========
   @Get('dashboard')
   @ApiOperation({ summary: 'Get super admin dashboard statistics' })
   @ApiResponse({ status: 200, description: 'Dashboard statistics' })
   getDashboardStats() {
     return this.superAdminService.getDashboardStats();
+  }
+
+  // ========== CATEGORY HEADS MANAGEMENT ==========
+  @Get('category-heads')
+  @ApiOperation({
+    summary: 'Get all category heads with pagination and search (Super Admin only)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1, minimum: 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10, minimum: 1, maximum: 100)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search query to filter by name or description',
+    example: 'general',
+  })
+  @ApiQuery({
+    name: 'schoolId',
+    required: false,
+    type: Number,
+    description: 'Filter by school ID',
+    example: 1,
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of category heads',
+  })
+  getAllCategoryHeads(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.categoryHeadsService.findAll(
+      page ? +page : 1,
+      limit ? +limit : 10,
+      search,
+      schoolId ? +schoolId : undefined,
+    );
+  }
+
+  @Get('category-heads/:id')
+  @ApiOperation({ summary: 'Get category head by ID (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Category head ID' })
+  @ApiResponse({ status: 200, description: 'Category head found' })
+  @ApiResponse({ status: 404, description: 'Category head not found' })
+  getCategoryHeadById(@Param('id') id: string, @Query('schoolId') schoolId?: string) {
+    return this.categoryHeadsService.findOne(+id, schoolId ? +schoolId : undefined);
+  }
+
+  @Post('category-heads')
+  @ApiOperation({ summary: 'Create a new category head (Super Admin only)' })
+  @ApiBody({ type: CreateCategoryHeadDto })
+  @ApiResponse({ status: 201, description: 'Category head created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  createCategoryHead(
+    @Body() createCategoryHeadDto: CreateCategoryHeadDto,
+    @Query('schoolId') schoolId: string,
+  ) {
+    if (!schoolId) {
+      throw new BadRequestException('schoolId query parameter is required');
+    }
+    return this.categoryHeadsService.create(createCategoryHeadDto, +schoolId);
+  }
+
+  @Patch('category-heads/:id')
+  @ApiOperation({ summary: 'Update category head (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Category head ID' })
+  @ApiBody({ type: UpdateCategoryHeadDto })
+  @ApiResponse({ status: 200, description: 'Category head updated successfully' })
+  @ApiResponse({ status: 404, description: 'Category head not found' })
+  updateCategoryHead(
+    @Param('id') id: string,
+    @Body() updateCategoryHeadDto: UpdateCategoryHeadDto,
+    @Query('schoolId') schoolId: string,
+  ) {
+    if (!schoolId) {
+      throw new BadRequestException('schoolId query parameter is required');
+    }
+    return this.categoryHeadsService.update(+id, updateCategoryHeadDto, +schoolId);
+  }
+
+  @Delete('category-heads/:id')
+  @ApiOperation({ summary: 'Delete category head (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Category head ID' })
+  @ApiResponse({ status: 200, description: 'Category head deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Category head not found' })
+  @ApiResponse({ status: 400, description: 'Cannot delete - category head is in use' })
+  removeCategoryHead(@Param('id') id: string, @Query('schoolId') schoolId: string) {
+    if (!schoolId) {
+      throw new BadRequestException('schoolId query parameter is required');
+    }
+    return this.categoryHeadsService.remove(+id, +schoolId);
   }
 }
 

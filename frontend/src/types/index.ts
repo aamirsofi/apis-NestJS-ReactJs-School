@@ -55,11 +55,18 @@ export interface Student {
   updatedAt: string;
 }
 
+export type FeeCategoryType = 'school' | 'transport';
+
+export type CategoryHead = 'general' | 'sponsored';
+
 export interface FeeCategory {
   id: number;
   name: string;
   description?: string;
+  type: FeeCategoryType;
   status: 'active' | 'inactive';
+  categoryHead?: CategoryHead; // General or Sponsored
+  applicableMonths?: number[]; // Array of month numbers (1-12)
   schoolId: number;
   createdAt: string;
   updatedAt: string;

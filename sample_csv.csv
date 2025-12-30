@@ -1,0 +1,3 @@
+studentId,firstName,lastName,email,phone,address,class,section,status
+STU001,John,Doe,john.doe@example.com,+1234567890,123 Main St,10th Grade,A,active
+STU002,Jane,Smith,jane.smith@example.com,+1234567891,456 Oak Ave,10th Grade,B,active
