@@ -814,17 +814,23 @@ export class SuperAdminService {
       }
     }
 
-    // Check for duplicate name within school
+    // Check for duplicate name within school (academic year is optional now)
+    const whereCondition: any = {
+      name: createFeeStructureDto.name,
+      schoolId,
+    };
+    if (createFeeStructureDto.academicYear) {
+      whereCondition.academicYear = createFeeStructureDto.academicYear;
+    }
     const existing = await this.feeStructuresRepository.findOne({
-      where: {
-        name: createFeeStructureDto.name,
-        schoolId,
-        academicYear: createFeeStructureDto.academicYear,
-      },
+      where: whereCondition,
     });
     if (existing) {
+      const yearText = createFeeStructureDto.academicYear 
+        ? ` for academic year ${createFeeStructureDto.academicYear}`
+        : '';
       throw new BadRequestException(
-        `Fee structure with name "${createFeeStructureDto.name}" already exists for this school and academic year`,
+        `Fee structure with name "${createFeeStructureDto.name}" already exists for this school${yearText}`,
       );
     }
 
@@ -898,16 +904,21 @@ export class SuperAdminService {
 
     // Check for duplicate name if name is being updated
     if (updateFeeStructureDto.name) {
+      const whereCondition: any = {
+        name: updateFeeStructureDto.name,
+        schoolId,
+      };
+      const academicYear = updateFeeStructureDto.academicYear || feeStructure.academicYear;
+      if (academicYear) {
+        whereCondition.academicYear = academicYear;
+      }
       const existing = await this.feeStructuresRepository.findOne({
-        where: {
-          name: updateFeeStructureDto.name,
-          schoolId,
-          academicYear: updateFeeStructureDto.academicYear || feeStructure.academicYear,
-        },
+        where: whereCondition,
       });
       if (existing && existing.id !== id) {
+        const yearText = academicYear ? ` for academic year ${academicYear}` : '';
         throw new BadRequestException(
-          `Fee structure with name "${updateFeeStructureDto.name}" already exists for this school and academic year`,
+          `Fee structure with name "${updateFeeStructureDto.name}" already exists for this school${yearText}`,
         );
       }
     }

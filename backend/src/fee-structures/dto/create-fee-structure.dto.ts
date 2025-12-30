@@ -32,9 +32,10 @@ export class CreateFeeStructureDto {
   @IsOptional()
   class?: string;
 
-  @ApiProperty({ example: '2024-2025' })
+  @ApiProperty({ required: false, example: '2024-2025' })
   @IsString()
-  academicYear!: string;
+  @IsOptional()
+  academicYear?: string;
 
   @ApiProperty({ required: false, example: '2024-12-31' })
   @IsDateString()

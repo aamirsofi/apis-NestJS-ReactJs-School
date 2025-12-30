@@ -8,7 +8,6 @@ import {
   FiChevronRight,
   FiX,
   FiSearch,
-  FiCalendar,
 } from "react-icons/fi";
 import api from "../../services/api";
 import CustomDropdown from "../../components/ui/CustomDropdown";
@@ -32,16 +31,14 @@ export default function FeePlan() {
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingCategoryHeads, setLoadingCategoryHeads] = useState(false);
-  const [editingStructure, setEditingStructure] = useState<FeeStructure | null>(null);
+  const [editingStructure, setEditingStructure] = useState<FeeStructure | null>(
+    null
+  );
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
     feeCategoryId: "" as string | number,
     categoryHeadId: "" as string | number | null,
     amount: "",
     class: "",
-    academicYear: "",
-    dueDate: "",
     status: "active" as "active" | "inactive",
     schoolId: "" as string | number,
   });
@@ -51,15 +48,27 @@ export default function FeePlan() {
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
-  const [selectedFeeCategoryId, setSelectedFeeCategoryId] = useState<string | number>("");
-  const [selectedCategoryHeadId, setSelectedCategoryHeadId] = useState<string | number | null>(null);
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>("");
-  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
+  const [selectedFeeCategoryId, setSelectedFeeCategoryId] = useState<
+    string | number
+  >("");
+  const [selectedCategoryHeadId, setSelectedCategoryHeadId] = useState<
+    string | number | null
+  >(null);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(
+    null
+  );
 
   useEffect(() => {
     loadFeeStructures();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, search, selectedSchoolId, selectedFeeCategoryId, selectedCategoryHeadId, selectedAcademicYear]);
+  }, [
+    page,
+    limit,
+    search,
+    selectedSchoolId,
+    selectedFeeCategoryId,
+    selectedCategoryHeadId,
+  ]);
 
   useEffect(() => {
     loadSchools();
@@ -128,16 +137,25 @@ export default function FeePlan() {
     try {
       setLoadingCategories(true);
       const response = await api.instance.get("/super-admin/fee-categories", {
-        params: { schoolId: formData.schoolId, limit: 1000, status: "active" },
+        params: {
+          schoolId: formData.schoolId,
+          limit: 1000,
+          page: 1,
+        },
       });
+
+      console.log("Fee categories response:", response.data);
 
       if (response.data.data && Array.isArray(response.data.data)) {
         setFeeCategories(response.data.data);
       } else if (Array.isArray(response.data)) {
         setFeeCategories(response.data);
+      } else {
+        setFeeCategories([]);
       }
     } catch (err: any) {
       console.error("Error loading fee categories:", err);
+      console.error("Error details:", err.response?.data);
       setFeeCategories([]);
     } finally {
       setLoadingCategories(false);
@@ -184,9 +202,6 @@ export default function FeePlan() {
       if (selectedCategoryHeadId !== null && selectedCategoryHeadId !== "") {
         params.categoryHeadId = selectedCategoryHeadId;
       }
-      if (selectedAcademicYear) {
-        params.academicYear = selectedAcademicYear;
-      }
 
       const response = await api.instance.get("/super-admin/fee-structures", {
         params,
@@ -225,12 +240,7 @@ export default function FeePlan() {
       }
 
       if (!formData.feeCategoryId) {
-        setError("Please select a fee category");
-        return;
-      }
-
-      if (!formData.name.trim()) {
-        setError("Please enter a name");
+        setError("Please select a fee heading");
         return;
       }
 
@@ -239,17 +249,24 @@ export default function FeePlan() {
         return;
       }
 
-      if (!formData.academicYear.trim()) {
-        setError("Please enter an academic year");
-        return;
-      }
+      // Auto-generate plan name from fee heading and category head
+      const selectedCategory = feeCategories.find(
+        (cat) => cat.id === parseInt(formData.feeCategoryId as string)
+      );
+      const selectedCategoryHead = categoryHeads.find(
+        (ch) => ch.id === parseInt(formData.categoryHeadId as string)
+      );
+
+      const planName = selectedCategory
+        ? `${selectedCategory.name}${
+            selectedCategoryHead ? ` - ${selectedCategoryHead.name}` : ""
+          }${formData.class ? ` (${formData.class})` : ""}`
+        : "Fee Plan";
 
       const payload: any = {
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
+        name: planName,
         feeCategoryId: parseInt(formData.feeCategoryId as string),
         amount: parseFloat(formData.amount),
-        academicYear: formData.academicYear.trim(),
         status: formData.status,
       };
 
@@ -259,10 +276,6 @@ export default function FeePlan() {
 
       if (formData.class.trim()) {
         payload.class = formData.class.trim();
-      }
-
-      if (formData.dueDate) {
-        payload.dueDate = formData.dueDate;
       }
 
       const currentSchoolId = formData.schoolId;
@@ -299,14 +312,10 @@ export default function FeePlan() {
     schoolId?: string | number
   ) => {
     setFormData({
-      name: "",
-      description: "",
       feeCategoryId: "",
       categoryHeadId: null,
       amount: "",
       class: "",
-      academicYear: "",
-      dueDate: "",
       status: "active",
       schoolId: retainSchool && schoolId ? schoolId : "",
     });
@@ -315,14 +324,10 @@ export default function FeePlan() {
   const handleEdit = (structure: FeeStructure) => {
     setEditingStructure(structure);
     setFormData({
-      name: structure.name,
-      description: structure.description || "",
       feeCategoryId: structure.feeCategoryId,
       categoryHeadId: structure.categoryHeadId || null,
       amount: structure.amount.toString(),
       class: structure.class || "",
-      academicYear: structure.academicYear,
-      dueDate: structure.dueDate ? structure.dueDate.split('T')[0] : "",
       status: structure.status,
       schoolId: structure.schoolId,
     });
@@ -361,14 +366,6 @@ export default function FeePlan() {
     setSuccess("");
   };
 
-  // Generate academic years (current year to +5 years)
-  const currentYear = new Date().getFullYear();
-  const academicYears = [];
-  for (let i = 0; i < 6; i++) {
-    const year = currentYear + i;
-    academicYears.push(`${year}-${year + 1}`);
-  }
-
   return (
     <div className="space-y-6">
       {/* Success/Error Messages */}
@@ -389,7 +386,8 @@ export default function FeePlan() {
           Fee Plan Management
         </h1>
         <p className="text-gray-600 text-sm mt-1">
-          Create and manage fee plans by combining fee categories with category heads
+          Create and manage fee plans by combining fee categories with category
+          heads
         </p>
       </div>
 
@@ -433,9 +431,13 @@ export default function FeePlan() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fee Category <span className="text-red-500">*</span>
+                Fee Heading <span className="text-red-500">*</span>
               </label>
-              {loadingCategories ? (
+              {!formData.schoolId ? (
+                <div className="px-3 py-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg">
+                  Please select a school first
+                </div>
+              ) : loadingCategories ? (
                 <div className="flex items-center justify-center py-2">
                   <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
                 </div>
@@ -452,7 +454,7 @@ export default function FeePlan() {
                       feeCategoryId: parseInt(value as string),
                     })
                   }
-                  placeholder="Select fee category..."
+                  placeholder="Select fee heading..."
                   className="w-full"
                   disabled={!formData.schoolId}
                 />
@@ -461,9 +463,42 @@ export default function FeePlan() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Head (Optional)
+                Fee Value (Amount) <span className="text-red-500">*</span>
               </label>
-              {loadingCategoryHeads ? (
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.amount}
+                onChange={(e) =>
+                  setFormData({ ...formData, amount: e.target.value })
+                }
+                placeholder="0.00"
+                required
+                disabled={!formData.schoolId}
+                className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth ${
+                  !formData.schoolId
+                    ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                    : "bg-white"
+                }`}
+              />
+              {!formData.schoolId && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Please select a school first
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category Head{" "}
+                <span className="text-gray-500 text-xs">(Optional)</span>
+              </label>
+              {!formData.schoolId ? (
+                <div className="px-3 py-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg">
+                  Please select a school first
+                </div>
+              ) : loadingCategoryHeads ? (
                 <div className="flex items-center justify-center py-2">
                   <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
                 </div>
@@ -492,55 +527,6 @@ export default function FeePlan() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Plan Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="e.g., Tuition Fee for General Students"
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Optional description..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth bg-white resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (₹) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
-                }
-                placeholder="0.00"
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Class (Optional)
               </label>
               <input
@@ -550,43 +536,13 @@ export default function FeePlan() {
                   setFormData({ ...formData, class: e.target.value })
                 }
                 placeholder="e.g., Grade 1, Grade 2"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth bg-white"
+                disabled={!formData.schoolId}
+                className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth ${
+                  !formData.schoolId
+                    ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                    : "bg-white"
+                }`}
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Academic Year <span className="text-red-500">*</span>
-              </label>
-              <CustomDropdown
-                options={academicYears.map((year) => ({
-                  value: year,
-                  label: year,
-                }))}
-                value={formData.academicYear}
-                onChange={(value) =>
-                  setFormData({ ...formData, academicYear: value as string })
-                }
-                placeholder="Select academic year..."
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Due Date (Optional)
-              </label>
-              <div className="relative">
-                <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dueDate: e.target.value })
-                  }
-                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth bg-white"
-                />
-              </div>
             </div>
 
             <div>
@@ -606,13 +562,19 @@ export default function FeePlan() {
                   })
                 }
                 className="w-full"
+                disabled={!formData.schoolId}
               />
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                disabled={!formData.schoolId}
+                className={`flex-1 px-4 py-2.5 rounded-xl font-semibold shadow-lg transition-all ${
+                  !formData.schoolId
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-xl"
+                }`}
               >
                 {editingStructure ? "Update" : "Create"}
               </button>
@@ -626,6 +588,11 @@ export default function FeePlan() {
                 </button>
               )}
             </div>
+            {!formData.schoolId && (
+              <p className="text-xs text-gray-500 text-center mt-2">
+                ⚠️ Please select a school to continue
+              </p>
+            )}
           </form>
         </div>
 
@@ -679,26 +646,6 @@ export default function FeePlan() {
                   className="w-full"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Filter by Academic Year
-                </label>
-                <CustomDropdown
-                  options={[
-                    { value: "", label: "All Years" },
-                    ...academicYears.map((year) => ({
-                      value: year,
-                      label: year,
-                    })),
-                  ]}
-                  value={selectedAcademicYear}
-                  onChange={(value) => {
-                    setSelectedAcademicYear(value as string);
-                    setPage(1);
-                  }}
-                  className="w-full"
-                />
-              </div>
             </div>
           </div>
 
@@ -729,16 +676,13 @@ export default function FeePlan() {
                         School
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Category
+                        Fee Heading
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                         Category Head
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                         Amount
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Academic Year
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                         Status
@@ -770,21 +714,26 @@ export default function FeePlan() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {structure.school?.name || `School ID: ${structure.schoolId}`}
+                          {structure.school?.name ||
+                            `School ID: ${structure.schoolId}`}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {structure.category?.name || `Category ID: ${structure.feeCategoryId}`}
+                          {structure.category?.name ||
+                            `Category ID: ${structure.feeCategoryId}`}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {structure.categoryHead?.name || "General"}
                         </td>
                         <td className="px-4 py-3">
                           <span className="font-semibold text-gray-900">
-                            ₹{parseFloat(structure.amount.toString()).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹
+                            {parseFloat(
+                              structure.amount.toString()
+                            ).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {structure.academicYear}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -878,9 +827,7 @@ export default function FeePlan() {
                             pageNum = i + 1;
                           } else if (page <= 4) {
                             pageNum = i + 1;
-                          } else if (
-                            page >= paginationMeta.totalPages - 3
-                          ) {
+                          } else if (page >= paginationMeta.totalPages - 3) {
                             pageNum = paginationMeta.totalPages - 6 + i;
                           } else {
                             pageNum = page - 3 + i;
@@ -930,4 +877,3 @@ export default function FeePlan() {
     </div>
   );
 }
-

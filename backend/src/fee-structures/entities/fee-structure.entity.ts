@@ -42,8 +42,8 @@ export class FeeStructure {
   @Column({ nullable: true, length: 255 })
   class?: string;
 
-  @Column({ length: 255 })
-  academicYear!: string;
+  @Column({ nullable: true, length: 255 })
+  academicYear?: string;
 
   @Column({ type: 'date', nullable: true })
   dueDate?: Date;

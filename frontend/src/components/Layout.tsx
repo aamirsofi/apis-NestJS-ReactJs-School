@@ -2,11 +2,11 @@ import { ReactNode, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { 
-  FiHome, 
-  FiUsers, 
-  FiDollarSign, 
-  FiCreditCard, 
+import {
+  FiHome,
+  FiUsers,
+  FiDollarSign,
+  FiCreditCard,
   FiMapPin,
   FiLogOut,
   FiUser,
@@ -87,7 +87,11 @@ export default function Layout({ children }: LayoutProps) {
       section: "schools",
       children: [
         { name: "All Schools", path: "/super-admin/schools", icon: FiMapPin },
-        { name: "Bulk Import Students", path: "/super-admin/schools/bulk-import", icon: FiUpload },
+        {
+          name: "Bulk Import Students",
+          path: "/super-admin/schools/bulk-import",
+          icon: FiUpload,
+        },
       ],
     },
     {
@@ -464,14 +468,24 @@ export default function Layout({ children }: LayoutProps) {
                             const ChildIcon = child.icon;
                             // Check if child has nested children
                             if (child.children && child.section) {
-                              const isChildExpanded = expandedSections[child.section] ?? false;
-                              const hasActiveGrandchild = child.children.some((grandchild) =>
-                                grandchild.path ? isActive(grandchild.path) : false
+                              const isChildExpanded =
+                                expandedSections[child.section] ?? false;
+                              const hasActiveGrandchild = child.children.some(
+                                (grandchild) =>
+                                  grandchild.path
+                                    ? isActive(grandchild.path)
+                                    : false
                               );
                               return (
-                                <div key={child.section} className="space-y-0.5">
+                                <div
+                                  key={child.section}
+                                  className="space-y-0.5"
+                                >
                                   <button
-                                    onClick={() => child.section && toggleSection(child.section)}
+                                    onClick={() =>
+                                      child.section &&
+                                      toggleSection(child.section)
+                                    }
                                     className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md transition-smooth text-xs relative ${
                                       hasActiveGrandchild
                                         ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 font-semibold"
@@ -484,7 +498,9 @@ export default function Layout({ children }: LayoutProps) {
                                     <div className="flex items-center">
                                       <ChildIcon
                                         className={`w-3.5 h-3.5 mr-2 ${
-                                          hasActiveGrandchild ? "text-indigo-600" : ""
+                                          hasActiveGrandchild
+                                            ? "text-indigo-600"
+                                            : ""
                                         }`}
                                       />
                                       <span>{child.name}</span>
@@ -498,16 +514,33 @@ export default function Layout({ children }: LayoutProps) {
                                   {isChildExpanded && child.children && (
                                     <div className="ml-4 mt-0.5 space-y-0.5">
                                       {child.children.map((grandchild) => {
-                                        if (grandchild.children && grandchild.section) {
+                                        if (
+                                          grandchild.children &&
+                                          grandchild.section
+                                        ) {
                                           // Handle 4th level if needed
-                                          const isGrandchildExpanded = expandedSections[grandchild.section] ?? false;
-                                          const hasActiveGreatGrandchild = grandchild.children.some((ggc) =>
-                                            ggc.path ? isActive(ggc.path) : false
-                                          );
+                                          const isGrandchildExpanded =
+                                            expandedSections[
+                                              grandchild.section
+                                            ] ?? false;
+                                          const hasActiveGreatGrandchild =
+                                            grandchild.children.some((ggc) =>
+                                              ggc.path
+                                                ? isActive(ggc.path)
+                                                : false
+                                            );
                                           return (
-                                            <div key={grandchild.section} className="space-y-0.5">
+                                            <div
+                                              key={grandchild.section}
+                                              className="space-y-0.5"
+                                            >
                                               <button
-                                                onClick={() => grandchild.section && toggleSection(grandchild.section)}
+                                                onClick={() =>
+                                                  grandchild.section &&
+                                                  toggleSection(
+                                                    grandchild.section
+                                                  )
+                                                }
                                                 className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md transition-smooth text-xs relative ${
                                                   hasActiveGreatGrandchild
                                                     ? "bg-indigo-50 text-indigo-700 font-medium"
@@ -524,34 +557,44 @@ export default function Layout({ children }: LayoutProps) {
                                                   <FiChevronRight className="w-2.5 h-2.5" />
                                                 )}
                                               </button>
-                                              {isGrandchildExpanded && grandchild.children && (
-                                                <div className="ml-4 mt-0.5 space-y-0.5">
-                                                  {grandchild.children.map((ggc) => {
-                                                    const GGCIcon = ggc.icon;
-                                                    const isGGCActive = ggc.path ? isActive(ggc.path) : false;
-                                                    return (
-                                                      <Link
-                                                        key={ggc.path}
-                                                        to={ggc.path!}
-                                                        className={`${
-                                                          isGGCActive
-                                                            ? "bg-indigo-100 text-indigo-700 font-medium"
-                                                            : "text-gray-600 hover:bg-gray-50"
-                                                        } flex items-center px-3 py-1 rounded-md transition-smooth text-xs`}
-                                                      >
-                                                        <GGCIcon className="w-3 h-3 mr-2" />
-                                                        {ggc.name}
-                                                      </Link>
-                                                    );
-                                                  })}
-                                                </div>
-                                              )}
+                                              {isGrandchildExpanded &&
+                                                grandchild.children && (
+                                                  <div className="ml-4 mt-0.5 space-y-0.5">
+                                                    {grandchild.children.map(
+                                                      (ggc) => {
+                                                        const GGCIcon =
+                                                          ggc.icon;
+                                                        const isGGCActive =
+                                                          ggc.path
+                                                            ? isActive(ggc.path)
+                                                            : false;
+                                                        return (
+                                                          <Link
+                                                            key={ggc.path}
+                                                            to={ggc.path!}
+                                                            className={`${
+                                                              isGGCActive
+                                                                ? "bg-indigo-100 text-indigo-700 font-medium"
+                                                                : "text-gray-600 hover:bg-gray-50"
+                                                            } flex items-center px-3 py-1 rounded-md transition-smooth text-xs`}
+                                                          >
+                                                            <GGCIcon className="w-3 h-3 mr-2" />
+                                                            {ggc.name}
+                                                          </Link>
+                                                        );
+                                                      }
+                                                    )}
+                                                  </div>
+                                                )}
                                             </div>
                                           );
                                         }
                                         // Regular grandchild with path
                                         const GrandchildIcon = grandchild.icon;
-                                        const isGrandchildActive = grandchild.path ? isActive(grandchild.path) : false;
+                                        const isGrandchildActive =
+                                          grandchild.path
+                                            ? isActive(grandchild.path)
+                                            : false;
                                         return (
                                           <Link
                                             key={grandchild.path}
@@ -573,7 +616,9 @@ export default function Layout({ children }: LayoutProps) {
                               );
                             }
                             // Regular child with path
-                            const isChildActive = child.path ? isActive(child.path) : false;
+                            const isChildActive = child.path
+                              ? isActive(child.path)
+                              : false;
                             return (
                               <Link
                                 key={child.path}
@@ -869,7 +914,7 @@ export default function Layout({ children }: LayoutProps) {
 
           {/* Main Content Area */}
           <main className="flex-1 p-4 lg:p-6 overflow-y-auto min-h-0">
-            <div className="max-w-7xl mx-auto">{children}</div>
+            {children}
           </main>
         </div>
       </div>
