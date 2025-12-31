@@ -175,17 +175,17 @@ export default function Layout({ children }: LayoutProps) {
               icon: FiTag,
             },
             {
-              name: "Fee Heading",
+              name: "Fee Headings",
               path: "/super-admin/settings/fee-settings/fee-heading",
               icon: FiDollarSign,
             },
             {
-              name: "Fee Plan",
+              name: "Fee Plans",
               path: "/super-admin/settings/fee-settings/fee-plan",
               icon: FiCreditCard,
             },
             {
-              name: "Route Plan",
+              name: "Route Plans",
               path: "/super-admin/settings/fee-settings/fee-heads/route-plan",
               icon: FiMapPin,
             },
@@ -197,7 +197,7 @@ export default function Layout({ children }: LayoutProps) {
           section: "academics",
           children: [
             {
-              name: "Class",
+              name: "Classes",
               path: "/super-admin/settings/academics/class",
               icon: FiBook,
             },

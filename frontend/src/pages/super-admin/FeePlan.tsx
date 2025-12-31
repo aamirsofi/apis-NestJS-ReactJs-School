@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function FeePlan() {
   const [mode, setMode] = useState<"add" | "import">("add");
@@ -526,341 +527,340 @@ export default function FeePlan() {
         {/* Left Side - Add/Edit Form or Import */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            {/* Tabs */}
-            <div className="flex gap-2 mb-4 border-b border-gray-200">
-              <button
-                type="button"
-                onClick={() => {
+            <CardTitle className="text-lg font-bold text-gray-800 mb-4">
+              {editingStructure ? "Edit Fee Plan" : "Fee Plan Management"}
+            </CardTitle>
+            <Tabs
+              value={mode}
+              onValueChange={(value) => {
+                if (value === "add") {
                   setMode("add");
                   setError("");
                   setSuccess("");
                   setImportFile(null);
                   setImportPreview([]);
-                }}
-                className={`px-4 py-2 text-xs font-semibold transition-smooth ${
-                  mode === "add"
-                    ? "text-indigo-600 border-b-2 border-indigo-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Add Fee Plan
-              </button>
-              <button
-                type="button"
-                onClick={() => {
+                } else if (value === "import") {
                   setMode("import");
                   setError("");
                   setSuccess("");
                   resetForm();
-                }}
-                className={`px-4 py-2 text-xs font-semibold transition-smooth ${
-                  mode === "import"
-                    ? "text-indigo-600 border-b-2 border-indigo-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Import Fee Plans
-              </button>
-            </div>
-            <CardTitle className="text-lg font-bold text-gray-800">
-              {mode === "import"
-                ? "Import Fee Plans from CSV"
-                : editingStructure
-                ? "Edit Fee Plan"
-                : "Add Fee Plan"}
-            </CardTitle>
+                }
+              }}
+            >
+              <TabsList className="grid w-full grid-cols-2 bg-gray-100/50 p-1 rounded-lg border border-gray-200">
+                <TabsTrigger
+                  value="add"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all font-semibold"
+                >
+                  Add Fee Plan
+                </TabsTrigger>
+                <TabsTrigger
+                  value="import"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all font-semibold"
+                >
+                  Import Fee Plans
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </CardHeader>
           <CardContent>
-            {mode === "add" ? (
-              <FeePlanForm
-                formData={formData}
-                setFormData={setFormData}
-                createMode={createMode}
-                setCreateMode={setCreateMode}
-                selectedFeeCategoryIds={selectedFeeCategoryIds}
-                setSelectedFeeCategoryIds={setSelectedFeeCategoryIds}
-                selectedCategoryHeadIds={selectedCategoryHeadIds}
-                setSelectedCategoryHeadIds={setSelectedCategoryHeadIds}
-                selectedClasses={selectedClasses}
-                setSelectedClasses={setSelectedClasses}
-                editingStructure={editingStructure}
-                formResetKey={formResetKey}
-                handleSubmit={handleSubmit}
-                handleCancel={handleCancel}
-                schools={schools}
-                loadingSchools={loadingSchools}
-                feeCategories={feeCategories}
-                loadingCategories={loadingCategories}
-                categoryHeads={categoryHeads}
-                loadingCategoryHeads={loadingCategoryHeads}
-                classOptions={classOptions}
-                availableClasses={availableClasses}
-                loadingClasses={loadingClasses}
-              />
-            ) : (
-              <div className="space-y-4">
-                {/* School Selection for Import */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                    School <span className="text-red-500">*</span>
-                  </label>
-                  {loadingSchools ? (
-                    <div className="flex items-center justify-center py-2">
-                      <FiLoader className="w-3 h-3 animate-spin text-indigo-600" />
-                      <span className="ml-1.5 text-xs text-gray-600">
-                        Loading...
-                      </span>
-                    </div>
-                  ) : (
-                    <Select
-                      value={
-                        importSchoolId && importSchoolId !== ""
-                          ? importSchoolId.toString()
-                          : undefined
-                      }
-                      onValueChange={(value) => {
-                        const schoolId = value ? parseInt(value) : "";
-                        setImportSchoolId(schoolId);
-                        setImportFile(null);
-                        setImportPreview([]);
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a school..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {schools.map((school) => (
-                          <SelectItem
-                            key={school.id}
-                            value={school.id.toString()}
-                          >
-                            {school.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-
-                {/* Download Sample CSV */}
-                {importSchoolId && (
+            <Tabs
+              value={mode}
+              onValueChange={(value) => setMode(value as "add" | "import")}
+            >
+              <TabsContent value="add" className="mt-0">
+                <FeePlanForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  createMode={createMode}
+                  setCreateMode={setCreateMode}
+                  selectedFeeCategoryIds={selectedFeeCategoryIds}
+                  setSelectedFeeCategoryIds={setSelectedFeeCategoryIds}
+                  selectedCategoryHeadIds={selectedCategoryHeadIds}
+                  setSelectedCategoryHeadIds={setSelectedCategoryHeadIds}
+                  selectedClasses={selectedClasses}
+                  setSelectedClasses={setSelectedClasses}
+                  editingStructure={editingStructure}
+                  formResetKey={formResetKey}
+                  handleSubmit={handleSubmit}
+                  handleCancel={handleCancel}
+                  schools={schools}
+                  loadingSchools={loadingSchools}
+                  feeCategories={feeCategories}
+                  loadingCategories={loadingCategories}
+                  categoryHeads={categoryHeads}
+                  loadingCategoryHeads={loadingCategoryHeads}
+                  classOptions={classOptions}
+                  availableClasses={availableClasses}
+                  loadingClasses={loadingClasses}
+                />
+              </TabsContent>
+              <TabsContent value="import" className="mt-0">
+                <div className="space-y-4">
+                  {/* School Selection for Import */}
                   <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                      School <span className="text-red-500">*</span>
+                    </label>
+                    {loadingSchools ? (
+                      <div className="flex items-center justify-center py-2">
+                        <FiLoader className="w-3 h-3 animate-spin text-indigo-600" />
+                        <span className="ml-1.5 text-xs text-gray-600">
+                          Loading...
+                        </span>
+                      </div>
+                    ) : (
+                      <Select
+                        value={
+                          importSchoolId && importSchoolId !== ""
+                            ? importSchoolId.toString()
+                            : undefined
+                        }
+                        onValueChange={(value) => {
+                          const schoolId = value ? parseInt(value) : "";
+                          setImportSchoolId(schoolId);
+                          setImportFile(null);
+                          setImportPreview([]);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a school..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {schools.map((school) => (
+                            <SelectItem
+                              key={school.id}
+                              value={school.id.toString()}
+                            >
+                              {school.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  {/* Download Sample CSV */}
+                  {importSchoolId && (
+                    <div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={downloadSampleCSV}
+                        className="w-full"
+                      >
+                        <FiDownload className="w-4 h-4 mr-2" />
+                        Download Sample CSV
+                      </Button>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Download a sample CSV template. Use names (not IDs) for
+                        fee categories, category heads, and classes.
+                      </p>
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs font-semibold text-blue-900 mb-1">
+                          CSV Format:
+                        </p>
+                        <ul className="text-xs text-blue-800 space-y-0.5 list-disc list-inside">
+                          <li>
+                            <strong>feeCategoryName</strong> - Name of fee
+                            category (e.g., "Tuition Fee")
+                          </li>
+                          <li>
+                            <strong>categoryHeadName</strong> - Name of category
+                            head (optional, leave empty for "General")
+                          </li>
+                          <li>
+                            <strong>className</strong> - Name of class (e.g.,
+                            "1st", "2nd")
+                          </li>
+                          <li>
+                            <strong>amount</strong> - Fee amount (e.g.,
+                            "5000.00")
+                          </li>
+                          <li>
+                            <strong>status</strong> - "active" or "inactive"
+                          </li>
+                          <li>
+                            <strong>name</strong> - Plan name (optional,
+                            auto-generated if empty)
+                          </li>
+                        </ul>
+                        <p className="text-xs text-blue-700 mt-1 font-medium">
+                          Note: All names must belong to the selected school.
+                          The system will validate and show errors if names
+                          don't match.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* File Upload */}
+                  {importSchoolId && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                        Upload CSV File <span className="text-red-500">*</span>
+                      </label>
+                      <div
+                        {...getRootProps()}
+                        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-smooth ${
+                          isDragActive
+                            ? "border-indigo-500 bg-indigo-50"
+                            : "border-gray-300 hover:border-indigo-400 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input {...getInputProps()} />
+                        <FiUpload className="w-6 h-6 mx-auto text-gray-400 mb-2" />
+                        {importFile ? (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-700">
+                              {importFile.name}
+                            </p>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setImportFile(null);
+                                setImportPreview([]);
+                                setError("");
+                                setSuccess("");
+                              }}
+                              className="mt-1 text-xs"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs text-gray-600">
+                              {isDragActive
+                                ? "Drop your CSV file here"
+                                : "Drag & drop your CSV file here"}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              or click to browse
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preview */}
+                  {importPreview.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                        Preview ({importPreview.length} rows)
+                      </label>
+                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg">
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="px-2 py-1 text-left">
+                                Fee Category
+                              </th>
+                              <th className="px-2 py-1 text-left">
+                                Category Head
+                              </th>
+                              <th className="px-2 py-1 text-left">Class</th>
+                              <th className="px-2 py-1 text-left">Amount</th>
+                              <th className="px-2 py-1 text-left">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {importPreview.map((row, idx) => (
+                              <tr key={idx} className="border-t">
+                                <td className="px-2 py-1">
+                                  {row.feeCategoryName ||
+                                    `ID: ${row.feeCategoryId}`}
+                                </td>
+                                <td className="px-2 py-1">
+                                  {row.categoryHeadName || "General"}
+                                </td>
+                                <td className="px-2 py-1">
+                                  {row.className || `ID: ${row.classId}`}
+                                </td>
+                                <td className="px-2 py-1">{row.amount}</td>
+                                <td className="px-2 py-1">{row.status}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Import Button */}
+                  {importFile && importSchoolId && (
                     <Button
                       type="button"
-                      variant="outline"
-                      onClick={downloadSampleCSV}
+                      onClick={handleBulkImport}
+                      disabled={isImporting}
                       className="w-full"
                     >
-                      <FiDownload className="w-4 h-4 mr-2" />
-                      Download Sample CSV
-                    </Button>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Download a sample CSV template. Use names (not IDs) for
-                      fee categories, category heads, and classes.
-                    </p>
-                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-xs font-semibold text-blue-900 mb-1">
-                        CSV Format:
-                      </p>
-                      <ul className="text-xs text-blue-800 space-y-0.5 list-disc list-inside">
-                        <li>
-                          <strong>feeCategoryName</strong> - Name of fee
-                          category (e.g., "Tuition Fee")
-                        </li>
-                        <li>
-                          <strong>categoryHeadName</strong> - Name of category
-                          head (optional, leave empty for "General")
-                        </li>
-                        <li>
-                          <strong>className</strong> - Name of class (e.g.,
-                          "1st", "2nd")
-                        </li>
-                        <li>
-                          <strong>amount</strong> - Fee amount (e.g., "5000.00")
-                        </li>
-                        <li>
-                          <strong>status</strong> - "active" or "inactive"
-                        </li>
-                        <li>
-                          <strong>name</strong> - Plan name (optional,
-                          auto-generated if empty)
-                        </li>
-                      </ul>
-                      <p className="text-xs text-blue-700 mt-1 font-medium">
-                        Note: All names must belong to the selected school. The
-                        system will validate and show errors if names don't
-                        match.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* File Upload */}
-                {importSchoolId && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                      Upload CSV File <span className="text-red-500">*</span>
-                    </label>
-                    <div
-                      {...getRootProps()}
-                      className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-smooth ${
-                        isDragActive
-                          ? "border-indigo-500 bg-indigo-50"
-                          : "border-gray-300 hover:border-indigo-400 hover:bg-gray-50"
-                      }`}
-                    >
-                      <input {...getInputProps()} />
-                      <FiUpload className="w-6 h-6 mx-auto text-gray-400 mb-2" />
-                      {importFile ? (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-700">
-                            {importFile.name}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setImportFile(null);
-                              setImportPreview([]);
-                              setError("");
-                              setSuccess("");
-                            }}
-                            className="mt-1 text-xs"
-                          >
-                            Remove
-                          </Button>
-                        </div>
+                      {isImporting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <FiLoader className="w-4 h-4 animate-spin" />
+                          Importing...
+                        </span>
                       ) : (
-                        <div>
-                          <p className="text-xs text-gray-600">
-                            {isDragActive
-                              ? "Drop your CSV file here"
-                              : "Drag & drop your CSV file here"}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            or click to browse
-                          </p>
-                        </div>
+                        "Import Fee Plans"
+                      )}
+                    </Button>
+                  )}
+
+                  {/* Import Results */}
+                  {importResult && (
+                    <div className="space-y-2">
+                      {importResult.success > 0 && (
+                        <Card className="border-l-4 border-l-green-400 bg-green-50">
+                          <CardContent className="py-2 px-3">
+                            <p className="text-xs font-semibold text-green-800">
+                              Successfully imported: {importResult.success} fee
+                              plan(s)
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {importResult.skipped > 0 && (
+                        <Card className="border-l-4 border-l-yellow-400 bg-yellow-50">
+                          <CardContent className="py-2 px-3">
+                            <p className="text-xs font-semibold text-yellow-800 mb-1">
+                              Skipped (duplicates): {importResult.skipped} fee
+                              plan(s)
+                            </p>
+                            <div className="max-h-24 overflow-y-auto text-xs text-yellow-700">
+                              {importResult.duplicates.map((dup, idx) => (
+                                <div key={idx} className="mb-0.5">
+                                  Row {dup.row} - "{dup.name}": {dup.reason}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {importResult.failed > 0 && (
+                        <Card className="border-l-4 border-l-red-400 bg-red-50">
+                          <CardContent className="py-2 px-3">
+                            <p className="text-xs font-semibold text-red-800 mb-1">
+                              Failed: {importResult.failed} fee plan(s)
+                            </p>
+                            <div className="max-h-24 overflow-y-auto text-xs text-red-700">
+                              {importResult.errors.map((err, idx) => (
+                                <div key={idx} className="mb-0.5">
+                                  Row {err.row}: {err.error}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {/* Preview */}
-                {importPreview.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                      Preview ({importPreview.length} rows)
-                    </label>
-                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50 sticky top-0">
-                          <tr>
-                            <th className="px-2 py-1 text-left">
-                              Fee Category
-                            </th>
-                            <th className="px-2 py-1 text-left">
-                              Category Head
-                            </th>
-                            <th className="px-2 py-1 text-left">Class</th>
-                            <th className="px-2 py-1 text-left">Amount</th>
-                            <th className="px-2 py-1 text-left">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importPreview.map((row, idx) => (
-                            <tr key={idx} className="border-t">
-                              <td className="px-2 py-1">
-                                {row.feeCategoryName ||
-                                  `ID: ${row.feeCategoryId}`}
-                              </td>
-                              <td className="px-2 py-1">
-                                {row.categoryHeadName || "General"}
-                              </td>
-                              <td className="px-2 py-1">
-                                {row.className || `ID: ${row.classId}`}
-                              </td>
-                              <td className="px-2 py-1">{row.amount}</td>
-                              <td className="px-2 py-1">{row.status}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Import Button */}
-                {importFile && importSchoolId && (
-                  <Button
-                    type="button"
-                    onClick={handleBulkImport}
-                    disabled={isImporting}
-                    className="w-full"
-                  >
-                    {isImporting ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <FiLoader className="w-4 h-4 animate-spin" />
-                        Importing...
-                      </span>
-                    ) : (
-                      "Import Fee Plans"
-                    )}
-                  </Button>
-                )}
-
-                {/* Import Results */}
-                {importResult && (
-                  <div className="space-y-2">
-                    {importResult.success > 0 && (
-                      <Card className="border-l-4 border-l-green-400 bg-green-50">
-                        <CardContent className="py-2 px-3">
-                          <p className="text-xs font-semibold text-green-800">
-                            Successfully imported: {importResult.success} fee
-                            plan(s)
-                          </p>
-                        </CardContent>
-                      </Card>
-                    )}
-                    {importResult.skipped > 0 && (
-                      <Card className="border-l-4 border-l-yellow-400 bg-yellow-50">
-                        <CardContent className="py-2 px-3">
-                          <p className="text-xs font-semibold text-yellow-800 mb-1">
-                            Skipped (duplicates): {importResult.skipped} fee
-                            plan(s)
-                          </p>
-                          <div className="max-h-24 overflow-y-auto text-xs text-yellow-700">
-                            {importResult.duplicates.map((dup, idx) => (
-                              <div key={idx} className="mb-0.5">
-                                Row {dup.row} - "{dup.name}": {dup.reason}
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                    {importResult.failed > 0 && (
-                      <Card className="border-l-4 border-l-red-400 bg-red-50">
-                        <CardContent className="py-2 px-3">
-                          <p className="text-xs font-semibold text-red-800 mb-1">
-                            Failed: {importResult.failed} fee plan(s)
-                          </p>
-                          <div className="max-h-24 overflow-y-auto text-xs text-red-700">
-                            {importResult.errors.map((err, idx) => (
-                              <div key={idx} className="mb-0.5">
-                                Row {err.row}: {err.error}
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
