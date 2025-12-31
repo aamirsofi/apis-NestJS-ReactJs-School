@@ -239,13 +239,11 @@ export function FeePlanForm({
           step="0.01"
           min="0"
           value={formData.amount}
-          onChange={(e) =>
-            setFormData({ ...formData, amount: e.target.value })
-          }
+          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
           placeholder="0.00"
           required
           disabled={!formData.schoolId}
-          className={`w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth ${
+          className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth ${
             !formData.schoolId
               ? "bg-gray-50 text-gray-400 cursor-not-allowed"
               : "bg-white"
@@ -277,8 +275,7 @@ export function FeePlanForm({
             onValueChange={(value) =>
               setFormData({
                 ...formData,
-                categoryHeadId:
-                  value === "__EMPTY__" ? null : parseInt(value),
+                categoryHeadId: value === "__EMPTY__" ? null : parseInt(value),
               })
             }
             disabled={!formData.schoolId}
@@ -424,9 +421,7 @@ export function FeePlanForm({
                     }
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedClasses(
-                          classOptions.map((cls) => cls.id)
-                        );
+                        setSelectedClasses(classOptions.map((cls) => cls.id));
                       } else {
                         setSelectedClasses([]);
                       }
@@ -550,4 +545,3 @@ export function FeePlanForm({
     </form>
   );
 }
-
