@@ -1,6 +1,7 @@
 import { FiLoader, FiUpload, FiDownload } from "react-icons/fi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -9,26 +10,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { School } from "../../../services/schoolService";
-import { CategoryHead } from "../../../hooks/pages/super-admin/useCategoryHeadsData";
+import { FeeCategory } from "../../../hooks/pages/super-admin/useFeeHeadingData";
 
-interface CategoryHeadsFormProps {
+interface FeeHeadingFormProps {
   mode: "add" | "import";
   setMode: (mode: "add" | "import") => void;
   formData: {
     name: string;
     description: string;
+    type: "school" | "transport";
     status: string;
     schoolId: string | number;
+    applicableMonths: number[];
   };
   setFormData: React.Dispatch<
     React.SetStateAction<{
       name: string;
       description: string;
+      type: "school" | "transport";
       status: string;
       schoolId: string | number;
+      applicableMonths: number[];
     }>
   >;
-  editingCategoryHead: CategoryHead | null;
+  editingCategory: FeeCategory | null;
   schools: School[];
   loadingSchools: boolean;
   handleSubmit: (e: React.FormEvent) => void;
@@ -42,7 +47,9 @@ interface CategoryHeadsFormProps {
     schoolId: string | number;
     name: string;
     description?: string;
+    type: "school" | "transport";
     status: "active" | "inactive";
+    applicableMonths?: number[];
   }>;
   isImporting: boolean;
   importResult: {
@@ -52,19 +59,19 @@ interface CategoryHeadsFormProps {
     errors: Array<{ row: number; error: string }>;
     duplicates: Array<{ row: number; name: string; reason: string }>;
   } | null;
-  getRootProps: () => any;
-  getInputProps: () => any;
+  getRootProps: () => Record<string, unknown>;
+  getInputProps: () => Record<string, unknown>;
   isDragActive: boolean;
   downloadSampleCSV: () => void;
   handleBulkImport: () => Promise<void>;
 }
 
-export default function CategoryHeadsForm({
+export default function FeeHeadingForm({
   mode,
   setMode,
   formData,
   setFormData,
-  editingCategoryHead,
+  editingCategory,
   schools,
   loadingSchools,
   handleSubmit,
@@ -81,7 +88,22 @@ export default function CategoryHeadsForm({
   isDragActive,
   downloadSampleCSV,
   handleBulkImport,
-}: CategoryHeadsFormProps) {
+}: FeeHeadingFormProps) {
+  const monthNames = [
+    { num: 1, name: "Jan" },
+    { num: 2, name: "Feb" },
+    { num: 3, name: "Mar" },
+    { num: 4, name: "Apr" },
+    { num: 5, name: "May" },
+    { num: 6, name: "Jun" },
+    { num: 7, name: "Jul" },
+    { num: 8, name: "Aug" },
+    { num: 9, name: "Sep" },
+    { num: 10, name: "Oct" },
+    { num: 11, name: "Nov" },
+    { num: 12, name: "Dec" },
+  ];
+
   return (
     <Card className="lg:col-span-1">
       <CardHeader>
@@ -98,7 +120,7 @@ export default function CategoryHeadsForm({
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            Add Category Head
+            Add Fee Heading
           </button>
           <button
             type="button"
@@ -106,21 +128,21 @@ export default function CategoryHeadsForm({
               setMode("import");
               handleCancel();
             }}
-            className={`px-4 py-2 text-xs font-semibold transition-smooth ${
+            className={`px-4 py-2 text-sm font-semibold transition-smooth ${
               mode === "import"
                 ? "text-indigo-600 border-b-2 border-indigo-600"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            Import Category Heads
+            Import Fee Headings
           </button>
         </div>
         <CardTitle className="text-lg font-bold text-gray-800">
           {mode === "import"
-            ? "Import Category Heads from CSV"
-            : editingCategoryHead
-            ? "Edit Category Head"
-            : "Add Category Head"}
+            ? "Import Fee Headings from CSV"
+            : editingCategory
+            ? "Edit Fee Heading"
+            : "Add Fee Heading"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -163,18 +185,41 @@ export default function CategoryHeadsForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Head Name <span className="text-red-500">*</span>
+                Category Name <span className="text-red-500">*</span>
               </label>
-              <input
+              <Input
                 type="text"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="e.g., General, Sponsored"
+                placeholder="e.g., Tuition Fee, Library Fee"
                 required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth bg-white"
+                disabled={!formData.schoolId}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fee Type <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={formData.type}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    type: value as "school" | "transport",
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="school">School Fee</SelectItem>
+                  <SelectItem value="transport">Transport Fee</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -192,41 +237,99 @@ export default function CategoryHeadsForm({
               />
             </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Status <span className="text-red-500">*</span>
-          </label>
-          <Select
-            value={formData.status}
-            onValueChange={(value) =>
-              setFormData({ ...formData, status: value })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, status: value })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Applicable Months
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Select months when this fee is applicable. Leave empty for all
+                months.
+              </p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-3 border border-gray-300 rounded-lg bg-gray-50 max-h-48 overflow-y-auto">
+                {monthNames.map((month) => {
+                  const isSelected = formData.applicableMonths.includes(
+                    month.num
+                  );
+                  return (
+                    <button
+                      key={month.num}
+                      type="button"
+                      onClick={() => {
+                        const newMonths = isSelected
+                          ? formData.applicableMonths.filter(
+                              (m) => m !== month.num
+                            )
+                          : [...formData.applicableMonths, month.num].sort(
+                              (a, b) => a - b
+                            );
+                        setFormData({
+                          ...formData,
+                          applicableMonths: newMonths,
+                        });
+                      }}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg transition-all ${
+                        isSelected
+                          ? "bg-indigo-600 text-white shadow-md"
+                          : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                      }`}
+                    >
+                      {month.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {formData.applicableMonths.length > 0 && (
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-gray-600">Selected:</span>
+                  <span className="text-xs font-medium text-indigo-600">
+                    {formData.applicableMonths
+                      .map((m) => monthNames[m - 1].name)
+                      .join(", ")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({ ...formData, applicableMonths: [] })
+                    }
+                    className="text-xs text-red-600 hover:text-red-800 underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600"
               >
-                {editingCategoryHead ? "Update" : "Create"}
-              </button>
-              {editingCategoryHead && (
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-smooth"
-                >
+                {editingCategory ? "Update" : "Create"}
+              </Button>
+              {editingCategory && (
+                <Button type="button" variant="outline" onClick={handleCancel}>
                   Cancel
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -286,30 +389,13 @@ export default function CategoryHeadsForm({
                 <p className="text-xs text-gray-500 mt-1">
                   Download a sample CSV template with the correct format.
                 </p>
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs font-semibold text-blue-900 mb-1">
-                    CSV Format:
-                  </p>
-                  <ul className="text-xs text-blue-800 space-y-0.5 list-disc list-inside">
-                    <li>
-                      <strong>name</strong> - Category head name (e.g.,
-                      "General", "Sponsored")
-                    </li>
-                    <li>
-                      <strong>description</strong> - Optional description
-                    </li>
-                    <li>
-                      <strong>status</strong> - "active" or "inactive"
-                    </li>
-                  </ul>
-                </div>
               </div>
             )}
 
             {/* File Upload */}
             {importSchoolId && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Upload CSV File <span className="text-red-500">*</span>
                 </label>
                 <div
@@ -327,18 +413,16 @@ export default function CategoryHeadsForm({
                       <p className="text-xs font-semibold text-gray-700">
                         {importFile.name}
                       </p>
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           setImportFile(null);
                         }}
-                        className="mt-1 text-xs"
+                        className="mt-1 text-xs text-red-600 hover:text-red-700"
                       >
                         Remove
-                      </Button>
+                      </button>
                     </div>
                   ) : (
                     <div>
@@ -347,7 +431,7 @@ export default function CategoryHeadsForm({
                           ? "Drop your CSV file here"
                           : "Drag & drop your CSV file here"}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 mt-0.5">
                         or click to browse
                       </p>
                     </div>
@@ -356,28 +440,26 @@ export default function CategoryHeadsForm({
               </div>
             )}
 
-            {/* Preview Table */}
+            {/* Preview */}
             {importPreview.length > 0 && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Preview (first 10 rows)
+                  Preview ({importPreview.length} rows)
                 </label>
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-xs">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 sticky top-0">
                       <tr>
                         <th className="px-2 py-1 text-left">Name</th>
-                        <th className="px-2 py-1 text-left">Description</th>
+                        <th className="px-2 py-1 text-left">Type</th>
                         <th className="px-2 py-1 text-left">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody>
                       {importPreview.map((row, idx) => (
-                        <tr key={idx}>
+                        <tr key={idx} className="border-t">
                           <td className="px-2 py-1">{row.name}</td>
-                          <td className="px-2 py-1">
-                            {row.description || "-"}
-                          </td>
+                          <td className="px-2 py-1">{row.type}</td>
                           <td className="px-2 py-1">{row.status}</td>
                         </tr>
                       ))}
@@ -393,18 +475,15 @@ export default function CategoryHeadsForm({
                 type="button"
                 onClick={handleBulkImport}
                 disabled={isImporting}
-                className="w-full"
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600"
               >
                 {isImporting ? (
-                  <>
-                    <FiLoader className="w-4 h-4 mr-2 animate-spin" />
+                  <span className="flex items-center justify-center gap-2">
+                    <FiLoader className="w-4 h-4 animate-spin" />
                     Importing...
-                  </>
+                  </span>
                 ) : (
-                  <>
-                    <FiUpload className="w-4 h-4 mr-2" />
-                    Import Category Heads
-                  </>
+                  "Import Fee Categories"
                 )}
               </Button>
             )}
@@ -414,49 +493,39 @@ export default function CategoryHeadsForm({
               <div className="space-y-2">
                 {importResult.success > 0 && (
                   <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-xs font-semibold text-green-900">
-                      ✓ Successfully imported: {importResult.success}
+                    <p className="text-xs font-semibold text-green-800">
+                      Successfully imported: {importResult.success} fee
+                      category(es)
                     </p>
                   </div>
                 )}
                 {importResult.skipped > 0 && (
                   <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-xs font-semibold text-yellow-900">
-                      ⚠ Skipped: {importResult.skipped} duplicate(s)
+                    <p className="text-xs font-semibold text-yellow-800 mb-1">
+                      Skipped (duplicates): {importResult.skipped} fee
+                      category(es)
                     </p>
-                    {importResult.duplicates.length > 0 && (
-                      <ul className="text-xs text-yellow-800 mt-1 space-y-0.5">
-                        {importResult.duplicates.slice(0, 5).map((dup, idx) => (
-                          <li key={idx}>
-                            Row {dup.row}: {dup.name} - {dup.reason}
-                          </li>
-                        ))}
-                        {importResult.duplicates.length > 5 && (
-                          <li>
-                            ... and {importResult.duplicates.length - 5} more
-                          </li>
-                        )}
-                      </ul>
-                    )}
+                    <div className="max-h-24 overflow-y-auto text-xs text-yellow-700">
+                      {importResult.duplicates.map((dup, idx) => (
+                        <div key={idx} className="mb-0.5">
+                          Row {dup.row} - "{dup.name}": {dup.reason}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {importResult.failed > 0 && (
                   <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-xs font-semibold text-red-900">
-                      ✗ Failed: {importResult.failed}
+                    <p className="text-xs font-semibold text-red-800 mb-1">
+                      Failed: {importResult.failed} fee category(es)
                     </p>
-                    {importResult.errors.length > 0 && (
-                      <ul className="text-xs text-red-800 mt-1 space-y-0.5">
-                        {importResult.errors.slice(0, 5).map((err, idx) => (
-                          <li key={idx}>
-                            Row {err.row}: {err.error}
-                          </li>
-                        ))}
-                        {importResult.errors.length > 5 && (
-                          <li>... and {importResult.errors.length - 5} more</li>
-                        )}
-                      </ul>
-                    )}
+                    <div className="max-h-24 overflow-y-auto text-xs text-red-700">
+                      {importResult.errors.map((err, idx) => (
+                        <div key={idx} className="mb-0.5">
+                          Row {err.row}: {err.error}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
