@@ -10,6 +10,8 @@ import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
 import { FeeCategory } from '../fee-categories/entities/fee-category.entity';
 import { CategoryHead } from '../category-heads/entities/category-head.entity';
 import { Class } from '../classes/entities/class.entity';
+import { Route } from '../routes/entities/route.entity';
+import { RoutePlan } from '../route-plans/entities/route-plan.entity';
 import { SchoolsModule } from '../schools/schools.module';
 import { UsersModule } from '../users/users.module';
 import { CategoryHeadsModule } from '../category-heads/category-heads.module';
@@ -25,6 +27,8 @@ import { CategoryHeadsModule } from '../category-heads/category-heads.module';
       FeeCategory,
       CategoryHead,
       Class,
+      Route,
+      RoutePlan,
     ]),
     SchoolsModule,
     UsersModule,

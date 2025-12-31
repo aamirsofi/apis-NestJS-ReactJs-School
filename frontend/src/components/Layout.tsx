@@ -186,7 +186,7 @@ export default function Layout({ children }: LayoutProps) {
             },
             {
               name: "Route Plans",
-              path: "/super-admin/settings/fee-settings/fee-heads/route-plan",
+              path: "/super-admin/settings/fee-settings/route-plan",
               icon: FiMapPin,
             },
           ],
@@ -319,7 +319,7 @@ export default function Layout({ children }: LayoutProps) {
   const regularNavigation = [
     {
       name: "Dashboard",
-      path: "/dashboard",
+      path: "/super-admin/dashboard",
       icon: FiHome,
       roles: ["administrator", "accountant"],
     },

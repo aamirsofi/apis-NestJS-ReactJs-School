@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./contexts/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
 import Students from "./pages/Students";
 import FeeStructures from "./pages/FeeStructures";
 import Payments from "./pages/Payments";
@@ -16,8 +15,10 @@ import FeeHeading from "./pages/super-admin/FeeHeading";
 import CategoryHeads from "./pages/super-admin/CategoryHeads";
 import FeePlan from "./pages/super-admin/FeePlan";
 import Classes from "./pages/super-admin/Classes";
+import RoutePlans from "./pages/super-admin/RoutePlans";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedLayoutRoute from "./components/ProtectedLayoutRoute";
 import Layout from "./components/Layout";
 import { ShadcnDemo } from "./components/ShadcnDemo";
 
@@ -55,104 +56,134 @@ function App() {
             <Route path="/register" element={<Register />} />
 
             {/* Super Admin Routes */}
+
+            {/* Dashboard */}
             <Route
               path="/super-admin/dashboard"
               element={
-                <ProtectedRoute>
-                  <Layout>
-                    <SuperAdminDashboard />
-                  </Layout>
-                </ProtectedRoute>
+                <ProtectedLayoutRoute>
+                  <SuperAdminDashboard />
+                </ProtectedLayoutRoute>
               }
             />
+
+            {/* Schools */}
             <Route
               path="/super-admin/schools"
               element={
-                <ProtectedRoute>
-                  <Layout>
-                    <SuperAdminSchools />
-                  </Layout>
-                </ProtectedRoute>
+                <ProtectedLayoutRoute>
+                  <SuperAdminSchools />
+                </ProtectedLayoutRoute>
               }
             />
             <Route
               path="/super-admin/schools/bulk-import"
               element={
-                <ProtectedRoute>
-                  <Layout>
-                    <BulkImportStudents />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/settings/fee-settings/fee-heading"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <FeeHeading />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/settings/fee-settings/category-heads"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CategoryHeads />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/settings/fee-settings/fee-plan"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <FeePlan />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/settings/academics/class"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Classes />
-                  </Layout>
-                </ProtectedRoute>
+                <ProtectedLayoutRoute>
+                  <BulkImportStudents />
+                </ProtectedLayoutRoute>
               }
             />
             <Route
               path="/super-admin/schools/:id/details"
               element={
-                <ProtectedRoute>
-                  <Layout>
-                    <SuperAdminSchoolDetails />
-                  </Layout>
-                </ProtectedRoute>
+                <ProtectedLayoutRoute>
+                  <SuperAdminSchoolDetails />
+                </ProtectedLayoutRoute>
               }
             />
+
+            {/* Users */}
             <Route
               path="/super-admin/users"
               element={
-                <ProtectedRoute>
-                  <Layout>
-                    <SuperAdminUsers />
-                  </Layout>
-                </ProtectedRoute>
+                <ProtectedLayoutRoute>
+                  <SuperAdminUsers />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            {/* Settings - Fee Settings */}
+            <Route
+              path="/super-admin/settings/fee-settings/category-heads"
+              element={
+                <ProtectedLayoutRoute>
+                  <CategoryHeads />
+                </ProtectedLayoutRoute>
               }
             />
             <Route
+              path="/super-admin/settings/fee-settings/fee-heading"
+              element={
+                <ProtectedLayoutRoute>
+                  <FeeHeading />
+                </ProtectedLayoutRoute>
+              }
+            />
+            <Route
+              path="/super-admin/settings/fee-settings/fee-plan"
+              element={
+                <ProtectedLayoutRoute>
+                  <FeePlan />
+                </ProtectedLayoutRoute>
+              }
+            />
+            {/* Route Plans - Contains both "Define Routes" and "Plan Routes" tabs */}
+            <Route
+              path="/super-admin/settings/fee-settings/route-plan"
+              element={
+                <ProtectedLayoutRoute>
+                  <RoutePlans />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            {/* Settings - Academics */}
+            <Route
+              path="/super-admin/settings/academics/class"
+              element={
+                <ProtectedLayoutRoute>
+                  <Classes />
+                </ProtectedLayoutRoute>
+              }
+            />
+
+            {/* Settings - Other */}
+            {/* TODO: Add System Settings component when ready */}
+            {/* <Route
+              path="/super-admin/settings/system"
+              element={
+                <ProtectedLayoutRoute>
+                  <SystemSettings />
+                </ProtectedLayoutRoute>
+              }
+            /> */}
+            {/* Note: User Management route matches sidebar but uses same component as /super-admin/users */}
+            <Route
+              path="/super-admin/settings/users"
+              element={
+                <ProtectedLayoutRoute>
+                  <SuperAdminUsers />
+                </ProtectedLayoutRoute>
+              }
+            />
+            {/* TODO: Add Notifications component when ready */}
+            {/* <Route
+              path="/super-admin/settings/notifications"
+              element={
+                <ProtectedLayoutRoute>
+                  <Notifications />
+                </ProtectedLayoutRoute>
+              }
+            /> */}
+
+            {/* Profile */}
+            <Route
               path="/super-admin/profile"
               element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Profile />
-                  </Layout>
-                </ProtectedRoute>
+                <ProtectedLayoutRoute>
+                  <Profile />
+                </ProtectedLayoutRoute>
               }
             />
 
@@ -167,14 +198,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+
             <Route
               path="/students"
               element={
@@ -199,7 +223,36 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            {/* Default redirect */}
+            <Route
+              path="/"
+              element={<Navigate to="/super-admin/dashboard" />}
+            />
+
+            {/* 404 - Catch all unmatched routes */}
+            <Route
+              path="*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <div className="flex items-center justify-center min-h-screen">
+                      <div className="text-center">
+                        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                          404
+                        </h1>
+                        <p className="text-gray-600 mb-4">Page not found</p>
+                        <a
+                          href="/super-admin/dashboard"
+                          className="text-indigo-600 hover:text-indigo-800 underline"
+                        >
+                          Go to Dashboard
+                        </a>
+                      </div>
+                    </div>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
