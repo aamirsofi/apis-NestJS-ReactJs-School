@@ -2,19 +2,34 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
 import { studentsService } from '../services/students.service';
-import { Student } from '../types';
-import { FiPlus, FiEdit2, FiTrash2, FiUser, FiMail, FiBook, FiLoader } from 'react-icons/fi';
+import { academicYearsService } from '../services/academicYears.service';
+import { studentAcademicRecordsService } from '../services/studentAcademicRecords.service';
+import { Student, AcademicYear, StudentAcademicRecord } from '../types';
+import { FiPlus, FiEdit2, FiTrash2, FiUser, FiMail, FiBook, FiLoader, FiCalendar } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import api from '../services/api';
+
+interface Class {
+  id: number;
+  name: string;
+}
 
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showAcademicRecordModal, setShowAcademicRecordModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [currentAcademicYear, setCurrentAcademicYear] = useState<AcademicYear | null>(null);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [academicRecords, setAcademicRecords] = useState<Record<number, StudentAcademicRecord>>({});
+  
   const [formData, setFormData] = useState<Partial<Student>>({
     studentId: '',
     firstName: '',
@@ -22,23 +37,60 @@ export default function Students() {
     email: '',
     phone: '',
     address: '',
-    class: '',
-    section: '',
+    dateOfBirth: '',
+    gender: '',
+    bloodGroup: '',
+    admissionDate: '',
+    admissionNumber: '',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    parentRelation: '',
     status: 'active',
   });
 
+  const [academicRecordData, setAcademicRecordData] = useState({
+    classId: '',
+    section: '',
+    rollNumber: '',
+  });
+
   useEffect(() => {
-    loadStudents();
+    loadData();
   }, []);
 
-  const loadStudents = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await studentsService.getAll();
-      setStudents(data);
+      
+      // Load current academic year
+      const year = await academicYearsService.getCurrent();
+      setCurrentAcademicYear(year);
+      
+      // Load students
+      const studentsData = await studentsService.getAll();
+      setStudents(studentsData);
+      
+      // Load classes
+      const classesResponse = await api.instance.get<Class[]>('/classes');
+      setClasses(classesResponse.data);
+      
+      // Load current academic records for all students
+      const recordsMap: Record<number, StudentAcademicRecord> = {};
+      for (const student of studentsData) {
+        try {
+          const record = await studentAcademicRecordsService.getCurrent(student.id);
+          if (record) {
+            recordsMap[student.id] = record;
+          }
+        } catch (err) {
+          // No record found, skip
+        }
+      }
+      setAcademicRecords(recordsMap);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load students');
+      setError(err.response?.data?.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -49,11 +101,9 @@ export default function Students() {
     try {
       setError('');
       
-      // Check if user has schoolId, if not try to get it from localStorage or user object
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       
-      // If user doesn't have schoolId and no school subdomain is set, show helpful error
       if (!user?.schoolId && !localStorage.getItem('school_subdomain')) {
         setError('School context required. Please ensure you have a school assigned or access via school subdomain.');
         return;
@@ -65,20 +115,39 @@ export default function Students() {
         await studentsService.create(formData);
       }
       
-      // Clear error on success
       setError('');
       setShowModal(false);
       setEditingStudent(null);
       resetForm();
-      loadStudents();
+      loadData();
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Failed to save student';
       setError(errorMessage);
+    }
+  };
+
+  const handleAcademicRecordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent || !currentAcademicYear) return;
+    
+    try {
+      setError('');
+      await studentAcademicRecordsService.create({
+        studentId: selectedStudent.id,
+        academicYearId: currentAcademicYear.id,
+        classId: parseInt(academicRecordData.classId),
+        section: academicRecordData.section || undefined,
+        rollNumber: academicRecordData.rollNumber || undefined,
+        status: 'active',
+      });
       
-      // If error mentions school context, provide helpful guidance
-      // Error message is already displayed to user via setError()
-      
-      // Don't close modal on error so user can fix and retry
+      setShowAcademicRecordModal(false);
+      setSelectedStudent(null);
+      setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+      loadData();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Failed to create academic record';
+      setError(errorMessage);
     }
   };
 
@@ -90,14 +159,21 @@ export default function Students() {
       email: '',
       phone: '',
       address: '',
-      class: '',
-      section: '',
+      dateOfBirth: '',
+      gender: '',
+      bloodGroup: '',
+      admissionDate: '',
+      admissionNumber: '',
+      parentName: '',
+      parentEmail: '',
+      parentPhone: '',
+      parentRelation: '',
       status: 'active',
     });
   };
 
   const handleEdit = (student: Student) => {
-    setError(''); // Clear error when editing
+    setError('');
     setEditingStudent(student);
     setFormData({
       studentId: student.studentId,
@@ -106,27 +182,49 @@ export default function Students() {
       email: student.email,
       phone: student.phone,
       address: student.address,
-      class: student.class,
-      section: student.section,
+      dateOfBirth: student.dateOfBirth,
+      gender: student.gender,
+      bloodGroup: student.bloodGroup,
+      admissionDate: student.admissionDate,
+      admissionNumber: student.admissionNumber,
+      parentName: student.parentName,
+      parentEmail: student.parentEmail,
+      parentPhone: student.parentPhone,
+      parentRelation: student.parentRelation,
       status: student.status,
     });
     setShowModal(true);
+  };
+
+  const handleAddAcademicRecord = (student: Student) => {
+    setSelectedStudent(student);
+    setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+    setError('');
+    setShowAcademicRecordModal(true);
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this student?')) return;
     try {
       await studentsService.delete(id);
-      loadStudents();
+      loadData();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to delete student');
     }
   };
 
+  const getCurrentClass = (student: Student): string => {
+    const record = academicRecords[student.id];
+    if (record?.class) {
+      return `${record.class.name}${record.section ? ` - ${record.section}` : ''}`;
+    }
+    return 'Not assigned';
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header - Using shadcn/ui Card */}
+        {/* Header */}
         <Card className="shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -135,14 +233,14 @@ export default function Students() {
                   Students
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Manage student information and records
+                  Manage student information and academic records
                 </CardDescription>
               </div>
               <Button
                 onClick={() => {
                   setEditingStudent(null);
                   resetForm();
-                  setError(''); // Clear error when opening modal
+                  setError('');
                   setShowModal(true);
                 }}
                 className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
@@ -154,8 +252,8 @@ export default function Students() {
           </CardHeader>
         </Card>
 
-        {/* Error Alert - Only show if modal is not open (for load/delete errors) - Using shadcn/ui Card */}
-        {error && !showModal && (
+        {/* Error Alert */}
+        {error && !showModal && !showAcademicRecordModal && (
           <Card className="border-destructive border-l-4 animate-pulse-slow">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -165,23 +263,13 @@ export default function Students() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-destructive mb-1">Error</p>
                   <p className="text-sm text-destructive/90">{error}</p>
-                  {error.includes('School context') && (
-                    <div className="mt-3 text-xs text-destructive/80">
-                      <p className="font-semibold mb-1">To fix this:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Ensure your user account has a school assigned</li>
-                        <li>Or access the application via school subdomain (e.g., school1.localhost:5173)</li>
-                        <li>If you're a super admin, create a school first and assign it to your account</li>
-                      </ul>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Loading State - Using shadcn/ui Card */}
+        {/* Loading State */}
         {loading ? (
           <Card className="p-12">
             <CardContent className="flex items-center justify-center">
@@ -200,7 +288,7 @@ export default function Students() {
               <Button
                 onClick={() => {
                   resetForm();
-                  setError(''); // Clear error when opening modal
+                  setError('');
                   setShowModal(true);
                 }}
                 className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
@@ -223,7 +311,7 @@ export default function Students() {
                       Contact
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Class
+                      Class ({currentAcademicYear?.name || 'N/A'})
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
@@ -263,9 +351,18 @@ export default function Students() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-900">
                           <FiBook className="w-4 h-4 mr-2 text-indigo-500" />
-                          {student.class}
-                          {student.section && <span className="ml-1">- {student.section}</span>}
+                          {getCurrentClass(student)}
                         </div>
+                        {!academicRecords[student.id] && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-xs mt-1 p-0 h-auto"
+                            onClick={() => handleAddAcademicRecord(student)}
+                          >
+                            Assign class
+                          </Button>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge
@@ -317,18 +414,17 @@ export default function Students() {
           </Card>
         )}
 
-        {/* Modal */}
+        {/* Student Modal */}
         <Modal
           isOpen={showModal}
           onClose={() => {
             setShowModal(false);
             setEditingStudent(null);
             resetForm();
-            setError(''); // Clear error when closing modal
+            setError('');
           }}
           title={editingStudent ? 'Edit Student' : 'Add New Student'}
         >
-          {/* Show error inside modal if present */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
               <div className="flex items-start gap-2">
@@ -338,15 +434,6 @@ export default function Students() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-red-700 mb-1">Error</p>
                   <p className="text-sm text-red-600">{error}</p>
-                  {error.includes('School context') && (
-                    <div className="mt-2 text-xs text-red-500">
-                      <p className="font-semibold mb-1">To fix this:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Ensure your user account has a school assigned</li>
-                        <li>Or access the application via school subdomain</li>
-                      </ul>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -375,6 +462,7 @@ export default function Students() {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="graduated">Graduated</option>
+                  <option value="transferred">Transferred</option>
                 </select>
               </div>
             </div>
@@ -419,24 +507,65 @@ export default function Students() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Class *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Date of Birth
+                </label>
                 <Input
-                  type="text"
-                  required
-                  value={formData.class}
-                  onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                  placeholder="10th Grade"
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Section</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
+                <select
+                  value={formData.gender || ''}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
+                >
+                  <option value="">Select</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Blood Group
+                </label>
                 <Input
                   type="text"
-                  value={formData.section}
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                  placeholder="A"
+                  value={formData.bloodGroup}
+                  onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
+                  placeholder="O+"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Admission Date *
+                </label>
+                <Input
+                  type="date"
+                  required
+                  value={formData.admissionDate}
+                  onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Admission Number
+              </label>
+              <Input
+                type="text"
+                value={formData.admissionNumber}
+                onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
+                placeholder="ADM001"
+              />
             </div>
 
             <div>
@@ -447,6 +576,72 @@ export default function Students() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+1234567890"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+              <Input
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="123 Main St, City"
+              />
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-semibold mb-4">Parent/Guardian Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Parent Name
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.parentName}
+                    onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
+                    placeholder="John Doe Sr."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Relation
+                  </label>
+                  <select
+                    value={formData.parentRelation || ''}
+                    onChange={(e) => setFormData({ ...formData, parentRelation: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
+                  >
+                    <option value="">Select</option>
+                    <option value="father">Father</option>
+                    <option value="mother">Mother</option>
+                    <option value="guardian">Guardian</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Parent Email
+                  </label>
+                  <Input
+                    type="email"
+                    value={formData.parentEmail}
+                    onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                    placeholder="parent@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Parent Phone
+                  </label>
+                  <Input
+                    type="tel"
+                    value={formData.parentPhone}
+                    onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
+                    placeholder="+1234567890"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
@@ -466,6 +661,101 @@ export default function Students() {
                 className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
               >
                 {editingStudent ? 'Update Student' : 'Create Student'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Academic Record Modal */}
+        <Modal
+          isOpen={showAcademicRecordModal}
+          onClose={() => {
+            setShowAcademicRecordModal(false);
+            setSelectedStudent(null);
+            setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+            setError('');
+          }}
+          title={`Assign Class - ${selectedStudent?.firstName} ${selectedStudent?.lastName}`}
+        >
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+          <form onSubmit={handleAcademicRecordSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Academic Year
+              </label>
+              <Input
+                type="text"
+                value={currentAcademicYear?.name || 'N/A'}
+                disabled
+                className="bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Class *
+              </label>
+              <Select
+                value={academicRecordData.classId}
+                onValueChange={(value) => setAcademicRecordData({ ...academicRecordData, classId: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id.toString()}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Section
+                </label>
+                <Input
+                  type="text"
+                  value={academicRecordData.section}
+                  onChange={(e) => setAcademicRecordData({ ...academicRecordData, section: e.target.value })}
+                  placeholder="A"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Roll Number
+                </label>
+                <Input
+                  type="text"
+                  value={academicRecordData.rollNumber}
+                  onChange={(e) => setAcademicRecordData({ ...academicRecordData, rollNumber: e.target.value })}
+                  placeholder="001"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAcademicRecordModal(false);
+                  setSelectedStudent(null);
+                  setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
+              >
+                Assign Class
               </Button>
             </div>
           </form>

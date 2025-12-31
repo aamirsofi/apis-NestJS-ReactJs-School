@@ -8,9 +8,10 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AcademicYearsService } from './academic-years.service';
 import { CreateAcademicYearDto } from './dto/create-academic-year.dto';
 import { UpdateAcademicYearDto } from './dto/update-academic-year.dto';
@@ -29,50 +30,85 @@ export class AcademicYearsController {
   @Post()
   @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a new academic year' })
+  @ApiQuery({
+    name: 'schoolId',
+    required: false,
+    type: Number,
+    description: 'School ID (required for super admin, optional for school admin)',
+  })
   @ApiResponse({ status: 201, description: 'Academic year created successfully' })
-  create(@Body() createAcademicYearDto: CreateAcademicYearDto, @Request() req: any) {
-    const schoolId = req.school?.id || req.user?.schoolId;
+  create(
+    @Body() createAcademicYearDto: CreateAcademicYearDto,
+    @Request() req: any,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    const userSchoolId = req.school?.id || req.user?.schoolId;
+    const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!schoolId) {
-      throw new BadRequestException('School context required');
+    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('School ID is required');
     }
 
-    const numericSchoolId = typeof schoolId === 'string' ? parseInt(schoolId, 10) : schoolId;
-    if (isNaN(numericSchoolId)) {
-      throw new BadRequestException(`Invalid school ID: ${schoolId}`);
+    if (req.user.role !== UserRole.SUPER_ADMIN && targetSchoolId !== userSchoolId) {
+      throw new BadRequestException('You can only create academic years for your own school');
     }
 
-    return this.academicYearsService.create(createAcademicYearDto, numericSchoolId);
+    if (!targetSchoolId) {
+      throw new BadRequestException('School ID is required');
+    }
+
+    return this.academicYearsService.create(createAcademicYearDto, targetSchoolId);
   }
 
   @Get()
   @Roles(UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get all academic years' })
+  @ApiQuery({
+    name: 'schoolId',
+    required: false,
+    type: Number,
+    description: 'Filter by school ID (optional for super admin)',
+  })
   @ApiResponse({ status: 200, description: 'List of academic years' })
-  findAll(@Request() req: any) {
-    const schoolId = req.school?.id || req.user?.schoolId;
+  findAll(@Request() req: any, @Query('schoolId') schoolId?: string) {
+    const userSchoolId = req.school?.id || req.user?.schoolId;
+    const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!schoolId) {
+    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
       throw new BadRequestException('School context required');
     }
 
-    const numericSchoolId = typeof schoolId === 'string' ? parseInt(schoolId, 10) : schoolId;
-    return this.academicYearsService.findAll(numericSchoolId);
+    // For super admin without schoolId, we could return all, but for now require schoolId
+    if (!targetSchoolId) {
+      throw new BadRequestException('School ID is required. Use ?schoolId=X query parameter for super admin.');
+    }
+
+    return this.academicYearsService.findAll(targetSchoolId);
   }
 
   @Get('current')
   @Roles(UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get current academic year' })
+  @ApiQuery({
+    name: 'schoolId',
+    required: false,
+    type: Number,
+    description: 'School ID (required for super admin, optional for school admin)',
+  })
   @ApiResponse({ status: 200, description: 'Current academic year' })
-  async getCurrent(@Request() req: any) {
-    const schoolId = req.school?.id || req.user?.schoolId;
+  async getCurrent(@Request() req: any, @Query('schoolId') schoolId?: string) {
+    const userSchoolId = req.school?.id || req.user?.schoolId;
+    const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!schoolId) {
+    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
       throw new BadRequestException('School context required');
     }
 
-    const numericSchoolId = typeof schoolId === 'string' ? parseInt(schoolId, 10) : schoolId;
-    return await this.academicYearsService.getOrCreateCurrent(numericSchoolId);
+    if (!targetSchoolId) {
+      throw new BadRequestException('School ID is required. Use ?schoolId=X query parameter for super admin.');
+    }
+
+    return await this.academicYearsService.getOrCreateCurrent(targetSchoolId);
   }
 
   @Get(':id')

@@ -20,7 +20,7 @@ import { UpdateFeeCategoryDto } from '../fee-categories/dto/update-fee-category.
 import { CreateFeeStructureDto } from '../fee-structures/dto/create-fee-structure.dto';
 import { UpdateFeeStructureDto } from '../fee-structures/dto/update-fee-structure.dto';
 import { CategoryHead } from '../category-heads/entities/category-head.entity';
-import { Class } from '../classes/entities/class.entity';
+import { Class, ClassStatus } from '../classes/entities/class.entity';
 import { Route } from '../routes/entities/route.entity';
 import { RoutePlan } from '../route-plans/entities/route-plan.entity';
 import { CreateRoutePlanDto } from '../route-plans/dto/create-route-plan.dto';
@@ -443,15 +443,8 @@ export class SuperAdminService {
           continue;
         }
 
-        if (!studentDto.class?.trim()) {
-          results.failed++;
-          results.errors.push({
-            row: rowNumber,
-            studentId: studentDto.studentId,
-            error: 'Class is required',
-          });
-          continue;
-        }
+        // Note: Class assignment is now done via StudentAcademicRecord, not during student creation
+        // We'll create the student without class/section, and class can be assigned later
 
         // Check for duplicates within the import batch
         const duplicateInBatch = bulkImportDto.students
@@ -509,7 +502,7 @@ export class SuperAdminService {
           continue;
         }
 
-        // Create the student
+        // Create the student (without class/section - those are now in StudentAcademicRecord)
         const studentData: Partial<Student> = {
           studentId: studentDto.studentId.trim(),
           firstName: studentDto.firstName.trim(),
@@ -517,8 +510,15 @@ export class SuperAdminService {
           email: studentDto.email.trim().toLowerCase(),
           phone: studentDto.phone?.trim() || undefined,
           address: studentDto.address?.trim() || undefined,
-          class: studentDto.class.trim(),
-          section: studentDto.section?.trim() || undefined,
+          dateOfBirth: studentDto.dateOfBirth ? new Date(studentDto.dateOfBirth) : undefined,
+          gender: studentDto.gender?.trim() || undefined,
+          bloodGroup: studentDto.bloodGroup?.trim() || undefined,
+          admissionDate: studentDto.admissionDate ? new Date(studentDto.admissionDate) : new Date(),
+          admissionNumber: studentDto.admissionNumber?.trim() || undefined,
+          parentName: studentDto.parentName?.trim() || undefined,
+          parentEmail: studentDto.parentEmail?.trim() || undefined,
+          parentPhone: studentDto.parentPhone?.trim() || undefined,
+          parentRelation: studentDto.parentRelation?.trim() || undefined,
           status: (studentDto.status || StudentStatus.ACTIVE) as StudentStatus,
           schoolId,
         };
@@ -1283,16 +1283,15 @@ export class SuperAdminService {
       throw new NotFoundException(`School with ID ${schoolId} not found`);
     }
 
-    // Fetch all students for the school to get unique classes
-    const students = await this.studentsRepository.find({
-      where: { schoolId },
-      select: ['class'],
+    // Fetch all classes for the school (from Classes entity, not from students)
+    const classes = await this.classesRepository.find({
+      where: { schoolId, status: ClassStatus.ACTIVE },
+      select: ['name'],
+      order: { name: 'ASC' },
     });
 
-    // Extract unique classes, filter out null/empty values, and sort
-    const uniqueClasses = Array.from(
-      new Set(students.map(student => student.class).filter(cls => cls && cls.trim())),
-    ).sort() as string[];
+    // Extract class names and return as sorted array
+    const uniqueClasses = classes.map(cls => cls.name).sort();
 
     return uniqueClasses;
   }

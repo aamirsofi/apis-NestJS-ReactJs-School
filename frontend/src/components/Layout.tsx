@@ -23,6 +23,7 @@ import {
   FiUpload,
   FiTag,
   FiBook,
+  FiCalendar,
 } from "react-icons/fi";
 import {
   DropdownMenu,
@@ -200,6 +201,11 @@ export default function Layout({ children }: LayoutProps) {
               name: "Classes",
               path: "/super-admin/settings/academics/class",
               icon: FiBook,
+            },
+            {
+              name: "Academic Years",
+              path: "/super-admin/settings/academics/academic-years",
+              icon: FiCalendar,
             },
           ],
         },
