@@ -269,7 +269,17 @@ export default function CategoryHeads() {
 
   return (
     <div className="space-y-6">
-      {/* Success/Error Messages */}
+      {/* Header */}
+      <div className="card-modern rounded-xl p-4">
+        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+          Category Heads Management
+        </h1>
+        <p className="text-gray-600 text-sm mt-1">
+          Manage category heads (e.g., General, Sponsored) for fee plans
+        </p>
+      </div>
+
+      {/* Success/Error Messages - Below header banner */}
       {success && (
         <div className="card-modern rounded-xl p-4 bg-green-50 border-l-4 border-green-400">
           <p className="text-green-700">{success}</p>
@@ -280,16 +290,6 @@ export default function CategoryHeads() {
           <p className="text-red-700">{error}</p>
         </div>
       )}
-
-      {/* Header */}
-      <div className="card-modern rounded-xl p-4">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-          Category Heads Management
-        </h1>
-        <p className="text-gray-600 text-sm mt-1">
-          Manage category heads (e.g., General, Sponsored) for fee plans
-        </p>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Side - Add/Edit Form */}

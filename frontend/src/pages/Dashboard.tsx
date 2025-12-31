@@ -14,6 +14,8 @@ import {
   FiLoader,
   FiTrendingUp,
 } from 'react-icons/fi';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -96,31 +98,33 @@ export default function Dashboard() {
     link: string;
   }) => {
     const content = (
-      <div className="card-modern rounded-2xl shadow-lg hover:shadow-xl transition-smooth hover-lift p-6 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-            <p className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-              {loading ? (
-                <FiLoader className="w-6 h-6 animate-spin text-gray-400" />
-              ) : (
-                value.toLocaleString()
-              )}
-            </p>
+      <Card className="hover:shadow-xl transition-smooth hover-lift animate-fade-in cursor-pointer h-full">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {title}
+          </CardTitle>
+          <div className={`${color} p-3 rounded-lg shadow-lg`}>
+            <Icon className="w-6 h-6 text-white" />
           </div>
-          <div className={`${color} p-4 rounded-xl shadow-lg`}>
-            <Icon className="w-8 h-8 text-white" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+            {loading ? (
+              <FiLoader className="w-6 h-6 animate-spin text-muted-foreground" />
+            ) : (
+              value.toLocaleString()
+            )}
           </div>
-        </div>
-        <div className="mt-4 flex items-center text-sm text-gray-500">
-          <FiTrendingUp className="w-4 h-4 mr-1" />
-          <span>View all</span>
-        </div>
-      </div>
+          <CardDescription className="flex items-center mt-4 text-xs">
+            <FiTrendingUp className="w-3 h-3 mr-1" />
+            <span>View all</span>
+          </CardDescription>
+        </CardContent>
+      </Card>
     );
 
     return link ? (
-      <Link to={link} className="block">
+      <Link to={link} className="block h-full">
         {content}
       </Link>
     ) : (
@@ -213,22 +217,27 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="card-modern rounded-2xl shadow-xl p-8 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white animate-fade-in">
-          <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}! 👋</h1>
-          <p className="text-indigo-100 capitalize">
-            {user?.role?.replace('_', ' ')} Dashboard
-          </p>
-        </div>
+        {/* Welcome Section - Using shadcn/ui Card */}
+        <Card className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white border-0 shadow-xl animate-fade-in">
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold text-white">
+              Welcome back, {user?.name}! 👋
+            </CardTitle>
+            <CardDescription className="text-indigo-100 capitalize">
+              {user?.role?.replace('_', ' ')} Dashboard
+            </CardDescription>
+          </CardHeader>
+        </Card>
 
         {/* Stats Grid */}
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Overview</h2>
-            <button
+            <Button
               onClick={loadStats}
               disabled={loading}
-              className="text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl font-medium disabled:opacity-50 flex items-center shadow-md hover:shadow-lg transition-smooth hover-lift"
+              variant="default"
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
             >
               {loading ? (
                 <>
@@ -238,7 +247,7 @@ export default function Dashboard() {
               ) : (
                 'Refresh'
               )}
-            </button>
+            </Button>
           </div>
           {getRoleSpecificContent()}
         </div>

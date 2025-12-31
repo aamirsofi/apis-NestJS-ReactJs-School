@@ -665,7 +665,7 @@ export class SuperAdminService {
         },
       });
 
-      if (existing) {
+      if (existing && existing.id !== id) {
         throw new BadRequestException(
           `Fee category with name "${updateFeeCategoryDto.name}" already exists for this school`,
         );

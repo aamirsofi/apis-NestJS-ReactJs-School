@@ -19,6 +19,7 @@ import Classes from './pages/super-admin/Classes';
 import Profile from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import { ShadcnDemo } from './components/ShadcnDemo';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         }}
       >
         <Routes>
+          <Route path="/testing" element={<Layout><ShadcnDemo /></Layout>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
