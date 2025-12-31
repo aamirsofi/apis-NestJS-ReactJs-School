@@ -1,13 +1,24 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUpload, FiArrowLeft, FiLoader } from "react-icons/fi";
+import { FiArrowLeft, FiLoader } from "react-icons/fi";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import api from "../../services/api";
 import { schoolService, School } from "../../services/schoolService";
 import StudentBulkImport from "../../components/StudentBulkImport";
-import CustomDropdown from "../../components/ui/CustomDropdown";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function BulkImportStudents() {
   const navigate = useNavigate();
@@ -87,73 +98,100 @@ export default function BulkImportStudents() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="card-modern rounded-xl p-4 bg-green-50 border-l-4 border-green-400">
-          <p className="text-green-700">{success}</p>
-        </div>
+        <Card className="border-l-4 border-l-green-400 bg-green-50">
+          <CardContent className="pt-6">
+            <p className="text-sm text-green-700">{success}</p>
+          </CardContent>
+        </Card>
       )}
       {error && (
-        <div className="card-modern rounded-xl p-4 bg-red-50 border-l-4 border-red-400">
-          <p className="text-red-700">{error}</p>
-        </div>
+        <Card className="border-l-4 border-l-red-400 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-sm text-red-700">{error}</p>
+          </CardContent>
+        </Card>
       )}
 
       {/* School Selection */}
-      <div className="card-modern rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Select School
-        </h2>
-        {loadingSchools ? (
-          <div className="flex items-center justify-center py-8">
-            <FiLoader className="w-6 h-6 animate-spin text-indigo-600" />
-            <span className="ml-2 text-gray-600">Loading schools...</span>
-          </div>
-        ) : (
-          <div className="max-w-md">
-            <CustomDropdown
-              options={schools.map((school) => ({
-                value: school.id.toString(),
-                label: school.name,
-              }))}
-              value={selectedSchoolId?.toString() || ""}
-              onChange={(value) => setSelectedSchoolId(parseInt(value))}
-              placeholder="Select a school..."
-              className="w-full"
-            />
-            {selectedSchool && (
-              <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
-                <p className="text-sm text-gray-600 mb-1">Selected School:</p>
-                <p className="text-lg font-semibold text-indigo-900">
-                  {selectedSchool.name}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Subdomain: {selectedSchool.subdomain}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-gray-800">
+            Select School
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingSchools ? (
+            <div className="flex items-center justify-center py-8">
+              <FiLoader className="w-6 h-6 animate-spin text-indigo-600" />
+              <span className="ml-2 text-gray-600">Loading schools...</span>
+            </div>
+          ) : (
+            <div className="max-w-md space-y-4">
+              <Select
+                value={selectedSchoolId?.toString() || "__EMPTY__"}
+                onValueChange={(value) => {
+                  setSelectedSchoolId(
+                    value === "__EMPTY__" ? null : parseInt(value)
+                  );
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a school..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="__EMPTY__">Select a school...</SelectItem>
+                  {schools.map((school) => (
+                    <SelectItem key={school.id} value={school.id.toString()}>
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSchool && (
+                <Card className="bg-indigo-50 border-indigo-200">
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-gray-600 mb-1">Selected School:</p>
+                    <p className="text-lg font-semibold text-indigo-900">
+                      {selectedSchool.name}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Subdomain: {selectedSchool.subdomain}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Import Component */}
       {selectedSchoolId && (
-        <div className="card-modern rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Upload CSV File
-          </h2>
-          <StudentBulkImport
-            schoolId={selectedSchoolId}
-            onImportSuccess={handleImportSuccess}
-            onImportError={handleImportError}
-          />
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-gray-800">
+              Upload CSV File
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StudentBulkImport
+              schoolId={selectedSchoolId}
+              onImportSuccess={handleImportSuccess}
+              onImportError={handleImportError}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Instructions */}
-      <div className="card-modern rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          CSV Format Instructions
-        </h2>
-        <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-gray-800">
+            CSV Format Instructions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">
               Required Columns:
@@ -221,7 +259,8 @@ STU002,Jane,Smith,jane.smith@example.com,+1234567891,456 Oak Ave,10th Grade,B,ac
             </div>
           </div>
         </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
