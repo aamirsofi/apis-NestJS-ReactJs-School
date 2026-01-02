@@ -64,6 +64,8 @@ interface DataTableProps<TData, TValue> {
   filterButtons?: React.ReactNode
   filterOptions?: FilterOption[]
   filterConfigs?: FilterConfig[]
+  // Advanced filters
+  advancedFilters?: React.ReactNode
   // Server-side pagination props
   manualPagination?: boolean
   pageCount?: number
@@ -102,6 +104,7 @@ export function DataTable<TData, TValue>({
   filterButtons,
   filterOptions,
   filterConfigs,
+  advancedFilters,
   manualPagination = false,
   pageCount,
   onPaginationChange,
@@ -249,6 +252,13 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
+      {/* Advanced Filters */}
+      {advancedFilters && (
+        <div className="mb-4 pb-4 border-b">
+          {advancedFilters}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between py-4">
         <div className="flex items-center gap-2 flex-1">
           {searchKey && (
