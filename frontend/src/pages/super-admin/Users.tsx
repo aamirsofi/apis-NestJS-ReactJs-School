@@ -7,11 +7,10 @@ import {
   FiUser,
   FiX,
 } from "react-icons/fi";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 import api from "../../services/api";
-import { schoolService, School } from "../../services/schoolService";
+import { useSchool } from "../../contexts/SchoolContext";
 import {
   Card,
   CardHeader,
@@ -62,6 +61,7 @@ interface User {
 }
 
 export default function SuperAdminUsers() {
+  const { selectedSchoolId, selectedSchool, schools, loadingSchools } = useSchool();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -88,35 +88,17 @@ export default function SuperAdminUsers() {
     hasPrevPage: boolean;
   } | null>(null);
 
-  // Use TanStack Query for schools (using infinite query for pagination)
-  const { data: schoolsData, isLoading: loadingSchools } = useInfiniteQuery({
-    queryKey: ["schools", "active"],
-    queryFn: async ({ pageParam = 1 }) => {
-      const response = await schoolService.getSchools({
-        page: pageParam,
-        limit: 100,
-        status: "active",
-      });
-      return response;
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.meta && lastPage.meta.hasNextPage) {
-        return lastPage.meta.page + 1;
-      }
-      return undefined;
-    },
-    initialPageParam: 1,
-  });
-
-  const schools: School[] = useMemo(() => {
-    if (!schoolsData?.pages) return [];
-    return schoolsData.pages.flatMap((page) => page.data || []);
-  }, [schoolsData]);
-
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, search]);
+  }, [page, limit, search, selectedSchoolId]);
+
+  // Auto-set schoolId from context when creating new user
+  useEffect(() => {
+    if (!editingUser && selectedSchoolId && (!formData.schoolId || formData.schoolId === "")) {
+      setFormData((prev) => ({ ...prev, schoolId: selectedSchoolId }));
+    }
+  }, [selectedSchoolId, editingUser, formData.schoolId]);
 
   const loadUsers = async () => {
     try {
@@ -126,6 +108,10 @@ export default function SuperAdminUsers() {
       const params: any = { page, limit };
       if (search.trim()) {
         params.search = search.trim();
+      }
+      // Filter by selected school if available
+      if (selectedSchoolId) {
+        params.schoolId = selectedSchoolId;
       }
 
       const response = await api.instance.get("/super-admin/users", {
@@ -180,7 +166,7 @@ export default function SuperAdminUsers() {
       email: "",
       password: "",
       role: "administrator",
-      schoolId: "",
+      schoolId: selectedSchoolId || "",
     });
     setEditingUser(null);
     setError("");
@@ -192,15 +178,21 @@ export default function SuperAdminUsers() {
     try {
       setError("");
       setSuccess("");
+      // Use selected school from context for new users, or form data for editing
+      const schoolIdToUse = editingUser 
+        ? (formData.schoolId && formData.schoolId !== "" ? Number(formData.schoolId) : selectedSchoolId)
+        : selectedSchoolId;
+
+      if (!schoolIdToUse) {
+        setError("Please select a school from the top navigation bar");
+        return;
+      }
+
       const submitData: any = { ...formData };
       if (editingUser && !submitData.password) {
         delete submitData.password; // Don't update password if not provided
       }
-      if (submitData.schoolId === "" || submitData.schoolId === "__EMPTY__") {
-        delete submitData.schoolId;
-      } else {
-        submitData.schoolId = Number(submitData.schoolId);
-      }
+      submitData.schoolId = Number(schoolIdToUse);
 
       if (editingUser) {
         await api.instance.patch(
@@ -228,10 +220,10 @@ export default function SuperAdminUsers() {
       email: user.email,
       password: "", // Don't pre-fill password
       role: user.role,
-      schoolId: user.schoolId || "",
+      schoolId: user.schoolId || selectedSchoolId || "",
     });
     setError("");
-  }, []);
+  }, [selectedSchoolId]);
 
   const handleDelete = useCallback((user: User) => {
     setUserToDelete(user);
@@ -492,51 +484,18 @@ export default function SuperAdminUsers() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    School (optional)
-                    {import.meta.env.DEV && (
-                      <span className="ml-2 text-xs text-gray-400">
-                        ({schools.length} loaded)
-                      </span>
-                    )}
+                    School <span className="text-red-500">*</span>
                   </label>
-                  {loadingSchools ? (
-                    <div className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2">
-                      <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-                      <span className="text-gray-500">Loading schools...</span>
-                    </div>
-                  ) : schools.length === 0 ? (
-                    <div className="w-full h-10 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-500 flex items-center">
-                      No schools available. Please create a school first.
-                    </div>
-                  ) : (
-                    <Select
-                      value={
-                        formData.schoolId === "" || formData.schoolId === "__EMPTY__"
-                          ? "__EMPTY__"
-                          : formData.schoolId.toString()
-                      }
-                      onValueChange={(value) =>
-                        setFormData({
-                          ...formData,
-                          schoolId: value === "__EMPTY__" ? "" : value,
-                        })
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a school..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        <SelectItem value="__EMPTY__">
-                          Select a school...
-                        </SelectItem>
-                        {schools.map((school) => (
-                          <SelectItem key={school.id} value={school.id.toString()}>
-                            {school.name}
-                            {school.subdomain ? ` (${school.subdomain})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <Input
+                    type="text"
+                    value={selectedSchool?.name || "No school selected"}
+                    disabled
+                    className="bg-gray-50 cursor-not-allowed text-xs"
+                  />
+                  {!selectedSchool && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Please select a school from the top navigation bar
+                    </p>
                   )}
                 </div>
                 <div className="flex gap-2 pt-1">

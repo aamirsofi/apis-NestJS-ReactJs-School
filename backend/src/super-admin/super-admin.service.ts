@@ -200,28 +200,41 @@ export class SuperAdminService {
     return await this.usersService.create(createUserDto);
   }
 
-  async getAllUsers(page: number = 1, limit: number = 10, search?: string) {
+  async getAllUsers(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    schoolId?: number,
+  ) {
     try {
       const { skip, limit: take } = getPaginationParams(page, limit);
 
       // Build where clause - exclude super_admin users
-      let whereConditions: any = {
+      let baseCondition: any = {
         role: Not(UserRole.SUPER_ADMIN),
       };
 
+      // Add schoolId filter if provided
+      if (schoolId) {
+        baseCondition.schoolId = schoolId;
+      }
+
       // Add search filter if provided
+      let whereConditions: any;
       if (search && search.trim()) {
         const searchTerm = `%${search.trim()}%`;
         whereConditions = [
           {
-            role: Not(UserRole.SUPER_ADMIN),
+            ...baseCondition,
             name: ILike(searchTerm),
           },
           {
-            role: Not(UserRole.SUPER_ADMIN),
+            ...baseCondition,
             email: ILike(searchTerm),
           },
         ];
+      } else {
+        whereConditions = baseCondition;
       }
 
       const [users, total] = await this.usersRepository.findAndCount({

@@ -31,6 +31,17 @@ export class PaginationDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by school ID',
+    type: Number,
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  schoolId?: number;
 }
 
 export interface PaginationMeta {

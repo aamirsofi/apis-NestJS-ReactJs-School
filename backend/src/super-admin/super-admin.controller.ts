@@ -308,8 +308,14 @@ export class SuperAdminController {
     const page = paginationDto.page || 1;
     const limit = paginationDto.limit || 10;
     const search = paginationDto.search;
+    const schoolId = paginationDto.schoolId;
 
-    return this.superAdminService.getAllUsers(page, limit, search);
+    return this.superAdminService.getAllUsers(
+      page,
+      limit,
+      search,
+      schoolId,
+    );
   }
 
   @Get('users/:id')
