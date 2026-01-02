@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { schoolService, School } from "../../services/schoolService";
 import {
   FiPlus,
   FiEdit2,
   FiTrash2,
+  FiEye,
   FiMapPin,
   FiMail,
   FiPhone,
@@ -46,6 +48,7 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export default function Schools() {
+  const navigate = useNavigate();
   const [schools, setSchools] = useState<School[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -366,24 +369,33 @@ export default function Schools() {
         cell: ({ row }) => {
           const school = row.original;
           return (
-            <div className="flex items-center justify-end space-x-2">
+            <div className="flex items-center justify-end gap-1">
               <Button
                 variant="ghost"
-                size="sm"
-                onClick={() => handleEdit(school)}
-                className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50"
-                title="Edit"
+                size="icon"
+                onClick={() => navigate(`/super-admin/schools/${school.id}/details`)}
+                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                title="View Details"
               >
-                <FiEdit2 className="w-5 h-5" />
+                <FiEye className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                onClick={() => handleEdit(school)}
+                className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                title="Edit"
+              >
+                <FiEdit2 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => handleDelete(school.id)}
-                className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                 title="Delete"
               >
-                <FiTrash2 className="w-5 h-5" />
+                <FiTrash2 className="w-4 h-4" />
               </Button>
             </div>
           );

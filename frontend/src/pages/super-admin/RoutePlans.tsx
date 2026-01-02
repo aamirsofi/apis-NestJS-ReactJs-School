@@ -560,20 +560,22 @@ export default function RoutePlans() {
         cell: ({ row }) => {
           const plan = row.original;
           return (
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-1">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => handleRoutePlanEdit(plan)}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                title="Edit"
               >
                 <FiEdit className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => handleRoutePlanDeleteClickCallback(plan.id, plan.schoolId)}
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+                title="Delete"
               >
                 <FiTrash2 className="w-4 h-4" />
               </Button>
