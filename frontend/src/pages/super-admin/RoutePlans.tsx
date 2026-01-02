@@ -34,6 +34,7 @@ import {
   generateRoutePlanNameFromIds,
 } from "../../utils/routePlan";
 import { RoutePlan } from "../../types";
+import { useSchool } from "../../contexts/SchoolContext";
 import RouteHeading from "./RouteHeading";
 
 export default function RoutePlans() {
@@ -42,12 +43,10 @@ export default function RoutePlans() {
   );
 
   // Route Plan state (Plan Routes tab)
+  const { selectedSchoolId: routePlanSelectedSchoolId, selectedSchool } = useSchool();
   const [routePlanPage, setRoutePlanPage] = useState(1);
   const [routePlanLimit, setRoutePlanLimit] = useState(10);
   const [routePlanSearch, setRoutePlanSearch] = useState("");
-  const [routePlanSelectedSchoolId, setRoutePlanSelectedSchoolId] = useState<
-    string | number
-  >("");
   const [routePlanMode, setRoutePlanMode] = useState<"add" | "import">("add");
   const [routePlanFormData, setRoutePlanFormData] = useState({
     routeId: "" as string | number,
@@ -82,13 +81,11 @@ export default function RoutePlans() {
     loadingCategoryHeads: loadingRoutePlanCategoryHeads,
     classOptions: routePlanClassOptions,
     loadingClasses: loadingRoutePlanClasses,
-    schools: routePlanSchools,
-    loadingSchools: loadingRoutePlanSchools,
   } = useRoutePlanData({
     page: routePlanPage,
     limit: routePlanLimit,
     search: routePlanSearch,
-    selectedSchoolId: routePlanSelectedSchoolId,
+    selectedSchoolId: routePlanSelectedSchoolId || "",
     formSchoolId: routePlanFormData.schoolId,
   });
 
@@ -265,6 +262,13 @@ export default function RoutePlans() {
     setSuccess("");
   };
 
+  // Auto-set schoolId from context when creating new route plan
+  useEffect(() => {
+    if (!editingRoutePlan && routePlanSelectedSchoolId && routePlanFormData.schoolId === "") {
+      setRoutePlanFormData({ ...routePlanFormData, schoolId: routePlanSelectedSchoolId });
+    }
+  }, [routePlanSelectedSchoolId, editingRoutePlan]);
+
   // Reset form when school changes
   useEffect(() => {
     if (routePlanFormData.schoolId) {
@@ -366,44 +370,16 @@ export default function RoutePlans() {
                             <label className="block text-xs font-medium text-gray-700 mb-0.5">
                               School <span className="text-red-500">*</span>
                             </label>
-                            {loadingRoutePlanSchools ? (
-                              <div className="flex items-center justify-center py-2">
-                                <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-                              </div>
-                            ) : (
-                              <Select
-                                value={
-                                  routePlanFormData.schoolId &&
-                                  routePlanFormData.schoolId !== ""
-                                    ? routePlanFormData.schoolId.toString()
-                                    : undefined
-                                }
-                                onValueChange={(value) => {
-                                  const schoolIdNum = parseInt(value, 10);
-                                  setRoutePlanFormData({
-                                    ...routePlanFormData,
-                                    schoolId: schoolIdNum,
-                                    routeId: "",
-                                    feeCategoryId: "",
-                                    categoryHeadId: null,
-                                    classId: "",
-                                  });
-                                }}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select a school..." />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
-                                  {routePlanSchools.map((school) => (
-                                    <SelectItem
-                                      key={school.id}
-                                      value={school.id.toString()}
-                                    >
-                                      {school.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            <Input
+                              type="text"
+                              value={selectedSchool?.name || "No school selected"}
+                              disabled
+                              className="bg-gray-50 cursor-not-allowed text-xs"
+                            />
+                            {!selectedSchool && (
+                              <p className="text-xs text-red-500 mt-1">
+                                Please select a school from the top navigation bar
+                              </p>
                             )}
                           </div>
 
@@ -684,8 +660,8 @@ export default function RoutePlans() {
                 {/* Right Side - List */}
                 <Card className="lg:col-span-2">
                   <CardContent className="pt-6">
-                    {/* Search and Filter */}
-                    <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Search */}
+                    <div className="mb-4">
                       <div className="relative">
                         <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <Input
@@ -711,39 +687,6 @@ export default function RoutePlans() {
                             <FiX className="w-4 h-4" />
                           </Button>
                         )}
-                      </div>
-
-                      <div>
-                        <Select
-                          value={
-                            routePlanSelectedSchoolId
-                              ? routePlanSelectedSchoolId.toString()
-                              : "__EMPTY__"
-                          }
-                          onValueChange={(value) => {
-                            setRoutePlanSelectedSchoolId(
-                              value === "__EMPTY__" ? "" : parseInt(value)
-                            );
-                            setRoutePlanPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__EMPTY__">
-                              All Schools
-                            </SelectItem>
-                            {routePlanSchools.map((school) => (
-                              <SelectItem
-                                key={school.id}
-                                value={school.id.toString()}
-                              >
-                                {school.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
                     </div>
 

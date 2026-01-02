@@ -3,6 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 import { FiEdit, FiTrash2, FiTag } from "react-icons/fi";
 import api from "../../services/api";
+import { useSchool } from "../../contexts/SchoolContext";
 import {
   Card,
   CardHeader,
@@ -11,14 +12,12 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   useCategoryHeadsData,
   CategoryHead,
 } from "../../hooks/pages/super-admin/useCategoryHeadsData";
 import { useCategoryHeadsImport } from "../../hooks/pages/super-admin/useCategoryHeadsImport";
 import CategoryHeadsForm from "./components/CategoryHeadsForm";
-import CategoryHeadsFilters from "./components/CategoryHeadsFilters";
 import CategoryHeadsDialogs from "./components/CategoryHeadsDialogs";
 import { DataTable } from "@/components/DataTable";
 
@@ -37,7 +36,7 @@ export default function CategoryHeads() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
+  const { selectedSchoolId, setSelectedSchoolId } = useSchool();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<{
     id: number;
@@ -50,19 +49,17 @@ export default function CategoryHeads() {
     paginationMeta,
     loadingCategoryHeads,
     refetchCategoryHeads,
-    schools,
-    loadingSchools,
   } = useCategoryHeadsData({
     page,
     limit,
     search,
-    selectedSchoolId,
+    selectedSchoolId: selectedSchoolId || "",
   });
 
   // Use custom hook for import
   const {
-    importSchoolId,
-    setImportSchoolId,
+    importSchoolId: hookImportSchoolId,
+    setImportSchoolId: setHookImportSchoolId,
     importFile,
     setImportFile,
     importPreview,
@@ -78,6 +75,15 @@ export default function CategoryHeads() {
     setError,
     setSuccess,
   });
+
+  // Sync importSchoolId with context school
+  const importSchoolId = selectedSchoolId || hookImportSchoolId;
+  const setImportSchoolId = (schoolId: string | number) => {
+    setHookImportSchoolId(schoolId);
+    if (schoolId) {
+      setSelectedSchoolId(schoolId);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,8 +371,6 @@ export default function CategoryHeads() {
           formData={formData}
           setFormData={setFormData}
           editingCategoryHead={editingCategoryHead}
-          schools={schools}
-          loadingSchools={loadingSchools}
           handleSubmit={handleSubmit}
           handleCancel={handleCancel}
           importSchoolId={importSchoolId}
@@ -386,14 +390,6 @@ export default function CategoryHeads() {
         {/* Right Side - List */}
         <Card className="lg:col-span-2">
           <CardContent className="pt-6">
-            {/* Filter */}
-            <CategoryHeadsFilters
-              selectedSchoolId={selectedSchoolId}
-              setSelectedSchoolId={setSelectedSchoolId}
-              schools={schools}
-              setPage={setPage}
-            />
-
             {/* Table */}
             {loadingCategoryHeads ? (
               <div className="flex items-center justify-center py-12">

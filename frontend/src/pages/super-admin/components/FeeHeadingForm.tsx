@@ -10,8 +10,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { School } from "../../../services/schoolService";
+import { useSchool } from "../../../contexts/SchoolContext";
 import { FeeCategory } from "../../../hooks/pages/super-admin/useFeeHeadingData";
+import { useEffect } from "react";
 
 interface FeeHeadingFormProps {
   mode: "add" | "import";
@@ -35,8 +36,6 @@ interface FeeHeadingFormProps {
     }>
   >;
   editingCategory: FeeCategory | null;
-  schools: School[];
-  loadingSchools: boolean;
   handleSubmit: (e: React.FormEvent) => void;
   handleCancel: () => void;
   // Import props
@@ -73,8 +72,6 @@ export default function FeeHeadingForm({
   formData,
   setFormData,
   editingCategory,
-  schools,
-  loadingSchools,
   handleSubmit,
   handleCancel,
   importSchoolId,
@@ -90,6 +87,22 @@ export default function FeeHeadingForm({
   downloadSampleCSV,
   handleBulkImport,
 }: FeeHeadingFormProps) {
+  const { selectedSchool, selectedSchoolId } = useSchool();
+
+  // Auto-set schoolId from context when creating new fee heading
+  useEffect(() => {
+    if (!editingCategory && selectedSchoolId && formData.schoolId === "") {
+      setFormData({ ...formData, schoolId: selectedSchoolId });
+    }
+  }, [selectedSchoolId, editingCategory]);
+
+  // Sync importSchoolId with context
+  useEffect(() => {
+    if (selectedSchoolId && importSchoolId !== selectedSchoolId) {
+      setImportSchoolId(selectedSchoolId);
+    }
+  }, [selectedSchoolId, importSchoolId, setImportSchoolId]);
+
   const monthNames = [
     { num: 1, name: "Jan" },
     { num: 2, name: "Feb" },
@@ -150,39 +163,16 @@ export default function FeeHeadingForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   School <span className="text-red-500">*</span>
                 </label>
-                {loadingSchools ? (
-                  <div className="flex items-center justify-center py-4">
-                    <FiLoader className="w-5 h-5 animate-spin text-indigo-600" />
-                    <span className="ml-2 text-gray-600">
-                      Loading schools...
-                    </span>
-                  </div>
-                ) : (
-                  <Select
-                    value={
-                      formData.schoolId && formData.schoolId !== ""
-                        ? formData.schoolId.toString()
-                        : undefined
-                    }
-                    onValueChange={(value) => {
-                      const numValue = parseInt(value, 10);
-                      setFormData({ ...formData, schoolId: numValue || "" });
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a school..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {schools.map((school) => (
-                        <SelectItem
-                          key={school.id}
-                          value={school.id.toString()}
-                        >
-                          {school.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Input
+                  type="text"
+                  value={selectedSchool?.name || "No school selected"}
+                  disabled
+                  className="bg-gray-50 cursor-not-allowed"
+                />
+                {!selectedSchool && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Please select a school from the top navigation bar
+                  </p>
                 )}
               </div>
 
@@ -348,40 +338,16 @@ export default function FeeHeadingForm({
                 <label className="block text-xs font-medium text-gray-700 mb-0.5">
                   School <span className="text-red-500">*</span>
                 </label>
-                {loadingSchools ? (
-                  <div className="flex items-center justify-center py-2">
-                    <FiLoader className="w-3 h-3 animate-spin text-indigo-600" />
-                    <span className="ml-1.5 text-xs text-gray-600">
-                      Loading...
-                    </span>
-                  </div>
-                ) : (
-                  <Select
-                    value={
-                      importSchoolId && importSchoolId !== ""
-                        ? importSchoolId.toString()
-                        : undefined
-                    }
-                    onValueChange={(value) => {
-                      const schoolId = value ? parseInt(value) : "";
-                      setImportSchoolId(schoolId);
-                      setImportFile(null);
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a school..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {schools.map((school) => (
-                        <SelectItem
-                          key={school.id}
-                          value={school.id.toString()}
-                        >
-                          {school.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Input
+                  type="text"
+                  value={selectedSchool?.name || "No school selected"}
+                  disabled
+                  className="bg-gray-50 cursor-not-allowed text-xs"
+                />
+                {!selectedSchool && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Please select a school from the top navigation bar
+                  </p>
                 )}
               </div>
 

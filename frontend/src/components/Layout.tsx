@@ -77,7 +77,13 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
-  const { selectedSchool, loadingSchools, schools, selectedSchoolId, setSelectedSchoolId } = useSchool();
+  const {
+    selectedSchool,
+    loadingSchools,
+    schools,
+    selectedSchoolId,
+    setSelectedSchoolId,
+  } = useSchool();
   const location = useLocation();
   const navigate = useNavigate();
   // Start collapsed for regular users, open for super admin
@@ -267,7 +273,6 @@ export default function Layout({ children }: LayoutProps) {
     setSidebarOpen(isSuperAdmin);
   }, [isSuperAdmin]);
 
-
   // Helper function to recursively check if any child is active and collect nested sections
   const hasActiveChildRecursive = (
     children: Array<{
@@ -447,8 +452,8 @@ export default function Layout({ children }: LayoutProps) {
                     const ChildIcon = child.icon;
                     const isChildExpanded =
                       expandedSections[child.section] ?? false;
-                    const hasActiveGrandchild = child.children.some(
-                      (gc: any) => (gc.path ? isActive(gc.path) : false)
+                    const hasActiveGrandchild = child.children.some((gc: any) =>
+                      gc.path ? isActive(gc.path) : false
                     );
                     return (
                       <Collapsible
@@ -461,7 +466,9 @@ export default function Layout({ children }: LayoutProps) {
                             <SidebarMenuSubButton
                               isActive={hasActiveGrandchild}
                             >
-                              {ChildIcon && <ChildIcon className="w-3.5 h-3.5" />}
+                              {ChildIcon && (
+                                <ChildIcon className="w-3.5 h-3.5" />
+                              )}
                               <span>{child.name}</span>
                               {isChildExpanded ? (
                                 <FiChevronDown className="w-3 h-3 ml-auto" />
@@ -586,43 +593,25 @@ export default function Layout({ children }: LayoutProps) {
                 <div className="flex-1" />
                 {/* Right Side: Notifications & User Menu */}
                 <div className="flex items-center gap-2">
-                  {/* Notifications - Using shadcn/ui DropdownMenu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="relative p-2 hover:bg-gray-100 rounded-lg transition-smooth"
-                        title="Notifications"
-                      >
-                        <FiBell className="w-5 h-5 text-gray-600" />
-                        <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center bg-destructive text-destructive-foreground border-2 border-white">
-                          <span className="text-[8px]">!</span>
-                        </Badge>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-80">
-                      <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                      <Separator />
-                      <div className="max-h-96 overflow-y-auto">
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No new notifications
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
                   {/* School Selector - Only for Super Admin */}
                   {user?.role === "super_admin" && (
                     <div className="flex items-center gap-2">
                       {loadingSchools ? (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 backdrop-blur-sm rounded-lg border border-gray-200">
                           <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                          <span className="text-sm text-gray-600">Loading...</span>
+                          <span className="text-sm text-gray-600">
+                            Loading...
+                          </span>
                         </div>
                       ) : schools.length > 0 ? (
                         <Select
-                          value={selectedSchoolId ? selectedSchoolId.toString() : ""}
+                          value={
+                            selectedSchoolId ? selectedSchoolId.toString() : ""
+                          }
                           onValueChange={(value) => {
-                            setSelectedSchoolId(value === "" ? null : parseInt(value));
+                            setSelectedSchoolId(
+                              value === "" ? null : parseInt(value)
+                            );
                           }}
                         >
                           <SelectTrigger className="w-[200px] h-9 bg-white/50 backdrop-blur-sm border-gray-200">
@@ -648,11 +637,18 @@ export default function Layout({ children }: LayoutProps) {
                           </SelectTrigger>
                           <SelectContent className="max-h-[300px]">
                             {schools.map((school) => (
-                              <SelectItem key={school.id} value={school.id.toString()}>
+                              <SelectItem
+                                key={school.id}
+                                value={school.id.toString()}
+                              >
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{school.name}</span>
+                                  <span className="font-medium">
+                                    {school.name}
+                                  </span>
                                   {school.subdomain && (
-                                    <span className="text-xs text-gray-500">{school.subdomain}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {school.subdomain}
+                                    </span>
                                   )}
                                 </div>
                               </SelectItem>
@@ -662,11 +658,36 @@ export default function Layout({ children }: LayoutProps) {
                       ) : (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 backdrop-blur-sm rounded-lg border border-gray-200">
                           <FiMapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-500">No schools available</span>
+                          <span className="text-sm text-gray-500">
+                            No schools available
+                          </span>
                         </div>
                       )}
                     </div>
                   )}
+                  {/* Notifications - Using shadcn/ui DropdownMenu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="relative p-2 hover:bg-gray-100 rounded-lg transition-smooth"
+                        title="Notifications"
+                      >
+                        <FiBell className="w-5 h-5 text-gray-600" />
+                        <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center bg-destructive text-destructive-foreground border-2 border-white">
+                          <span className="text-[8px]">!</span>
+                        </Badge>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80">
+                      <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                      <Separator />
+                      <div className="max-h-96 overflow-y-auto">
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No new notifications
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                   {/* User Menu - Using shadcn/ui DropdownMenu */}
                   <DropdownMenu>

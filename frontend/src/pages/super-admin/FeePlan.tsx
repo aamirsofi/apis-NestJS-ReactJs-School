@@ -14,12 +14,14 @@ import {
 import { useFeePlanData } from "../../hooks/pages/super-admin/useFeePlanData";
 import { useFeePlanImport } from "../../hooks/pages/super-admin/useFeePlanImport";
 import { useFeePlanSelection } from "../../hooks/pages/super-admin/useFeePlanSelection";
+import { useSchool } from "../../contexts/SchoolContext";
 // import { useFeePlanForm } from "../../hooks/pages/super-admin/useFeePlanForm"; // TODO: Fix circular dependency
 import { FeePlanFilters } from "./components/FeePlanFilters";
 import { FeePlanDialogs } from "./components/FeePlanDialogs";
 import { FeePlanTable } from "./components/FeePlanTable";
 import { FeePlanForm } from "./components/FeePlanForm";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -27,13 +29,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function FeePlan() {
@@ -43,7 +38,7 @@ export default function FeePlan() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
+  const { selectedSchoolId, selectedSchool } = useSchool();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<{
     id: number;
@@ -81,8 +76,6 @@ export default function FeePlan() {
     refetchFeeStructures,
     feeCategories,
     loadingCategories,
-    schools,
-    loadingSchools,
     categoryHeads,
     loadingCategoryHeads,
     classOptions,
@@ -92,14 +85,14 @@ export default function FeePlan() {
     page,
     limit,
     search,
-    selectedSchoolId,
+    selectedSchoolId: selectedSchoolId || "",
     formSchoolId: formData.schoolId,
   });
 
   // Use custom hook for import functionality
   const {
-    importSchoolId,
-    setImportSchoolId,
+    importSchoolId: hookImportSchoolId,
+    setImportSchoolId: setHookImportSchoolId,
     importFile,
     setImportFile,
     importPreview,
@@ -116,6 +109,12 @@ export default function FeePlan() {
     setError,
     setSuccess,
   });
+
+  // Sync importSchoolId with context school
+  const importSchoolId = selectedSchoolId || hookImportSchoolId;
+  const setImportSchoolId = (schoolId: string | number) => {
+    setHookImportSchoolId(schoolId);
+  };
 
   // Use custom hook for selection functionality
   const {
@@ -583,8 +582,6 @@ export default function FeePlan() {
                   formResetKey={formResetKey}
                   handleSubmit={handleSubmit}
                   handleCancel={handleCancel}
-                  schools={schools}
-                  loadingSchools={loadingSchools}
                   feeCategories={feeCategories}
                   loadingCategories={loadingCategories}
                   categoryHeads={categoryHeads}
@@ -601,41 +598,16 @@ export default function FeePlan() {
                     <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       School <span className="text-red-500">*</span>
                     </label>
-                    {loadingSchools ? (
-                      <div className="flex items-center justify-center py-2">
-                        <FiLoader className="w-3 h-3 animate-spin text-indigo-600" />
-                        <span className="ml-1.5 text-xs text-gray-600">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : (
-                      <Select
-                        value={
-                          importSchoolId && importSchoolId !== ""
-                            ? importSchoolId.toString()
-                            : undefined
-                        }
-                        onValueChange={(value) => {
-                          const schoolId = value ? parseInt(value) : "";
-                          setImportSchoolId(schoolId);
-                          setImportFile(null);
-                          setImportPreview([]);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a school..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {schools.map((school) => (
-                            <SelectItem
-                              key={school.id}
-                              value={school.id.toString()}
-                            >
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Input
+                      type="text"
+                      value={selectedSchool?.name || "No school selected"}
+                      disabled
+                      className="bg-gray-50 cursor-not-allowed text-xs"
+                    />
+                    {!selectedSchool && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select a school from the top navigation bar
+                      </p>
                     )}
                   </div>
 
@@ -870,9 +842,6 @@ export default function FeePlan() {
             <FeePlanFilters
               search={search}
               setSearch={setSearch}
-              selectedSchoolId={selectedSchoolId}
-              setSelectedSchoolId={setSelectedSchoolId}
-              schools={schools}
               setPage={setPage}
             />
 

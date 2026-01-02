@@ -9,9 +9,8 @@ import {
   FiDownload,
 } from "react-icons/fi";
 import { useDropzone } from "react-dropzone";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import api from "../../services/api";
-import { schoolService, School } from "../../services/schoolService";
+import { useSchool } from "../../contexts/SchoolContext";
 import Pagination from "../../components/Pagination";
 import {
   Card,
@@ -21,6 +20,8 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -80,33 +81,10 @@ export default function Classes() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
+  const { selectedSchoolId, selectedSchool } = useSchool();
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(
     null
   );
-
-  // Use TanStack Query for schools (using infinite query for pagination)
-  const { data: schoolsData, isLoading: loadingSchools } = useInfiniteQuery({
-    queryKey: ["schools", "active"],
-    queryFn: async ({ pageParam = 1 }) => {
-      const response = await schoolService.getSchools({
-        page: pageParam,
-        limit: 100,
-        status: "active",
-      });
-      return response;
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.meta && lastPage.meta.hasNextPage) {
-        return lastPage.meta.page + 1;
-      }
-      return undefined;
-    },
-    initialPageParam: 1,
-  });
-
-  const schools: School[] =
-    schoolsData?.pages.flatMap((page) => page.data || []) || [];
 
   useEffect(() => {
     loadClasses();
@@ -200,7 +178,6 @@ export default function Classes() {
       status: classItem.status,
       schoolId: classItem.schoolId,
     });
-    setSelectedSchoolId(classItem.schoolId);
     setError("");
     setSuccess("");
   };
@@ -578,39 +555,16 @@ export default function Classes() {
                     <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       School <span className="text-red-500">*</span>
                     </label>
-                    {loadingSchools ? (
-                      <div className="flex items-center justify-center py-2">
-                        <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-                        <span className="ml-2 text-xs text-gray-600">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : (
-                      <Select
-                        value={
-                          formData.schoolId && formData.schoolId !== ""
-                            ? formData.schoolId.toString()
-                            : undefined
-                        }
-                        onValueChange={(value) => {
-                          const schoolId = parseInt(value, 10);
-                          setFormData({ ...formData, schoolId });
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a school..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {schools.map((school) => (
-                            <SelectItem
-                              key={school.id}
-                              value={school.id.toString()}
-                            >
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Input
+                      type="text"
+                      value={selectedSchool?.name || "No school selected"}
+                      disabled
+                      className="bg-gray-50 cursor-not-allowed text-xs"
+                    />
+                    {!selectedSchool && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select a school from the top navigation bar
+                      </p>
                     )}
                   </div>
 
@@ -716,42 +670,16 @@ export default function Classes() {
                     <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       School <span className="text-red-500">*</span>
                     </label>
-                    {loadingSchools ? (
-                      <div className="flex items-center justify-center py-2">
-                        <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-                        <span className="ml-2 text-xs text-gray-600">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : (
-                      <Select
-                        value={
-                          importSchoolId && importSchoolId !== ""
-                            ? importSchoolId.toString()
-                            : undefined
-                        }
-                        onValueChange={(value) => {
-                          const schoolId = value ? parseInt(value) : "";
-                          setImportSchoolId(schoolId);
-                          setImportFile(null);
-                          setImportPreview([]);
-                          setImportResult(null);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a school..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {schools.map((school) => (
-                            <SelectItem
-                              key={school.id}
-                              value={school.id.toString()}
-                            >
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Input
+                      type="text"
+                      value={selectedSchool?.name || "No school selected"}
+                      disabled
+                      className="bg-gray-50 cursor-not-allowed text-xs"
+                    />
+                    {!selectedSchool && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select a school from the top navigation bar
+                      </p>
                     )}
                   </div>
 
@@ -947,31 +875,6 @@ export default function Classes() {
                   />
                 </div>
               </div>
-              <div className="w-full sm:w-64">
-                <Select
-                  value={
-                    selectedSchoolId ? selectedSchoolId.toString() : "__EMPTY__"
-                  }
-                  onValueChange={(value) => {
-                    setSelectedSchoolId(
-                      value === "__EMPTY__" ? "" : parseInt(value)
-                    );
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Filter by school..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    <SelectItem value="__EMPTY__">All Schools</SelectItem>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id.toString()}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
 
@@ -1025,8 +928,6 @@ export default function Classes() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {classItem.school?.name ||
-                            schools.find((s) => s.id === classItem.schoolId)
-                              ?.name ||
                             `School ID: ${classItem.schoolId}`}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">

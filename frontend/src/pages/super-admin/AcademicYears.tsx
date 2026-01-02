@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import Modal from "../../components/Modal";
 import { academicYearsService } from "../../services/academicYears.service";
-import { schoolService, School } from "../../services/schoolService";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSchool } from "../../contexts/SchoolContext";
 import { AcademicYear } from "../../types";
 import {
   FiPlus,
@@ -33,12 +32,12 @@ import {
 
 export default function AcademicYears() {
   const { user } = useAuth();
+  const { selectedSchoolId } = useSchool();
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
   const [editingYear, setEditingYear] = useState<AcademicYear | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -48,50 +47,19 @@ export default function AcademicYears() {
     description: "",
   });
 
-  // Load schools for super admin
-  const { data: schoolsData, isLoading: loadingSchools } = useInfiniteQuery({
-    queryKey: ["schools", "active"],
-    queryFn: async ({ pageParam = 1 }) => {
-      const response = await schoolService.getSchools({
-        page: pageParam,
-        limit: 100,
-        status: "active",
-      });
-      return response;
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.meta && lastPage.meta.hasNextPage) {
-        return lastPage.meta.page + 1;
-      }
-      return undefined;
-    },
-    initialPageParam: 1,
-    enabled: user?.role === "super_admin",
-  });
-
-  const schools: School[] =
-    schoolsData?.pages.flatMap((page) => page.data || []) || [];
-
-  // Set default school for non-super-admin users
+  // Set loading state based on school selection
   useEffect(() => {
-    if (user?.role !== "super_admin" && user?.schoolId) {
-      setSelectedSchoolId(user.schoolId);
-      setLoading(false); // Don't show loading if we're setting default
-    } else if (user?.role === "super_admin") {
+    if (user?.role === "super_admin" && !selectedSchoolId) {
       // For super admin, don't load until school is selected
       setLoading(false);
       setAcademicYears([]);
     }
-  }, [user]);
+  }, [user, selectedSchoolId]);
 
   useEffect(() => {
     if (user?.role === "super_admin") {
-      // Only load if a school is selected (not empty)
-      if (
-        selectedSchoolId &&
-        selectedSchoolId !== "" &&
-        selectedSchoolId !== "all"
-      ) {
+      // Only load if a school is selected
+      if (selectedSchoolId) {
         loadAcademicYears();
       } else {
         // No school selected, show empty state
@@ -236,23 +204,6 @@ export default function AcademicYears() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-4">
-              {user?.role === "super_admin" && (
-                <Select
-                  value={selectedSchoolId ? selectedSchoolId.toString() : ""}
-                  onValueChange={(value) => setSelectedSchoolId(value)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select School" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id.toString()}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
               <Button
                 onClick={() => {
                   setEditingYear(null);

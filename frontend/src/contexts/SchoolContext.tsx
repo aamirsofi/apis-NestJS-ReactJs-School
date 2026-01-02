@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { schoolService, School } from '../services/schoolService';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
 export function SchoolProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [selectedSchoolId, setSelectedSchoolIdState] = useState<string | number | null>(null);
+  const initializedRef = useRef(false);
 
   // Load schools for super admin
   const { data: schoolsData, isLoading: loadingSchools } = useInfiniteQuery({
@@ -40,26 +41,35 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
 
   const schools: School[] = schoolsData?.pages.flatMap((page) => page.data || []) || [];
 
-  // Initialize selected school based on user role
+  // Initialize selected school based on user role (only once on mount or when user changes)
   useEffect(() => {
-    if (user) {
+    if (user && !initializedRef.current) {
       if (user.role === 'super_admin') {
         // For super admin, try to load from localStorage or select first school
-        const savedSchoolId = localStorage.getItem('selected_school_id');
-        if (savedSchoolId && schools.some(s => s.id.toString() === savedSchoolId)) {
-          setSelectedSchoolIdState(savedSchoolId);
-        } else if (schools.length > 0 && !selectedSchoolId) {
-          // Auto-select first school if nothing is saved
-          const firstSchoolId = schools[0].id.toString();
-          setSelectedSchoolIdState(firstSchoolId);
-          localStorage.setItem('selected_school_id', firstSchoolId);
+        if (schools.length > 0) {
+          const savedSchoolId = localStorage.getItem('selected_school_id');
+          if (savedSchoolId && schools.some(s => s.id.toString() === savedSchoolId)) {
+            setSelectedSchoolIdState(savedSchoolId);
+          } else {
+            // Auto-select first school if nothing is saved
+            const firstSchoolId = schools[0].id.toString();
+            setSelectedSchoolIdState(firstSchoolId);
+            localStorage.setItem('selected_school_id', firstSchoolId);
+          }
+          initializedRef.current = true;
         }
       } else {
         // For regular users, use their assigned school
         setSelectedSchoolIdState(user.schoolId || null);
+        initializedRef.current = true;
       }
     }
-  }, [user, schools]);
+  }, [user, schools.length]); // Only depend on schools.length, not the entire schools array
+
+  // Reset initialization when user changes
+  useEffect(() => {
+    initializedRef.current = false;
+  }, [user?.id]);
 
   // Save to localStorage when selected school changes (for super admin)
   useEffect(() => {

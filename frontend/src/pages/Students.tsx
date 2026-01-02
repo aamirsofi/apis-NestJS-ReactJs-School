@@ -8,8 +8,8 @@ import Modal from '../components/Modal';
 import { studentsService } from '../services/students.service';
 import { academicYearsService } from '../services/academicYears.service';
 import { studentAcademicRecordsService } from '../services/studentAcademicRecords.service';
-import { schoolService, School } from '../services/schoolService';
 import { useAuth } from '../contexts/AuthContext';
+import { useSchool } from '../contexts/SchoolContext';
 import { Student, AcademicYear, StudentAcademicRecord } from '../types';
 import { FiPlus, FiEdit2, FiTrash2, FiUser, FiMail, FiBook, FiLoader, FiCalendar } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ interface Class {
 
 export default function Students() {
   const { user } = useAuth();
+  const { selectedSchoolId, setSelectedSchoolId } = useSchool();
   const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,64 +43,16 @@ export default function Students() {
   const [success, setSuccess] = useState('');
   const [showAcademicRecordModal, setShowAcademicRecordModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>('');
   const [currentAcademicYear, setCurrentAcademicYear] = useState<AcademicYear | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [academicRecords, setAcademicRecords] = useState<Record<number, StudentAcademicRecord>>({});
 
 
-  // Save school selection to localStorage whenever it changes (for super admin)
-  useEffect(() => {
-    if (user?.role === 'super_admin' && selectedSchoolId && selectedSchoolId !== '' && selectedSchoolId !== 'all') {
-      localStorage.setItem('students_selected_school_id', selectedSchoolId.toString());
-    }
-  }, [selectedSchoolId, user]);
-
-  // Load schools for super admin
-  const { data: schoolsData, isLoading: loadingSchools } = useInfiniteQuery({
-    queryKey: ['schools', 'active'],
-    queryFn: async ({ pageParam = 1 }) => {
-      const response = await schoolService.getSchools({
-        page: pageParam,
-        limit: 100,
-        status: 'active',
-      });
-      return response;
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.meta && lastPage.meta.hasNextPage) {
-        return lastPage.meta.page + 1;
-      }
-      return undefined;
-    },
-    initialPageParam: 1,
-    enabled: user?.role === 'super_admin',
-  });
-
-  const schools: School[] =
-    schoolsData?.pages.flatMap((page) => page.data || []) || [];
-  
   const [academicRecordData, setAcademicRecordData] = useState({
     classId: '',
     section: '',
     rollNumber: '',
   });
-
-  // Load saved school selection from localStorage for super admin, or select first school
-  useEffect(() => {
-    if (user?.role === 'super_admin' && schools.length > 0) {
-      const savedSchoolId = localStorage.getItem('students_selected_school_id');
-      if (savedSchoolId && schools.some(s => s.id.toString() === savedSchoolId)) {
-        // Use saved school if it still exists
-        setSelectedSchoolId(savedSchoolId);
-      } else if (!selectedSchoolId || selectedSchoolId === '') {
-        // Auto-select first school if nothing is saved or selected
-        const firstSchoolId = schools[0].id.toString();
-        setSelectedSchoolId(firstSchoolId);
-        localStorage.setItem('students_selected_school_id', firstSchoolId);
-      }
-    }
-  }, [user, schools, selectedSchoolId]);
 
   // Check for success message from URL params
   useEffect(() => {
@@ -117,26 +70,19 @@ export default function Students() {
     }
   }, []);
 
-  // Set default school for non-super-admin users
+  // Set loading state based on school selection
   useEffect(() => {
-    if (user?.role !== 'super_admin' && user?.schoolId) {
-      setSelectedSchoolId(user.schoolId);
-      setLoading(false); // Don't show loading if we're setting default
-    } else if (user?.role === 'super_admin') {
+    if (user?.role === 'super_admin' && !selectedSchoolId) {
       // For super admin, don't load until school is selected
       setLoading(false);
       setStudents([]);
     }
-  }, [user]);
+  }, [user, selectedSchoolId]);
 
   useEffect(() => {
     if (user?.role === 'super_admin') {
-      // Only load if a school is selected (not empty)
-      if (
-        selectedSchoolId &&
-        selectedSchoolId !== '' &&
-        selectedSchoolId !== 'all'
-      ) {
+      // Only load if a school is selected
+      if (selectedSchoolId) {
         loadData();
       } else {
         // No school selected, show empty state
@@ -157,7 +103,7 @@ export default function Students() {
       
       const schoolId =
         user?.role === 'super_admin'
-          ? selectedSchoolId && selectedSchoolId !== 'all'
+          ? selectedSchoolId
             ? +selectedSchoolId
             : undefined
           : user?.schoolId;
@@ -253,7 +199,7 @@ export default function Students() {
 
   const handleEdit = useCallback((student: Student) => {
     // Include schoolId in URL for super admin when editing
-    if (user?.role === 'super_admin' && selectedSchoolId && selectedSchoolId !== 'all') {
+    if (user?.role === 'super_admin' && selectedSchoolId) {
       navigate(`/students/${student.id}/edit?schoolId=${selectedSchoolId}`);
     } else {
       navigate(`/students/${student.id}/edit`);
@@ -486,28 +432,11 @@ export default function Students() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-4">
-                {user?.role === 'super_admin' && (
-                  <Select
-                    value={selectedSchoolId ? selectedSchoolId.toString() : ''}
-                    onValueChange={(value) => setSelectedSchoolId(value)}
-                  >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Select School" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schools.map((school) => (
-                        <SelectItem key={school.id} value={school.id.toString()}>
-                          {school.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
                 <Button
                   onClick={() => {
                     if (user?.role === 'super_admin') {
-                      if (!selectedSchoolId || selectedSchoolId === 'all' || selectedSchoolId === '') {
-                        alert('Please select a school first before adding a student.');
+                      if (!selectedSchoolId) {
+                        alert('Please select a school from the top navigation bar before adding a student.');
                         return;
                       }
                       const url = `/students/new?schoolId=${selectedSchoolId}`;
@@ -517,8 +446,7 @@ export default function Students() {
                     }
                   }}
                   disabled={
-                    user?.role === 'super_admin' &&
-                    (!selectedSchoolId || selectedSchoolId === 'all' || selectedSchoolId === '')
+                    user?.role === 'super_admin' && !selectedSchoolId
                   }
                   className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
                 >
@@ -579,7 +507,7 @@ export default function Students() {
               <span className="ml-3 text-muted-foreground">Loading students...</span>
             </CardContent>
           </Card>
-        ) : user?.role === 'super_admin' && (!selectedSchoolId || selectedSchoolId === 'all') ? (
+        ) : user?.role === 'super_admin' && !selectedSchoolId ? (
           <Card className="text-center py-12 animate-fade-in">
             <CardContent>
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full mb-4 shadow-lg">
@@ -602,8 +530,8 @@ export default function Students() {
               <Button
                 onClick={() => {
                   if (user?.role === 'super_admin') {
-                    if (!selectedSchoolId || selectedSchoolId === 'all' || selectedSchoolId === '') {
-                      alert('Please select a school first before adding a student.');
+                    if (!selectedSchoolId) {
+                      alert('Please select a school from the top navigation bar before adding a student.');
                       return;
                     }
                     navigate(`/students/new?schoolId=${selectedSchoolId}`);

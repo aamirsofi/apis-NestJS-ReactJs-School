@@ -8,31 +8,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { School } from "../../../services/schoolService";
 
 interface FeeHeadingFiltersProps {
   search: string;
   setSearch: (value: string) => void;
-  selectedSchoolId: string | number;
-  setSelectedSchoolId: (value: string | number) => void;
   selectedType: string;
   setSelectedType: (value: string) => void;
-  schools: School[];
   setPage: (page: number) => void;
 }
 
 export function FeeHeadingFilters({
   search,
   setSearch,
-  selectedSchoolId,
-  setSelectedSchoolId,
   selectedType,
   setSelectedType,
-  schools,
   setPage,
 }: FeeHeadingFiltersProps) {
   return (
-    <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="relative">
         <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
         <Input
@@ -58,28 +51,6 @@ export function FeeHeadingFilters({
             <FiX className="w-4 h-4" />
           </Button>
         )}
-      </div>
-
-      <div>
-        <Select
-          value={selectedSchoolId ? selectedSchoolId.toString() : "__EMPTY__"}
-          onValueChange={(value) => {
-            setSelectedSchoolId(value === "__EMPTY__" ? "" : parseInt(value));
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Filter by School" />
-          </SelectTrigger>
-          <SelectContent className="max-h-[300px]">
-            <SelectItem value="__EMPTY__">All Schools</SelectItem>
-            {schools.map((school) => (
-              <SelectItem key={school.id} value={school.id.toString()}>
-                {school.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div>
