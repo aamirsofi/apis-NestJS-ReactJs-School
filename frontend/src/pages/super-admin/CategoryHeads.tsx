@@ -29,6 +29,9 @@ import { useCategoryHeadsImport } from "../../hooks/pages/super-admin/useCategor
 import CategoryHeadsForm from "./components/CategoryHeadsForm";
 import CategoryHeadsDialogs from "./components/CategoryHeadsDialogs";
 import { DataTable } from "@/components/DataTable";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { exportToCSV } from "@/utils/export";
+import { FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 export default function CategoryHeads() {
   const [mode, setMode] = useState<"add" | "import">("add");
@@ -51,6 +54,11 @@ export default function CategoryHeads() {
     id: number;
     schoolId: number;
   } | null>(null);
+  const [selectedCategoryHeads, setSelectedCategoryHeads] = useState<
+    CategoryHead[]
+  >([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkOperating, setIsBulkOperating] = useState(false);
 
   // Use custom hook for data fetching
   const {
@@ -214,6 +222,116 @@ export default function CategoryHeads() {
     setSearch(searchValue);
     setPage(1); // Reset to first page on search
   }, []);
+
+  // Bulk operations
+  const handleBulkExport = useCallback(() => {
+    if (selectedCategoryHeads.length === 0) {
+      setError("Please select at least one category head to export");
+      return;
+    }
+
+    const columns = [
+      { header: "Name", accessorKey: "name" },
+      {
+        header: "Description",
+        accessorFn: (ch: CategoryHead) => ch.description || "",
+      },
+      { header: "Status", accessorKey: "status" },
+      {
+        header: "School",
+        accessorFn: (ch: CategoryHead) =>
+          ch.school?.name || `School ID: ${ch.schoolId}`,
+      },
+      {
+        header: "Created At",
+        accessorFn: (ch: CategoryHead) =>
+          new Date(ch.createdAt).toLocaleDateString(),
+      },
+    ];
+
+    exportToCSV(
+      selectedCategoryHeads,
+      columns,
+      `category-heads-${new Date().toISOString().split("T")[0]}.csv`
+    );
+    setSuccess(
+      `Exported ${selectedCategoryHeads.length} category head(s) successfully!`
+    );
+    setTimeout(() => setSuccess(""), 3000);
+  }, [selectedCategoryHeads, setError, setSuccess]);
+
+  const handleBulkDeleteClick = useCallback(() => {
+    if (selectedCategoryHeads.length === 0) {
+      setError("Please select at least one category head to delete");
+      return;
+    }
+    setBulkDeleteDialogOpen(true);
+  }, [selectedCategoryHeads, setError]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedCategoryHeads.length === 0) return;
+
+    setIsBulkOperating(true);
+    try {
+      setError("");
+      const deletePromises = selectedCategoryHeads.map((ch) =>
+        api.instance.delete(
+          `/super-admin/category-heads/${ch.id}?schoolId=${ch.schoolId}`
+        )
+      );
+
+      await Promise.all(deletePromises);
+      setSuccess(
+        `Successfully deleted ${selectedCategoryHeads.length} category head(s)!`
+      );
+      setSelectedCategoryHeads([]);
+      setBulkDeleteDialogOpen(false);
+      refetchCategoryHeads();
+      setTimeout(() => setSuccess(""), 5000);
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || "Failed to delete category heads";
+      setError(errorMessage);
+      setTimeout(() => setError(""), 5000);
+    } finally {
+      setIsBulkOperating(false);
+    }
+  }, [selectedCategoryHeads, refetchCategoryHeads, setError, setSuccess]);
+
+  const handleBulkStatusUpdate = useCallback(
+    async (status: string) => {
+      if (selectedCategoryHeads.length === 0) return;
+
+      setIsBulkOperating(true);
+      try {
+        setError("");
+        const updatePromises = selectedCategoryHeads.map((ch) =>
+          api.instance.patch(
+            `/super-admin/category-heads/${ch.id}?schoolId=${ch.schoolId}`,
+            {
+              status,
+            }
+          )
+        );
+
+        await Promise.all(updatePromises);
+        setSuccess(
+          `Successfully updated ${selectedCategoryHeads.length} category head(s) to ${status}!`
+        );
+        setSelectedCategoryHeads([]);
+        refetchCategoryHeads();
+        setTimeout(() => setSuccess(""), 5000);
+      } catch (err: any) {
+        const errorMessage =
+          err.response?.data?.message || "Failed to update category heads";
+        setError(errorMessage);
+        setTimeout(() => setError(""), 5000);
+      } finally {
+        setIsBulkOperating(false);
+      }
+    },
+    [selectedCategoryHeads, refetchCategoryHeads, setError, setSuccess]
+  );
 
   // Define columns for the data table
   const columns: ColumnDef<CategoryHead>[] = useMemo(
@@ -422,6 +540,30 @@ export default function CategoryHeads() {
         {/* Right Side - List */}
         <Card className="lg:col-span-2">
           <CardContent className="pt-6">
+            {/* Bulk Actions Bar */}
+            <BulkActionsBar
+              selectedCount={selectedCategoryHeads.length}
+              onClear={() => setSelectedCategoryHeads([])}
+              onExport={handleBulkExport}
+              onDelete={handleBulkDeleteClick}
+              onStatusUpdate={handleBulkStatusUpdate}
+              isLoading={isBulkOperating}
+              exportLabel="Export"
+              deleteLabel="Delete"
+              statusOptions={[
+                {
+                  value: "active",
+                  label: "Set to Active",
+                  icon: <FiCheckCircle className="w-4 h-4" />,
+                },
+                {
+                  value: "inactive",
+                  label: "Set to Inactive",
+                  icon: <FiXCircle className="w-4 h-4" />,
+                },
+              ]}
+            />
+
             {/* Table */}
             {loadingCategoryHeads ? (
               <div className="flex items-center justify-center py-12">
@@ -442,6 +584,8 @@ export default function CategoryHeads() {
                 data={categoryHeads}
                 searchKey="name"
                 searchPlaceholder="Search category heads..."
+                enableRowSelection={true}
+                onRowSelectionChange={setSelectedCategoryHeads}
                 manualPagination={true}
                 pageCount={paginationMeta?.totalPages || 0}
                 totalRows={paginationMeta?.total || 0}
@@ -463,6 +607,11 @@ export default function CategoryHeads() {
         deleteDialogOpen={deleteDialogOpen}
         setDeleteDialogOpen={setDeleteDialogOpen}
         handleDelete={handleDelete}
+        bulkDeleteDialogOpen={bulkDeleteDialogOpen}
+        setBulkDeleteDialogOpen={setBulkDeleteDialogOpen}
+        handleBulkDelete={handleBulkDelete}
+        selectedCount={selectedCategoryHeads.length}
+        isLoading={isBulkOperating}
       />
     </div>
   );

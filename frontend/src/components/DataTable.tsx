@@ -79,6 +79,18 @@ interface DataTableProps<TData, TValue> {
   exportFileName?: string
   exportTitle?: string
   enableExport?: boolean
+  // Row selection props
+  /**
+   * Callback fired when row selection changes.
+   * Receives an array of selected row data objects.
+   */
+  onRowSelectionChange?: (selectedRows: TData[]) => void
+  /**
+   * Controlled row selection state.
+   * When provided, the component operates in controlled mode.
+   * Object keys are row IDs, values are boolean (true = selected).
+   */
+  rowSelection?: Record<string, boolean>
 }
 
 export function DataTable<TData, TValue>({
@@ -101,11 +113,14 @@ export function DataTable<TData, TValue>({
   exportFileName = 'export',
   exportTitle = 'Table Data',
   enableExport = true,
+  onRowSelectionChange,
+  rowSelection: externalRowSelection,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [internalRowSelection, setInternalRowSelection] = React.useState<Record<string, boolean>>({})
+  const rowSelection = externalRowSelection !== undefined ? externalRowSelection : internalRowSelection
   const [selectedFilters, setSelectedFilters] = React.useState<Record<string, string[]>>({})
   const [filterSearch, setFilterSearch] = React.useState<Record<string, string>>({})
   const [openFilterDropdown, setOpenFilterDropdown] = React.useState<string | null>(null)
@@ -179,6 +194,20 @@ export function DataTable<TData, TValue>({
     }
   }, [debouncedSearchValue, manualPagination, onSearchChange])
 
+  /**
+   * Handles row selection changes from TanStack Table.
+   * Updates internal state if uncontrolled, and triggers callback via useEffect.
+   */
+  const handleRowSelectionChange = React.useCallback((updater: any) => {
+    const currentSelection = externalRowSelection !== undefined ? externalRowSelection : internalRowSelection
+    const newSelection = typeof updater === 'function' ? updater(currentSelection) : updater
+    
+    // Update internal state only if uncontrolled (no external rowSelection prop)
+    if (externalRowSelection === undefined) {
+      setInternalRowSelection(newSelection)
+    }
+  }, [externalRowSelection, internalRowSelection])
+
   const table = useReactTable({
     data,
     columns: columnsWithSelection,
@@ -189,7 +218,7 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: manualPagination ? undefined : getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleRowSelectionChange,
     enableRowSelection: enableRowSelection,
     manualPagination: manualPagination,
     pageCount: manualPagination ? pageCount : undefined,
@@ -207,6 +236,16 @@ export function DataTable<TData, TValue>({
       },
     },
   })
+
+  // Call parent callback when row selection changes (works for both controlled and uncontrolled modes)
+  React.useEffect(() => {
+    if (onRowSelectionChange && enableRowSelection && table) {
+      const selectedRows = table.getRowModel().rows
+        .filter((row) => rowSelection[row.id])
+        .map((row) => row.original)
+      onRowSelectionChange(selectedRows)
+    }
+  }, [rowSelection, table, onRowSelectionChange, enableRowSelection])
 
   return (
     <div className="w-full">
