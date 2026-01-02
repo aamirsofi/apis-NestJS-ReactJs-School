@@ -134,6 +134,16 @@ export class SuperAdminService {
     ]);
 
     // Calculate statistics
+    const [
+      totalRoutePlans,
+      totalClasses,
+      totalCategoryHeads,
+    ] = await Promise.all([
+      this.routePlansRepository.count({ where: { schoolId: id } }),
+      this.classesRepository.count({ where: { schoolId: id, status: ClassStatus.ACTIVE } }),
+      this.categoryHeadsRepository.count({ where: { schoolId: id } }),
+    ]);
+
     const stats = {
       totalStudents: await this.studentsRepository.count({ where: { schoolId: id } }),
       activeStudents: await this.studentsRepository.count({
@@ -153,6 +163,9 @@ export class SuperAdminService {
         .then(result => parseFloat(result?.total || '0')),
       totalFeeStructures: feeStructures.length,
       activeFeeStructures: feeStructures.filter(fs => fs.status === 'active').length,
+      totalRoutePlans,
+      totalClasses,
+      totalCategoryHeads,
     };
 
     return {

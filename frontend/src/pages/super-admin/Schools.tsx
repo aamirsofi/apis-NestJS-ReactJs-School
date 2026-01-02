@@ -1,20 +1,16 @@
-import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { schoolService, School } from "../../services/schoolService";
 import {
-  FiEdit,
-  FiLoader,
-  FiHome,
-  FiEye,
-  FiX,
-  FiChevronLeft,
-  FiChevronRight,
-  FiSearch,
-  FiPower,
-  FiRefreshCw,
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiMapPin,
+  FiMail,
+  FiPhone,
+  FiGlobe,
 } from "react-icons/fi";
-import api from "../../services/api";
-import { School } from "../../types";
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,24 +19,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -49,165 +29,123 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { DataTable } from "@/components/DataTable";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
 
-interface PaginationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-}
-
-export default function SuperAdminSchools() {
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const editProcessedRef = useRef(false);
+export default function Schools() {
+  const [schools, setSchools] = useState<School[]>([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [showDialog, setShowDialog] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Partial<School>>({
     name: "",
     subdomain: "",
     email: "",
     phone: "",
     address: "",
-    status: "active" as "active" | "inactive" | "suspended",
+    status: "active",
   });
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("active"); // Default to active only
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-  const [schoolToAction, setSchoolToAction] = useState<School | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [paginationMeta, setPaginationMeta] = useState<{
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  } | null>(null);
 
-  // Fetch schools with TanStack Query - Backend handles pagination and filtering
-  const { data: schoolsData, isLoading: loading } = useQuery({
-    queryKey: ["schools", page, limit, search, statusFilter],
-    queryFn: async () => {
-      // Note: By default, we only show active schools to prevent accidentally adding data to inactive/suspended schools
-      // Use the status filter dropdown to view inactive/suspended schools if needed
-      const response = await api.instance.get("/super-admin/schools", {
-        params: {
-          page,
-          limit,
-          includeInactive: statusFilter === "all" ? "true" : undefined, // Only include inactive when showing "all"
-          search: search.trim() || undefined,
-          status: statusFilter !== "all" ? statusFilter : undefined,
-        },
+  useEffect(() => {
+    loadSchools();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, search, statusFilter]);
+
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  const loadSchools = useCallback(async () => {
+    try {
+      setError("");
+      const response = await schoolService.getSchools({
+        page,
+        limit,
+        search: search || undefined,
+        status: statusFilter !== "all" ? statusFilter : undefined, // Undefined means all statuses
       });
+      setSchools(response.data || []);
+      setPaginationMeta(response.meta || null);
+    } catch (err: unknown) {
+      const errorMessage =
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data &&
+        typeof err.response.data.message === "string"
+          ? err.response.data.message
+          : "Failed to load schools";
+      setError(errorMessage);
+    }
+  }, [page, limit, search, statusFilter]);
 
-      // Backend returns paginated response: { data: [], meta: {} }
-      if (response.data.data && response.data.meta) {
-        return {
-          schools: response.data.data,
-          meta: response.data.meta,
-        };
-      }
-
-      // Fallback for non-paginated response
-      return {
-        schools: Array.isArray(response.data) ? response.data : [],
-        meta: null,
-      };
-    },
-  });
-
-  const schools = schoolsData?.schools || [];
-  const paginationMeta = schoolsData?.meta || null;
-  const filteredSchools = schools; // Already filtered by backend
-
-  // Create/Update mutation
-  const createUpdateMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setError("");
       if (editingSchool) {
-        return api.instance.patch(
-          `/super-admin/schools/${editingSchool.id}`,
-          data
-        );
+        await schoolService.update(editingSchool.id, formData);
+        setSuccess("School updated successfully");
       } else {
-        return api.instance.post("/super-admin/schools", data);
+        await schoolService.create(formData);
+        setSuccess("School created successfully");
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schools"] });
-      setSuccess(
-        editingSchool
-          ? "School updated successfully!"
-          : "School created successfully!"
-      );
+      setShowDialog(false);
+      setEditingSchool(null);
       resetForm();
-      setTimeout(() => setSuccess(""), 3000);
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to save school");
-    },
-  });
-
-  // Deactivate mutation
-  const deactivateMutation = useMutation({
-    mutationFn: async ({ id, suspend }: { id: number; suspend?: boolean }) => {
-      return api.instance.delete(
-        `/super-admin/schools/${id}${suspend ? "?suspend=true" : ""}`
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schools"] });
-      setSuccess("School deactivated successfully!");
-      setDeleteDialogOpen(false);
-      setSchoolToAction(null);
-      setTimeout(() => setSuccess(""), 3000);
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to deactivate school");
-    },
-  });
-
-  // Reactivate mutation
-  const reactivateMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return api.instance.patch(`/super-admin/schools/${id}/reactivate`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schools"] });
-      setSuccess("School reactivated successfully!");
-      setReactivateDialogOpen(false);
-      setSchoolToAction(null);
-      setTimeout(() => setSuccess(""), 3000);
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to reactivate school");
-    },
-  });
-
-  // Handle navigation from School Details page with edit intent
-  useEffect(() => {
-    const state = location.state as { editSchoolId?: string; schoolData?: any };
-    if (state?.editSchoolId && state?.schoolData && !editProcessedRef.current) {
-      const schoolToEdit = state.schoolData;
-      if (schoolToEdit && schoolToEdit.id) {
-        editProcessedRef.current = true;
-        setEditingSchool(schoolToEdit);
-        setFormData({
-          name: schoolToEdit.name,
-          subdomain: schoolToEdit.subdomain,
-          email: schoolToEdit.email || "",
-          phone: schoolToEdit.phone || "",
-          address: schoolToEdit.address || "",
-          status: schoolToEdit.status,
-        });
-        setError("");
-      }
+      loadSchools();
+    } catch (err: unknown) {
+      const errorMessage =
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data &&
+        typeof err.response.data.message === "string"
+          ? err.response.data.message
+          : "Failed to save school";
+      setError(errorMessage);
     }
-  }, [location.state]);
-
-  // Reset edit processed flag when location changes
-  useEffect(() => {
-    if (!location.state) {
-      editProcessedRef.current = false;
-    }
-  }, [location.pathname]);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -218,8 +156,6 @@ export default function SuperAdminSchools() {
       address: "",
       status: "active",
     });
-    setEditingSchool(null);
-    setError("");
   };
 
   const handleEdit = (school: School) => {
@@ -232,72 +168,254 @@ export default function SuperAdminSchools() {
       address: school.address || "",
       status: school.status,
     });
-    setError("");
+    setShowDialog(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    createUpdateMutation.mutate(formData);
-  };
+  const handleDelete = useCallback(
+    async (id: number) => {
+      if (
+        !confirm(
+          "Are you sure you want to delete this school? This action cannot be undone."
+        )
+      )
+        return;
+      try {
+        await schoolService.delete(id);
+        setSuccess("School deleted successfully");
+        loadSchools();
+      } catch (err: unknown) {
+        const errorMessage =
+          err &&
+          typeof err === "object" &&
+          "response" in err &&
+          err.response &&
+          typeof err.response === "object" &&
+          "data" in err.response &&
+          err.response.data &&
+          typeof err.response.data === "object" &&
+          "message" in err.response.data &&
+          typeof err.response.data.message === "string"
+            ? err.response.data.message
+            : "Failed to delete school";
+        setError(errorMessage);
+      }
+    },
+    [loadSchools]
+  );
 
-  const handleDeactivate = (school: School, suspend: boolean = false) => {
-    setSchoolToAction(school);
-    setDeleteDialogOpen(true);
-  };
+  const handlePaginationChange = useCallback(
+    (pageIndex: number, pageSize: number) => {
+      setPage(pageIndex + 1); // DataTable uses 0-based index, API uses 1-based
+      setLimit(pageSize);
+    },
+    []
+  );
 
-  const handleReactivate = (school: School) => {
-    setSchoolToAction(school);
-    setReactivateDialogOpen(true);
-  };
+  const handleSearchChange = useCallback((searchValue: string) => {
+    setSearch(searchValue);
+    setPage(1); // Reset to first page on search
+  }, []);
 
-  const confirmDeactivate = () => {
-    if (schoolToAction) {
-      const suspend = schoolToAction.status === "suspended";
-      deactivateMutation.mutate({ id: schoolToAction.id, suspend });
-    }
-  };
+  const columns: ColumnDef<School>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2 lg:px-3"
+            >
+              School
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          const school = row.original;
+          return (
+            <div className="flex items-center">
+              <div className="flex-shrink-0 h-12 w-12">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                  <FiMapPin className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="ml-4">
+                <div className="text-sm font-semibold text-gray-900">
+                  {school.name}
+                </div>
+                {school.address && (
+                  <div className="text-sm text-gray-500 truncate max-w-xs">
+                    {school.address}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "subdomain",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2 lg:px-3"
+            >
+              Subdomain
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          const school = row.original;
+          return (
+            <div className="flex items-center text-sm text-gray-900">
+              <FiGlobe className="w-4 h-4 mr-2 text-indigo-500" />
+              <span className="font-mono bg-gradient-to-r from-indigo-100 to-purple-100 px-3 py-1 rounded-lg text-indigo-700 font-semibold">
+                {school.subdomain}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "contact",
+        header: "Contact",
+        cell: ({ row }) => {
+          const school = row.original;
+          return (
+            <div className="text-sm text-gray-900">
+              {school.email && (
+                <div className="flex items-center mb-1">
+                  <FiMail className="w-4 h-4 mr-2 text-gray-400" />
+                  {school.email}
+                </div>
+              )}
+              {school.phone && (
+                <div className="flex items-center">
+                  <FiPhone className="w-4 h-4 mr-2 text-gray-400" />
+                  {school.phone}
+                </div>
+              )}
+              {!school.email && !school.phone && (
+                <span className="text-gray-400">No contact info</span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2 lg:px-3"
+            >
+              Status
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          const status = row.getValue("status") as string;
+          return (
+            <Badge
+              variant={
+                status === "active"
+                  ? "default"
+                  : status === "suspended"
+                  ? "destructive"
+                  : "secondary"
+              }
+              className={
+                status === "active"
+                  ? "bg-gradient-to-r from-green-400 to-emerald-500 text-white border-0"
+                  : status === "suspended"
+                  ? "bg-gradient-to-r from-red-400 to-rose-500 text-white border-0"
+                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-0"
+              }
+            >
+              {status}
+            </Badge>
+          );
+        },
+        filterConfig: {
+          column: "status",
+          title: "Status",
+          options: [
+            { label: "Active", value: "active" },
+            { label: "Inactive", value: "inactive" },
+            { label: "Suspended", value: "suspended" },
+          ],
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const school = row.original;
+          return (
+            <div className="flex items-center justify-end space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEdit(school)}
+                className="text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50"
+                title="Edit"
+              >
+                <FiEdit2 className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(school.id)}
+                className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                title="Delete"
+              >
+                <FiTrash2 className="w-5 h-5" />
+              </Button>
+            </div>
+          );
+        },
+        enableSorting: false,
+      },
+    ],
+    [handleDelete]
+  );
 
-  const confirmReactivate = () => {
-    if (schoolToAction) {
-      reactivateMutation.mutate(schoolToAction.id);
-    }
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "active":
-        return "default";
-      case "suspended":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "suspended":
-        return "bg-red-100 text-red-700 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+  const filterButtons = (
+    <Select value={statusFilter} onValueChange={setStatusFilter}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Filter by status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Status</SelectItem>
+        <SelectItem value="active">Active</SelectItem>
+        <SelectItem value="inactive">Inactive</SelectItem>
+        <SelectItem value="suspended">Suspended</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/super-admin/dashboard">Dashboard</Link>
-            </BreadcrumbLink>
+            <BreadcrumbPage>Dashboard</BreadcrumbPage>
           </BreadcrumbItem>
-          <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbPage>Schools</BreadcrumbPage>
           </BreadcrumbItem>
@@ -307,512 +425,255 @@ export default function SuperAdminSchools() {
       {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-            Schools Management
-          </CardTitle>
-          <CardDescription>Manage all schools in the system</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+                Schools
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Manage school information and settings
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingSchool(null);
+                resetForm();
+                setShowDialog(true);
+              }}
+              className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
+            >
+              <FiPlus className="w-5 h-5 mr-2" />
+              Add School
+            </Button>
+          </div>
         </CardHeader>
       </Card>
 
-      {/* Success Message */}
+      {/* Success Alert */}
       {success && (
         <Card className="border-l-4 border-l-green-400 bg-green-50">
           <CardContent className="pt-6">
-            <p className="text-sm text-green-700">{success}</p>
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <p className="text-sm text-green-700">{success}</p>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Error Message */}
+      {/* Error Alert */}
       {error && (
         <Card className="border-l-4 border-l-red-400 bg-red-50">
           <CardContent className="pt-6">
-            <p className="text-sm text-red-700">{error}</p>
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Split Layout: Form on Left, List on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Side - Add/Edit Form */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-bold text-gray-800">
-                  {editingSchool ? "Edit School" : "Add School"}
-                </CardTitle>
-                {editingSchool && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={resetForm}
-                    className="h-auto p-1 text-gray-400 hover:text-gray-600"
-                    title="Cancel editing"
-                  >
-                    <FiX className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    School Name *
-                  </label>
-                  <Input
-                    type="text"
-                    required
-                    className="text-sm"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Subdomain *
-                  </label>
-                  <Input
-                    type="text"
-                    required
-                    className="text-sm font-mono"
-                    value={formData.subdomain}
-                    onChange={(e) =>
-                      setFormData({ ...formData, subdomain: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <Input
-                    type="email"
-                    className="text-sm"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Phone
-                  </label>
-                  <Input
-                    type="tel"
-                    className="text-sm"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Address
-                  </label>
-                  <Textarea
-                    className="text-sm resize-none"
-                    rows={2}
-                    value={formData.address}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Status *
-                  </label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(
-                      value: "active" | "inactive" | "suspended"
-                    ) => setFormData({ ...formData, status: value })}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
-                    disabled={createUpdateMutation.isPending}
-                  >
-                    {createUpdateMutation.isPending ? (
-                      <FiLoader className="w-4 h-4 animate-spin mr-2" />
-                    ) : null}
-                    {editingSchool ? "Update" : "Create"}
-                  </Button>
-                  {editingSchool && (
-                    <Button type="button" variant="outline" onClick={resetForm}>
-                      Cancel
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+      {/* DataTable */}
+      <Card>
+        <CardContent className="pt-6">
+          <DataTable
+            columns={columns}
+            data={schools}
+            searchKey="name"
+            searchPlaceholder="Search schools by name..."
+            enableRowSelection={false}
+            filterButtons={filterButtons}
+            manualPagination={true}
+            pageCount={paginationMeta?.totalPages || 0}
+            totalRows={paginationMeta?.total || 0}
+            onPaginationChange={handlePaginationChange}
+            onSearchChange={handleSearchChange}
+            externalPageIndex={page - 1}
+            externalPageSize={limit}
+            externalSearchValue={search}
+            exportFileName="schools"
+            exportTitle="Schools List"
+            enableExport={true}
+          />
+        </CardContent>
+      </Card>
 
-        {/* Right Side - Schools List */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input
-                    type="text"
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1); // Reset to first page on search
-                    }}
-                    placeholder="Search by name, subdomain, or email..."
-                    className="pl-10 pr-10"
-                  />
-                  {search && (
-                    <button
-                      onClick={() => {
-                        setSearch("");
-                        setPage(1);
-                      }}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <FiX className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-                <div>
-                  <Select
-                    value={statusFilter}
-                    onValueChange={(value) => {
-                      setStatusFilter(value);
-                      setPage(1); // Reset to first page on filter change
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Filter by Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">
-                        Active Only (Default)
-                      </SelectItem>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Schools Table */}
-          <Card>
-            <CardContent className="pt-6">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <FiLoader className="w-8 h-8 animate-spin text-indigo-600" />
-                </div>
-              ) : filteredSchools.length === 0 ? (
-                <div className="text-center py-12">
-                  <FiHome className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No schools found</p>
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Name
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Subdomain
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Email
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-100">
-                        {filteredSchools.map((school) => (
-                          <tr
-                            key={school.id}
-                            className="hover:bg-indigo-50/50 transition-all duration-150 group"
-                          >
-                            <td className="px-4 py-2 text-sm font-semibold text-gray-900">
-                              {school.name}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-600 font-mono">
-                              {school.subdomain}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-600">
-                              {school.email || (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2">
-                              <Badge
-                                variant={getStatusBadgeVariant(school.status)}
-                                className={getStatusBadgeClass(school.status)}
-                              >
-                                {school.status}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-2">
-                              <div className="flex items-center gap-1.5">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  asChild
-                                  className="p-2 text-blue-600 hover:bg-blue-100"
-                                  title="View Details"
-                                >
-                                  <Link
-                                    to={`/super-admin/schools/${school.id}/details`}
-                                  >
-                                    <FiEye className="w-4 h-4" />
-                                  </Link>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(school)}
-                                  className="p-2 text-indigo-600 hover:bg-indigo-100"
-                                  title="Edit"
-                                >
-                                  <FiEdit className="w-4 h-4" />
-                                </Button>
-                                {school.status === "active" ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeactivate(school)}
-                                    className="p-2 text-red-600 hover:bg-red-100"
-                                    title="Deactivate"
-                                  >
-                                    <FiPower className="w-4 h-4" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleReactivate(school)}
-                                    className="p-2 text-green-600 hover:bg-green-100"
-                                    title="Reactivate"
-                                  >
-                                    <FiRefreshCw className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination */}
-                  {paginationMeta && (
-                    <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="text-sm text-gray-600">
-                            Showing {(page - 1) * limit + 1} to{" "}
-                            {Math.min(page * limit, paginationMeta.total)} of{" "}
-                            {paginationMeta.total} schools
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-sm text-gray-600">
-                              Per page:
-                            </label>
-                            <Select
-                              value={limit.toString()}
-                              onValueChange={(value) => {
-                                setLimit(Number(value));
-                                setPage(1);
-                              }}
-                            >
-                              <SelectTrigger className="w-20">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="5">5</SelectItem>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="20">20</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                                <SelectItem value="100">100</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(page - 1)}
-                            disabled={
-                              !paginationMeta.hasPrevPage ||
-                              paginationMeta.totalPages <= 1
-                            }
-                          >
-                            <FiChevronLeft className="w-4 h-4" />
-                          </Button>
-
-                          {paginationMeta.totalPages > 1 && (
-                            <div className="flex items-center gap-1">
-                              {Array.from(
-                                { length: paginationMeta.totalPages },
-                                (_, i) => i + 1
-                              )
-                                .filter((p) => {
-                                  return (
-                                    p === 1 ||
-                                    p === paginationMeta.totalPages ||
-                                    (p >= page - 1 && p <= page + 1)
-                                  );
-                                })
-                                .map((p, idx, arr) => {
-                                  const prev = arr[idx - 1];
-                                  const showEllipsis = prev && p - prev > 1;
-                                  return (
-                                    <div
-                                      key={p}
-                                      className="flex items-center gap-1"
-                                    >
-                                      {showEllipsis && (
-                                        <span className="px-2 text-gray-400">
-                                          ...
-                                        </span>
-                                      )}
-                                      <Button
-                                        variant={
-                                          p === page ? "default" : "outline"
-                                        }
-                                        size="sm"
-                                        onClick={() => setPage(p)}
-                                        className={
-                                          p === page
-                                            ? "bg-indigo-600 text-white border-indigo-600"
-                                            : ""
-                                        }
-                                      >
-                                        {p}
-                                      </Button>
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          )}
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(page + 1)}
-                            disabled={
-                              !paginationMeta.hasNextPage ||
-                              paginationMeta.totalPages <= 1
-                            }
-                          >
-                            <FiChevronRight className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Deactivate Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deactivate School</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to deactivate "{schoolToAction?.name}"? This
-              will set the school status to inactive. All data will be
-              preserved, and the school can be reactivated later.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeactivate}
-              disabled={deactivateMutation.isPending}
-            >
-              {deactivateMutation.isPending ? (
-                <FiLoader className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Deactivate
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reactivate Dialog */}
+      {/* Dialog */}
       <Dialog
-        open={reactivateDialogOpen}
-        onOpenChange={setReactivateDialogOpen}
+        open={showDialog}
+        onOpenChange={(open) => {
+          setShowDialog(open);
+          if (!open) {
+            setEditingSchool(null);
+            resetForm();
+          }
+        }}
       >
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Reactivate School</DialogTitle>
+            <DialogTitle>
+              {editingSchool ? "Edit School" : "Add New School"}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to reactivate "{schoolToAction?.name}"? This
-              will set the school status back to active.
+              {editingSchool
+                ? "Update school information"
+                : "Create a new school"}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setReactivateDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmReactivate}
-              disabled={reactivateMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {reactivateMutation.isPending ? (
-                <FiLoader className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Reactivate
-            </Button>
-          </DialogFooter>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                School Name *
+              </label>
+              <Input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                placeholder="ABC School"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Subdomain *
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 text-sm font-medium">
+                  https://
+                </span>
+                <Input
+                  type="text"
+                  required
+                  value={formData.subdomain}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subdomain: e.target.value })
+                  }
+                  className="flex-1 font-mono"
+                  placeholder="school1"
+                />
+                <span className="text-gray-500 text-sm font-medium">
+                  .yourdomain.com
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Used for multi-tenant access
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  placeholder="contact@school.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Phone
+                </label>
+                <Input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  placeholder="+1234567890"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Address
+              </label>
+              <Textarea
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                rows={3}
+                placeholder="123 Main Street, City, State"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Status *
+              </label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    status: value as "active" | "inactive" | "suspended",
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDialog(false);
+                  setEditingSchool(null);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
+              >
+                {editingSchool ? "Update School" : "Create School"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

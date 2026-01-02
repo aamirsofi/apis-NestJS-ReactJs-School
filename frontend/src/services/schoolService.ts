@@ -62,4 +62,27 @@ export const schoolService = {
     });
     return response.data as SchoolResponse;
   },
+
+  /**
+   * Create a new school
+   */
+  create: async (data: Partial<School>): Promise<School> => {
+    const response = await api.instance.post<School>("/super-admin/schools", data);
+    return response.data;
+  },
+
+  /**
+   * Update an existing school
+   */
+  update: async (id: number, data: Partial<School>): Promise<School> => {
+    const response = await api.instance.patch<School>(`/super-admin/schools/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Delete a school (soft delete - sets status to suspended)
+   */
+  delete: async (id: number): Promise<void> => {
+    await api.instance.delete(`/super-admin/schools/${id}`);
+  },
 };
