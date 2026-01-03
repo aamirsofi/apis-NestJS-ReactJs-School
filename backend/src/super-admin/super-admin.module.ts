@@ -15,6 +15,7 @@ import { RoutePlan } from '../route-plans/entities/route-plan.entity';
 import { SchoolsModule } from '../schools/schools.module';
 import { UsersModule } from '../users/users.module';
 import { CategoryHeadsModule } from '../category-heads/category-heads.module';
+import { UserRolesModule } from '../user-roles/user-roles.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CategoryHeadsModule } from '../category-heads/category-heads.module';
     SchoolsModule,
     UsersModule,
     CategoryHeadsModule,
+    UserRolesModule,
   ],
   controllers: [SuperAdminController],
   providers: [SuperAdminService],

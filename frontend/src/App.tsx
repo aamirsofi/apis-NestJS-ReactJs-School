@@ -19,6 +19,7 @@ import FeePlan from "./pages/super-admin/FeePlan";
 import Classes from "./pages/super-admin/Classes";
 import RoutePlans from "./pages/super-admin/RoutePlans";
 import AcademicYears from "./pages/super-admin/AcademicYears";
+import Announcements from "./pages/super-admin/Announcements";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProtectedLayoutRoute from "./components/ProtectedLayoutRoute";
@@ -195,6 +196,16 @@ function App() {
                 element={
                   <ProtectedLayoutRoute>
                     <Profile />
+                  </ProtectedLayoutRoute>
+                }
+              />
+
+              {/* Communication */}
+              <Route
+                path="/super-admin/announcements"
+                element={
+                  <ProtectedLayoutRoute>
+                    <Announcements />
                   </ProtectedLayoutRoute>
                 }
               />

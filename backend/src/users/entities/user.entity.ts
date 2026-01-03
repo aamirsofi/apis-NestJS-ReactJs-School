@@ -10,14 +10,19 @@ import {
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { School } from '../../schools/entities/school.entity';
+import { UserRole } from '../../user-roles/entities/user-role.entity';
 
-export enum UserRole {
+// Keep enum for backward compatibility during migration
+export enum UserRoleEnum {
   SUPER_ADMIN = 'super_admin',
   ADMINISTRATOR = 'administrator',
   ACCOUNTANT = 'accountant',
   STUDENT = 'student',
   PARENT = 'parent',
 }
+
+// Export UserRole as the entity for new code
+export { UserRole };
 
 @Entity('users')
 export class User {
@@ -37,11 +42,11 @@ export class User {
   @Exclude()
   password!: string;
 
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.STUDENT,
-  })
+  @Column({ nullable: true })
+  roleId?: number;
+
+  @ManyToOne(() => UserRole, { nullable: true })
+  @JoinColumn({ name: 'roleId' })
   role!: UserRole;
 
   @Column({ nullable: true })

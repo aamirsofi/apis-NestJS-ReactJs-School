@@ -40,15 +40,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { NotificationBell } from "./NotificationBell";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -124,8 +122,6 @@ export default function Layout({ children }: LayoutProps) {
       name: "Dashboard",
       path: "/super-admin/dashboard",
       icon: FiHome,
-      section: null,
-      children: null,
     },
     {
       name: "Schools",
@@ -257,9 +253,9 @@ export default function Layout({ children }: LayoutProps) {
           icon: FiUser,
         },
         {
-          name: "Notifications",
-          path: "/super-admin/settings/notifications",
-          icon: FiMail,
+          name: "Announcements",
+          path: "/super-admin/announcements",
+          icon: FiBell,
         },
       ],
     },
@@ -665,29 +661,8 @@ export default function Layout({ children }: LayoutProps) {
                       )}
                     </div>
                   )}
-                  {/* Notifications - Using shadcn/ui DropdownMenu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="relative p-2 hover:bg-gray-100 rounded-lg transition-smooth"
-                        title="Notifications"
-                      >
-                        <FiBell className="w-5 h-5 text-gray-600" />
-                        <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center bg-destructive text-destructive-foreground border-2 border-white">
-                          <span className="text-[8px]">!</span>
-                        </Badge>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-80">
-                      <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                      <Separator />
-                      <div className="max-h-96 overflow-y-auto">
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No new notifications
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Notifications */}
+                  <NotificationBell />
 
                   {/* User Menu - Using shadcn/ui DropdownMenu */}
                   <DropdownMenu>
@@ -806,6 +781,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               <div className="hidden md:flex items-center space-x-3 px-4 py-2 card-modern rounded-xl hover-lift">
                 <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-full flex items-center justify-center shadow-md">
                   <FiUser className="w-4 h-4 text-white" />

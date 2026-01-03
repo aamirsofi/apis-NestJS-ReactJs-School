@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { UsersService } from '../users/users.service';
 import { SchoolsService } from '../schools/schools.service';
-import { UserRole } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 
 async function bootstrap() {
@@ -53,7 +52,7 @@ async function bootstrap() {
         name: testName,
         email: testEmail,
         password: hashedPassword,
-        role: UserRole.ADMINISTRATOR,
+        role: 'administrator',
         schoolId: school.id,
       });
       console.log('✅ Test user created successfully!');

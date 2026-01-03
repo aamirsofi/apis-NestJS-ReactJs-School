@@ -18,7 +18,6 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Students')
 @ApiBearerAuth('JWT-auth')
@@ -28,7 +27,7 @@ export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Post()
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Create a new student' })
   @ApiQuery({
     name: 'schoolId',
@@ -71,7 +70,7 @@ export class StudentsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'accountant', 'super_admin')
   @ApiOperation({ summary: 'Get all students' })
   @ApiQuery({
     name: 'schoolId',
@@ -84,7 +83,7 @@ export class StudentsController {
     const userSchoolId = req.school?.id || req.user?.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School context required');
     }
 
@@ -97,7 +96,7 @@ export class StudentsController {
   }
 
   @Get('last-id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Get last student ID for a school' })
   @ApiQuery({
     name: 'schoolId',
@@ -110,7 +109,7 @@ export class StudentsController {
     const userSchoolId = req.school?.id || req.user?.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School context required');
     }
 
@@ -132,7 +131,7 @@ export class StudentsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Update student' })
   @ApiResponse({ status: 200, description: 'Student updated successfully' })
   update(@Param('id') id: string, @Body() updateStudentDto: UpdateStudentDto, @Request() req: any) {
@@ -141,7 +140,7 @@ export class StudentsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Delete student' })
   @ApiResponse({ status: 200, description: 'Student deleted successfully' })
   remove(@Param('id') id: string, @Request() req: any) {

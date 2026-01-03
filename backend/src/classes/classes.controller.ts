@@ -26,14 +26,13 @@ import { UpdateClassDto } from './dto/update-class.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 import { Class } from './entities/class.entity';
 
 @ApiTags('Classes')
 @ApiBearerAuth('JWT-auth')
 @Controller('classes')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPER_ADMIN, UserRole.ADMINISTRATOR)
+@Roles('super_admin', 'administrator')
 export class ClassesController {
   constructor(private readonly classesService: ClassesService) {}
 
@@ -55,11 +54,11 @@ export class ClassesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
-    if (req.user.role !== UserRole.SUPER_ADMIN && targetSchoolId !== userSchoolId) {
+    if (req.user.role !== 'super_admin' && targetSchoolId !== userSchoolId) {
       throw new BadRequestException('You can only create classes for your own school');
     }
 
@@ -94,11 +93,11 @@ export class ClassesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
@@ -125,7 +124,7 @@ export class ClassesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
@@ -153,11 +152,11 @@ export class ClassesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
@@ -180,11 +179,11 @@ export class ClassesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 

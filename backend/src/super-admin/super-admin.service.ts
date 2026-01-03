@@ -2,13 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, ILike } from 'typeorm';
 import { School, SchoolStatus } from '../schools/entities/school.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
 import { UpdateSchoolDto } from '../schools/dto/update-school.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { SchoolsService } from '../schools/schools.service';
 import { UsersService } from '../users/users.service';
+import { UserRolesService } from '../user-roles/user-roles.service';
 import { Student, StudentStatus } from '../students/entities/student.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
@@ -51,6 +52,7 @@ export class SuperAdminService {
     private routePlansRepository: Repository<RoutePlan>,
     private schoolsService: SchoolsService,
     private usersService: UsersService,
+    private userRolesService: UserRolesService,
   ) {}
 
   // ========== SCHOOL MANAGEMENT ==========
@@ -190,11 +192,15 @@ export class SuperAdminService {
   /**
    * Check if a school has at least one administrator
    */
-  private async hasAdministrator(schoolId: number): Promise<boolean> {
+  private   async hasAdministrator(schoolId: number): Promise<boolean> {
+    // Find administrator role
+    const adminRole = await this.userRolesService.findByName('administrator');
+    if (!adminRole) return false;
+
     const adminCount = await this.usersRepository.count({
       where: {
         schoolId,
-        role: UserRole.ADMINISTRATOR,
+        roleId: adminRole.id,
       },
     });
     return adminCount > 0;
@@ -202,7 +208,7 @@ export class SuperAdminService {
 
   async createUser(createUserDto: CreateUserDto) {
     // If user has a schoolId and is not an administrator, ensure school has at least one administrator
-    if (createUserDto.schoolId && createUserDto.role !== UserRole.ADMINISTRATOR) {
+    if (createUserDto.schoolId && createUserDto.role !== 'administrator') {
       const hasAdmin = await this.hasAdministrator(createUserDto.schoolId);
       if (!hasAdmin) {
         throw new BadRequestException(
@@ -224,7 +230,7 @@ export class SuperAdminService {
 
       // Build where clause - exclude super_admin users
       let baseCondition: any = {
-        role: Not(UserRole.SUPER_ADMIN),
+        roleId: Not(null), // Will filter by role name later
       };
 
       // Add schoolId filter if provided
@@ -286,26 +292,35 @@ export class SuperAdminService {
   async updateUser(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.usersService.findOne(id);
 
+    // Get user role name
+    const userRoleName = user.role?.name || (user.role as any);
+
     // Prevent changing SUPER_ADMIN role
     if (
-      user.role === UserRole.SUPER_ADMIN &&
+      userRoleName === 'super_admin' &&
       updateUserDto.role &&
-      updateUserDto.role !== UserRole.SUPER_ADMIN
+      updateUserDto.role !== 'super_admin'
     ) {
       throw new BadRequestException('Cannot change SUPER_ADMIN role');
     }
 
     // Check if changing role from administrator to something else
     const schoolId = updateUserDto.schoolId !== undefined ? updateUserDto.schoolId : user.schoolId;
-    const newRole = updateUserDto.role !== undefined ? updateUserDto.role : user.role;
+    const newRole = updateUserDto.role !== undefined ? updateUserDto.role : userRoleName;
 
     // If user is currently an administrator and role is being changed to non-administrator
-    if (user.role === UserRole.ADMINISTRATOR && newRole !== UserRole.ADMINISTRATOR && schoolId) {
+    if (userRoleName === 'administrator' && newRole !== 'administrator' && schoolId) {
+      // Find administrator role
+      const adminRole = await this.userRolesService.findByName('administrator');
+      if (!adminRole) {
+        throw new BadRequestException('Administrator role not found');
+      }
+
       // Count other administrators for this school (excluding current user)
       const adminCount = await this.usersRepository.count({
         where: {
           schoolId,
-          role: UserRole.ADMINISTRATOR,
+          roleId: adminRole.id,
         },
       });
 
@@ -318,11 +333,16 @@ export class SuperAdminService {
     }
 
     // If schoolId is being removed and user is an administrator, check if they're the last administrator
-    if (updateUserDto.schoolId === null && user.role === UserRole.ADMINISTRATOR && user.schoolId) {
+    if (updateUserDto.schoolId === null && userRoleName === 'administrator' && user.schoolId) {
+      const adminRole = await this.userRolesService.findByName('administrator');
+      if (!adminRole) {
+        throw new BadRequestException('Administrator role not found');
+      }
+
       const adminCount = await this.usersRepository.count({
         where: {
           schoolId: user.schoolId,
-          role: UserRole.ADMINISTRATOR,
+          roleId: adminRole.id,
         },
       });
 
@@ -338,7 +358,7 @@ export class SuperAdminService {
       updateUserDto.schoolId !== undefined &&
       updateUserDto.schoolId !== null &&
       updateUserDto.schoolId !== user.schoolId &&
-      newRole !== UserRole.ADMINISTRATOR
+      newRole !== 'administrator'
     ) {
       const hasAdmin = await this.hasAdministrator(updateUserDto.schoolId);
       if (!hasAdmin) {
@@ -353,18 +373,24 @@ export class SuperAdminService {
 
   async deleteUser(id: number) {
     const user = await this.usersService.findOne(id);
+    const userRoleName = user.role?.name || (user.role as any);
 
     // Prevent deleting SUPER_ADMIN
-    if (user.role === UserRole.SUPER_ADMIN) {
+    if (userRoleName === 'super_admin') {
       throw new BadRequestException('Cannot delete SUPER_ADMIN user');
     }
 
     // Prevent deleting the last administrator of a school
-    if (user.role === UserRole.ADMINISTRATOR && user.schoolId) {
+    if (userRoleName === 'administrator' && user.schoolId) {
+      const adminRole = await this.userRolesService.findByName('administrator');
+      if (!adminRole) {
+        throw new BadRequestException('Administrator role not found');
+      }
+
       const adminCount = await this.usersRepository.count({
         where: {
           schoolId: user.schoolId,
-          role: UserRole.ADMINISTRATOR,
+          roleId: adminRole.id,
         },
       });
 

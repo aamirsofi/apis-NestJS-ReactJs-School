@@ -18,7 +18,6 @@ import { UpdateAcademicYearDto } from './dto/update-academic-year.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Academic Years')
 @ApiBearerAuth('JWT-auth')
@@ -28,7 +27,7 @@ export class AcademicYearsController {
   constructor(private readonly academicYearsService: AcademicYearsService) {}
 
   @Post()
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Create a new academic year' })
   @ApiQuery({
     name: 'schoolId',
@@ -45,11 +44,11 @@ export class AcademicYearsController {
     const userSchoolId = req.school?.id || req.user?.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
-    if (req.user.role !== UserRole.SUPER_ADMIN && targetSchoolId !== userSchoolId) {
+    if (req.user.role !== 'super_admin' && targetSchoolId !== userSchoolId) {
       throw new BadRequestException('You can only create academic years for your own school');
     }
 
@@ -61,7 +60,7 @@ export class AcademicYearsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'accountant', 'super_admin')
   @ApiOperation({ summary: 'Get all academic years' })
   @ApiQuery({
     name: 'schoolId',
@@ -74,7 +73,7 @@ export class AcademicYearsController {
     const userSchoolId = req.school?.id || req.user?.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School context required');
     }
 
@@ -87,7 +86,7 @@ export class AcademicYearsController {
   }
 
   @Get('current')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'accountant', 'super_admin')
   @ApiOperation({ summary: 'Get current academic year' })
   @ApiQuery({
     name: 'schoolId',
@@ -100,7 +99,7 @@ export class AcademicYearsController {
     const userSchoolId = req.school?.id || req.user?.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School context required');
     }
 
@@ -112,7 +111,7 @@ export class AcademicYearsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'accountant', 'super_admin')
   @ApiOperation({ summary: 'Get academic year by ID' })
   @ApiResponse({ status: 200, description: 'Academic year found' })
   @ApiResponse({ status: 404, description: 'Academic year not found' })
@@ -123,7 +122,7 @@ export class AcademicYearsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Update academic year' })
   @ApiResponse({ status: 200, description: 'Academic year updated successfully' })
   update(
@@ -137,7 +136,7 @@ export class AcademicYearsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Delete academic year' })
   @ApiResponse({ status: 200, description: 'Academic year deleted successfully' })
   remove(@Param('id') id: string, @Request() req: any) {

@@ -44,10 +44,11 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
+      const roleName = user.role?.name || (user.role as any)?.name || (user.role as any);
       const payload = {
         email: user.email,
         sub: user.id,
-        role: user.role,
+        role: roleName,
         schoolId: user.schoolId,
       };
       return {
@@ -56,7 +57,7 @@ export class AuthService {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          role: roleName,
           schoolId: user.schoolId,
         },
       };

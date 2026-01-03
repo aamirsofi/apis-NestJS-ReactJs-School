@@ -27,6 +27,8 @@
     "fix:orphaned-school-ids": "ts-node -r tsconfig-paths/register src/scripts/fix-orphaned-school-ids.ts",
     "create:school": "ts-node -r tsconfig-paths/register src/scripts/create-test-school.ts",
     "create:user": "ts-node -r tsconfig-paths/register src/scripts/create-test-user.ts",
+    "fix:user-roles": "ts-node -r tsconfig-paths/register src/scripts/fix-user-roles.ts",
+    "update:user-roles": "ts-node -r tsconfig-paths/register src/scripts/update-user-roles.ts",
     "setup:admin": "npm run create:admin && npm run create:school && npm run assign:school",
     "assign:school": "ts-node -r tsconfig-paths/register src/scripts/assign-school-to-admin.ts"
   },

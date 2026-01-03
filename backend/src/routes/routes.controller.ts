@@ -27,7 +27,6 @@ import { UpdateRouteDto } from './dto/update-route.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Routes')
@@ -39,7 +38,7 @@ export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Create a new route' })
   @ApiQuery({
     name: 'schoolId',
@@ -62,7 +61,7 @@ export class RoutesController {
   }
 
   @Get()
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Get all routes with pagination and search' })
   @ApiQuery({
     name: 'page',
@@ -99,7 +98,7 @@ export class RoutesController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Get route by ID' })
   @ApiParam({ name: 'id', description: 'Route ID', type: Number })
   @ApiQuery({
@@ -115,7 +114,7 @@ export class RoutesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Update route' })
   @ApiParam({ name: 'id', description: 'Route ID', type: Number })
   @ApiQuery({
@@ -140,7 +139,7 @@ export class RoutesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Delete route' })
   @ApiParam({ name: 'id', description: 'Route ID', type: Number })
   @ApiQuery({

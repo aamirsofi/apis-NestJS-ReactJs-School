@@ -4,6 +4,7 @@ import { SchoolsService } from './schools.service';
 import { SchoolsController } from './schools.controller';
 import { School } from './entities/school.entity';
 import { User } from '../users/entities/user.entity';
+import { UserRole } from '../user-roles/entities/user-role.entity';
 import { FeeCategory } from '../fee-categories/entities/fee-category.entity';
 import { CategoryHead } from '../category-heads/entities/category-head.entity';
 import { Class } from '../classes/entities/class.entity';
@@ -19,6 +20,7 @@ import { UsersModule } from '../users/users.module';
     TypeOrmModule.forFeature([
       School,
       User,
+      UserRole,
       FeeCategory,
       CategoryHead,
       Class,
