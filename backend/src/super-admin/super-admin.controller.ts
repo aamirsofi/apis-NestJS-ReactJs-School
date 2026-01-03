@@ -26,7 +26,6 @@ import { SuperAdminService } from './super-admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
 import { UpdateSchoolDto } from '../schools/dto/update-school.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -60,7 +59,7 @@ import { UpdateRoutePlanDto } from '../route-plans/dto/update-route-plan.dto';
 )
 @Controller('super-admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPER_ADMIN)
+@Roles('super_admin')
 export class SuperAdminController {
   constructor(
     private readonly superAdminService: SuperAdminService,
@@ -308,8 +307,14 @@ export class SuperAdminController {
     const page = paginationDto.page || 1;
     const limit = paginationDto.limit || 10;
     const search = paginationDto.search;
+    const schoolId = paginationDto.schoolId;
 
-    return this.superAdminService.getAllUsers(page, limit, search);
+    return this.superAdminService.getAllUsers(
+      page,
+      limit,
+      search,
+      schoolId,
+    );
   }
 
   @Get('users/:id')

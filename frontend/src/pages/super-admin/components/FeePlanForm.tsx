@@ -1,5 +1,6 @@
 import { FiLoader } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -8,7 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FeeCategory, CategoryHead } from "../../../types";
-import { School } from "../../../services/schoolService";
+import { useSchool } from "../../../contexts/SchoolContext";
+import { useEffect } from "react";
 
 interface FormData {
   feeCategoryId: string | number;
@@ -34,8 +36,6 @@ interface FeePlanFormProps {
   formResetKey: number;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   handleCancel: () => void;
-  schools: School[];
-  loadingSchools: boolean;
   feeCategories: FeeCategory[];
   loadingCategories: boolean;
   categoryHeads: CategoryHead[];
@@ -60,8 +60,6 @@ export function FeePlanForm({
   formResetKey,
   handleSubmit,
   handleCancel,
-  schools,
-  loadingSchools,
   feeCategories,
   loadingCategories,
   categoryHeads,
@@ -70,45 +68,31 @@ export function FeePlanForm({
   availableClasses,
   loadingClasses,
 }: FeePlanFormProps) {
+  const { selectedSchool, selectedSchoolId } = useSchool();
+
+  // Auto-set schoolId from context when creating new fee plan
+  useEffect(() => {
+    if (!editingStructure && selectedSchoolId && formData.schoolId === "") {
+      setFormData({ ...formData, schoolId: selectedSchoolId });
+    }
+  }, [selectedSchoolId, editingStructure]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-0.5">
           School <span className="text-red-500">*</span>
         </label>
-        {loadingSchools ? (
-          <div className="flex items-center justify-center py-2">
-            <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-            <span className="ml-2 text-xs text-gray-600">Loading...</span>
-          </div>
-        ) : (
-          <Select
-            value={
-              formData.schoolId && formData.schoolId !== ""
-                ? formData.schoolId.toString()
-                : undefined
-            }
-            onValueChange={(value) => {
-              const schoolIdNum = parseInt(value, 10);
-              setFormData({
-                ...formData,
-                schoolId: schoolIdNum,
-                feeCategoryId: "",
-                categoryHeadId: null,
-              });
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a school..." />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
-              {schools.map((school) => (
-                <SelectItem key={school.id} value={school.id.toString()}>
-                  {school.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <Input
+          type="text"
+          value={selectedSchool?.name || "No school selected"}
+          disabled
+          className="bg-gray-50 cursor-not-allowed text-xs"
+        />
+        {!selectedSchool && (
+          <p className="text-xs text-red-500 mt-1">
+            Please select a school from the top navigation bar
+          </p>
         )}
       </div>
 

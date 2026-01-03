@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../../services/api";
 import {
   Card,
@@ -8,11 +9,20 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   useFeeHeadingData,
   FeeCategory,
 } from "../../hooks/pages/super-admin/useFeeHeadingData";
 import { useFeeHeadingImport } from "../../hooks/pages/super-admin/useFeeHeadingImport";
 import { useFeeHeadingSelection } from "../../hooks/pages/super-admin/useFeeHeadingSelection";
+import { useSchool } from "../../contexts/SchoolContext";
 import FeeHeadingForm from "./components/FeeHeadingForm";
 import { FeeHeadingFilters } from "./components/FeeHeadingFilters";
 import { FeeHeadingTable } from "./components/FeeHeadingTable";
@@ -36,7 +46,7 @@ export default function FeeHeading() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
+  const { selectedSchoolId } = useSchool();
   const [selectedType, setSelectedType] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<{
@@ -51,13 +61,11 @@ export default function FeeHeading() {
     paginationMeta,
     loadingFeeCategories,
     refetchFeeCategories,
-    schools,
-    loadingSchools,
   } = useFeeHeadingData({
     page,
     limit,
     search,
-    selectedSchoolId,
+    selectedSchoolId: selectedSchoolId || "",
     selectedType,
   });
 
@@ -196,7 +204,6 @@ export default function FeeHeading() {
       schoolId: category.schoolId,
       applicableMonths: category.applicableMonths || [],
     });
-    setSelectedSchoolId(category.schoolId); // Set selected school for filtering
     setError("");
     setSuccess("");
   };
@@ -262,6 +269,27 @@ export default function FeeHeading() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/super-admin/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/super-admin/settings/fee-settings/fee-heading">Settings</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Fee Heading</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <Card>
         <CardHeader>
@@ -298,8 +326,6 @@ export default function FeeHeading() {
           formData={formData}
           setFormData={setFormData}
           editingCategory={editingCategory}
-          schools={schools}
-          loadingSchools={loadingSchools}
           handleSubmit={handleSubmit}
           handleCancel={handleCancel}
           importSchoolId={importSchoolId}
@@ -323,11 +349,8 @@ export default function FeeHeading() {
             <FeeHeadingFilters
             search={search}
             setSearch={setSearch}
-            selectedSchoolId={selectedSchoolId}
-            setSelectedSchoolId={setSelectedSchoolId}
             selectedType={selectedType}
             setSelectedType={setSelectedType}
-            schools={schools}
             setPage={setPage}
           />
 

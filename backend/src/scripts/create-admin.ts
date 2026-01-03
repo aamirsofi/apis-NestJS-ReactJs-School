@@ -1,11 +1,13 @@
 import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
+import { UserRole } from '../user-roles/entities/user-role.entity';
 import dataSource from '../database/data-source';
 
 async function createAdmin() {
   await dataSource.initialize();
 
   const userRepository = dataSource.getRepository(User);
+  const roleRepository = dataSource.getRepository(UserRole);
 
   // Check if admin already exists
   const existingAdmin = await userRepository.findOne({
@@ -18,13 +20,24 @@ async function createAdmin() {
     return;
   }
 
+  // Find super_admin role
+  const superAdminRole = await roleRepository.findOne({
+    where: { name: 'super_admin' },
+  });
+
+  if (!superAdminRole) {
+    console.error('Super admin role not found! Please run migrations first.');
+    await dataSource.destroy();
+    return;
+  }
+
   // Create admin user
   const hashedPassword = await bcrypt.hash('admin123', 10);
   const admin = userRepository.create({
     name: 'Super Admin',
     email: 'admin@example.com',
     password: hashedPassword,
-    role: UserRole.SUPER_ADMIN,
+    roleId: superAdminRole.id,
   });
 
   await userRepository.save(admin);

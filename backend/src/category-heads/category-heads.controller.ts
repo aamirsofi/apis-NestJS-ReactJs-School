@@ -27,7 +27,6 @@ import { UpdateCategoryHeadDto } from './dto/update-category-head.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Category Heads')
@@ -39,7 +38,7 @@ export class CategoryHeadsController {
   constructor(private readonly categoryHeadsService: CategoryHeadsService) {}
 
   @Post()
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Create a new category head' })
   @ApiQuery({
     name: 'schoolId',
@@ -57,11 +56,11 @@ export class CategoryHeadsController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
-    if (req.user.role !== UserRole.SUPER_ADMIN && targetSchoolId !== userSchoolId) {
+    if (req.user.role !== 'super_admin' && targetSchoolId !== userSchoolId) {
       throw new BadRequestException('You can only create category heads for your own school');
     }
 
@@ -100,7 +99,7 @@ export class CategoryHeadsController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
@@ -127,7 +126,7 @@ export class CategoryHeadsController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
@@ -135,7 +134,7 @@ export class CategoryHeadsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Update category head' })
   @ApiParam({ name: 'id', description: 'Category head ID', type: Number })
   @ApiQuery({
@@ -156,11 +155,11 @@ export class CategoryHeadsController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
@@ -168,7 +167,7 @@ export class CategoryHeadsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Delete category head' })
   @ApiParam({ name: 'id', description: 'Category head ID', type: Number })
   @ApiQuery({
@@ -184,11 +183,11 @@ export class CategoryHeadsController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 

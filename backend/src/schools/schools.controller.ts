@@ -17,7 +17,6 @@ import { UpdateSchoolDto } from './dto/update-school.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT-auth')
@@ -27,7 +26,7 @@ export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Create a new school' })
   @ApiResponse({ status: 201, description: 'School created successfully' })
   create(@Body() createSchoolDto: CreateSchoolDto, @Request() req: any) {
@@ -35,7 +34,7 @@ export class SchoolsController {
   }
 
   @Get()
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({
     summary: 'Get all schools',
     description:
@@ -56,7 +55,7 @@ export class SchoolsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Get school by ID' })
   @ApiResponse({ status: 200, description: 'School found' })
   @ApiResponse({ status: 404, description: 'School not found' })
@@ -67,7 +66,7 @@ export class SchoolsController {
   // IMPORTANT: More specific routes must come before generic routes
   // Otherwise, NestJS will match ':id/reactivate' to ':id' route
   @Patch(':id/reactivate')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({
     summary: 'Reactivate school',
     description:
@@ -81,7 +80,7 @@ export class SchoolsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Update school' })
   @ApiResponse({ status: 200, description: 'School updated successfully' })
   update(@Param('id') id: string, @Body() updateSchoolDto: UpdateSchoolDto) {
@@ -89,7 +88,7 @@ export class SchoolsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({
     summary: 'Deactivate school (soft delete)',
     description:
@@ -104,7 +103,7 @@ export class SchoolsController {
   }
 
   @Delete(':id/hard')
-  @Roles(UserRole.SUPER_ADMIN)
+  @Roles('super_admin')
   @ApiOperation({
     summary: 'Hard delete school (permanent)',
     description:

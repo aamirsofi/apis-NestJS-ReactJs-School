@@ -4,7 +4,8 @@ import { Repository } from 'typeorm';
 import { School, SchoolStatus } from './entities/school.entity';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { UpdateSchoolDto } from './dto/update-school.dto';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
+import { UserRole } from '../user-roles/entities/user-role.entity';
 import { FeeCategory, FeeCategoryType } from '../fee-categories/entities/fee-category.entity';
 import { CategoryHead } from '../category-heads/entities/category-head.entity';
 import { Class } from '../classes/entities/class.entity';
@@ -38,6 +39,8 @@ export class SchoolsService {
     private feeStructuresRepository: Repository<FeeStructure>,
     @InjectRepository(RoutePlan)
     private routePlansRepository: Repository<RoutePlan>,
+    @InjectRepository(UserRole)
+    private userRolesRepository: Repository<UserRole>,
   ) {}
 
   async create(createSchoolDto: CreateSchoolDto, createdById: number): Promise<School> {
@@ -76,13 +79,22 @@ export class SchoolsService {
       return existingUser;
     }
 
+    // Find administrator role
+    const administratorRole = await this.userRolesRepository.findOne({
+      where: { name: 'administrator' },
+    });
+
+    if (!administratorRole) {
+      throw new BadRequestException('Administrator role not found. Please ensure user_roles table is properly initialized.');
+    }
+
     // Create new admin user
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
     const adminUser = this.usersRepository.create({
       name: `${school.name} Administrator`,
       email: defaultEmail,
       password: hashedPassword,
-      role: UserRole.ADMINISTRATOR,
+      roleId: administratorRole.id,
       schoolId: school.id,
     });
 

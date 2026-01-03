@@ -25,7 +25,6 @@ import { UpdateFeeCategoryDto } from './dto/update-fee-category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from '../users/entities/user.entity';
 import { FeeCategory } from './entities/fee-category.entity';
 
 @ApiTags('Fee Categories')
@@ -36,7 +35,7 @@ export class FeeCategoriesController {
   constructor(private readonly feeCategoriesService: FeeCategoriesService) {}
 
   @Post()
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Create a new fee category' })
   @ApiQuery({
     name: 'schoolId',
@@ -58,7 +57,7 @@ export class FeeCategoriesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== UserRole.SUPER_ADMIN) {
+    if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new Error('School context required');
     }
     return this.feeCategoriesService.create(createFeeCategoryDto, targetSchoolId);
@@ -77,7 +76,7 @@ export class FeeCategoriesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
     return this.feeCategoriesService.findAll(targetSchoolId);
@@ -98,14 +97,14 @@ export class FeeCategoriesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
     return this.feeCategoriesService.findOne(+id, targetSchoolId);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Update fee category' })
   @ApiParam({ name: 'id', description: 'Fee category ID', type: Number })
   @ApiQuery({
@@ -126,14 +125,14 @@ export class FeeCategoriesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
     return this.feeCategoriesService.update(+id, updateFeeCategoryDto, targetSchoolId);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRATOR, UserRole.SUPER_ADMIN)
+  @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Delete fee category' })
   @ApiParam({ name: 'id', description: 'Fee category ID', type: Number })
   @ApiQuery({
@@ -148,7 +147,7 @@ export class FeeCategoriesController {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
-      : req.user.role === UserRole.SUPER_ADMIN
+      : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
     return this.feeCategoriesService.remove(+id, targetSchoolId);

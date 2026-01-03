@@ -137,8 +137,8 @@ export function parseCSVContent(
     }
 
     const amount = parseFloat(row.amount || "0");
-    if (!amount || amount <= 0) {
-      errors.push(`Row ${rowNumber}: Valid amount is required`);
+    if (isNaN(amount) || amount < 0) {
+      errors.push(`Row ${rowNumber}: Valid amount is required (0 is allowed)`);
       continue;
     }
 

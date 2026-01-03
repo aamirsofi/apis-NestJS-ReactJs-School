@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   FiEdit,
   FiTrash2,
@@ -9,10 +10,11 @@ import {
   FiDownload,
 } from "react-icons/fi";
 import { useDropzone } from "react-dropzone";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown } from "lucide-react";
 import api from "../../services/api";
-import { schoolService, School } from "../../services/schoolService";
-import Pagination from "../../components/Pagination";
+import { useSchool } from "../../contexts/SchoolContext";
+import { DataTable } from "@/components/DataTable";
 import {
   Card,
   CardHeader,
@@ -20,7 +22,17 @@ import {
   CardDescription,
   CardContent,
 } from "@/components/ui/card";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -80,33 +92,10 @@ export default function Classes() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
+  const { selectedSchoolId, selectedSchool } = useSchool();
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(
     null
   );
-
-  // Use TanStack Query for schools (using infinite query for pagination)
-  const { data: schoolsData, isLoading: loadingSchools } = useInfiniteQuery({
-    queryKey: ["schools", "active"],
-    queryFn: async ({ pageParam = 1 }) => {
-      const response = await schoolService.getSchools({
-        page: pageParam,
-        limit: 100,
-        status: "active",
-      });
-      return response;
-    },
-    getNextPageParam: (lastPage) => {
-      if (lastPage.meta && lastPage.meta.hasNextPage) {
-        return lastPage.meta.page + 1;
-      }
-      return undefined;
-    },
-    initialPageParam: 1,
-  });
-
-  const schools: School[] =
-    schoolsData?.pages.flatMap((page) => page.data || []) || [];
 
   useEffect(() => {
     loadClasses();
@@ -200,12 +189,11 @@ export default function Classes() {
       status: classItem.status,
       schoolId: classItem.schoolId,
     });
-    setSelectedSchoolId(classItem.schoolId);
     setError("");
     setSuccess("");
   };
 
-  const handleDelete = async (id: number, schoolId?: number) => {
+  const handleDelete = useCallback(async (id: number, schoolId?: number) => {
     if (!window.confirm("Are you sure you want to delete this class?")) {
       return;
     }
@@ -215,10 +203,144 @@ export default function Classes() {
       await api.instance.delete(`/classes/${id}${urlParams}`);
       setSuccess("Class deleted successfully");
       loadClasses();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to delete class");
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data && typeof err.response.data.message === 'string'
+        ? err.response.data.message
+        : "Failed to delete class";
+      setError(errorMessage);
     }
-  };
+  }, []);
+
+  const handlePaginationChange = useCallback((pageIndex: number, pageSize: number) => {
+    setPage(pageIndex + 1);
+    setLimit(pageSize);
+  }, []);
+
+  const handleSearchChange = useCallback((searchValue: string) => {
+    setSearch(searchValue);
+    setPage(1);
+  }, []);
+
+  const columns: ColumnDef<Class>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="h-8 px-2 lg:px-3"
+            >
+              Class Name
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          return (
+            <div className="font-semibold text-gray-900">
+              {row.getValue("name")}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "school",
+        header: "School",
+        cell: ({ row }) => {
+          const school = row.original.school;
+          return (
+            <div className="text-sm text-gray-600">
+              {school?.name || `School ID: ${row.original.schoolId}`}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "description",
+        header: "Description",
+        cell: ({ row }) => {
+          const description = row.getValue("description") as string | undefined;
+          return (
+            <div className="text-sm text-gray-600">
+              {description || (
+                <span className="text-gray-400 italic">No description</span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              className="h-8 px-2 lg:px-3"
+            >
+              Status
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          const status = row.getValue("status") as string;
+          return (
+            <span
+              className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                status === "active"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-gray-100 text-gray-800"
+              }`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+          );
+        },
+        filterConfig: {
+          column: "status",
+          title: "Status",
+          options: [
+            { label: "Active", value: "active" },
+            { label: "Inactive", value: "inactive" },
+          ],
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const classItem = row.original;
+          return (
+            <div className="flex items-center justify-end gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleEdit(classItem)}
+                className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                title="Edit"
+              >
+                <FiEdit className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDelete(classItem.id, classItem.schoolId)}
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+                title="Delete"
+              >
+                <FiTrash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          );
+        },
+        enableSorting: false,
+      },
+    ],
+    [handleDelete]
+  );
 
   const handleCancel = () => {
     resetForm();
@@ -496,6 +618,27 @@ export default function Classes() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/super-admin/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/super-admin/settings/academics/class">Settings</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Classes</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <Card>
         <CardHeader>
@@ -578,39 +721,16 @@ export default function Classes() {
                     <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       School <span className="text-red-500">*</span>
                     </label>
-                    {loadingSchools ? (
-                      <div className="flex items-center justify-center py-2">
-                        <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-                        <span className="ml-2 text-xs text-gray-600">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : (
-                      <Select
-                        value={
-                          formData.schoolId && formData.schoolId !== ""
-                            ? formData.schoolId.toString()
-                            : undefined
-                        }
-                        onValueChange={(value) => {
-                          const schoolId = parseInt(value, 10);
-                          setFormData({ ...formData, schoolId });
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a school..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {schools.map((school) => (
-                            <SelectItem
-                              key={school.id}
-                              value={school.id.toString()}
-                            >
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Input
+                      type="text"
+                      value={selectedSchool?.name || "No school selected"}
+                      disabled
+                      className="bg-gray-50 cursor-not-allowed text-xs"
+                    />
+                    {!selectedSchool && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select a school from the top navigation bar
+                      </p>
                     )}
                   </div>
 
@@ -716,42 +836,16 @@ export default function Classes() {
                     <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       School <span className="text-red-500">*</span>
                     </label>
-                    {loadingSchools ? (
-                      <div className="flex items-center justify-center py-2">
-                        <FiLoader className="w-4 h-4 animate-spin text-indigo-600" />
-                        <span className="ml-2 text-xs text-gray-600">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : (
-                      <Select
-                        value={
-                          importSchoolId && importSchoolId !== ""
-                            ? importSchoolId.toString()
-                            : undefined
-                        }
-                        onValueChange={(value) => {
-                          const schoolId = value ? parseInt(value) : "";
-                          setImportSchoolId(schoolId);
-                          setImportFile(null);
-                          setImportPreview([]);
-                          setImportResult(null);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a school..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {schools.map((school) => (
-                            <SelectItem
-                              key={school.id}
-                              value={school.id.toString()}
-                            >
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Input
+                      type="text"
+                      value={selectedSchool?.name || "No school selected"}
+                      disabled
+                      className="bg-gray-50 cursor-not-allowed text-xs"
+                    />
+                    {!selectedSchool && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select a school from the top navigation bar
+                      </p>
                     )}
                   </div>
 
@@ -929,166 +1023,30 @@ export default function Classes() {
         {/* Right Side - Listing */}
         <Card className="lg:col-span-2">
           <CardContent className="pt-6">
-            {/* Filters */}
-            <div className="mb-4 space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
-                <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search classes..."
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 transition-smooth"
-                  />
-                </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <FiLoader className="w-8 h-8 animate-spin text-indigo-600" />
               </div>
-              <div className="w-full sm:w-64">
-                <Select
-                  value={
-                    selectedSchoolId ? selectedSchoolId.toString() : "__EMPTY__"
-                  }
-                  onValueChange={(value) => {
-                    setSelectedSchoolId(
-                      value === "__EMPTY__" ? "" : parseInt(value)
-                    );
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Filter by school..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    <SelectItem value="__EMPTY__">All Schools</SelectItem>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id.toString()}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <FiLoader className="w-8 h-8 animate-spin text-indigo-600" />
-            </div>
-          ) : classes.length === 0 ? (
-            <div className="text-center py-12">
-              <FiBook className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">
-                {search
-                  ? "No classes found matching your search"
-                  : "No classes found. Create one to get started."}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-                <table className="w-full">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Class Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        School
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Description
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {classes.map((classItem) => (
-                      <tr
-                        key={classItem.id}
-                        className="hover:bg-indigo-50/50 transition-all duration-150 group"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-gray-900">
-                            {classItem.name}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {classItem.school?.name ||
-                            schools.find((s) => s.id === classItem.schoolId)
-                              ?.name ||
-                            `School ID: ${classItem.schoolId}`}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {classItem.description || (
-                            <span className="text-gray-400 italic">
-                              No description
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                              classItem.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {classItem.status.charAt(0).toUpperCase() +
-                              classItem.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleEdit(classItem)}
-                              className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-smooth"
-                              title="Edit"
-                            >
-                              <FiEdit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDelete(classItem.id, classItem.schoolId)
-                              }
-                              className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg transition-smooth"
-                              title="Delete"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <Pagination
-                paginationMeta={paginationMeta}
-                page={page}
-                limit={limit}
-                onPageChange={setPage}
-                onLimitChange={(newLimit) => {
-                  setLimit(newLimit);
-                  setPage(1);
-                }}
-                itemName="classes"
-                className="mt-6"
+            ) : (
+              <DataTable
+                columns={columns}
+                data={classes}
+                searchKey="name"
+                searchPlaceholder="Search classes..."
+                enableRowSelection={false}
+                manualPagination={true}
+                pageCount={paginationMeta?.totalPages || 0}
+                totalRows={paginationMeta?.total || 0}
+                onPaginationChange={handlePaginationChange}
+                onSearchChange={handleSearchChange}
+                externalPageIndex={page - 1}
+                externalPageSize={limit}
+                externalSearchValue={search}
+                exportFileName="classes"
+                exportTitle="Classes List"
+                enableExport={true}
               />
-            </>
-          )}
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,8 +1,26 @@
-import { useState, useEffect } from "react";
-import { FiLoader, FiDownload, FiUpload } from "react-icons/fi";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Link } from "react-router-dom";
+import {
+  FiLoader,
+  FiDownload,
+  FiUpload,
+  FiEdit,
+  FiTrash2,
+  FiDollarSign,
+} from "react-icons/fi";
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown } from "lucide-react";
 // useDropzone is now in useFeePlanImport hook
 import api from "../../services/api";
 import { FeeStructure } from "../../types";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import {
   validateSingleModeForm,
   validateMultipleModeForm,
@@ -14,12 +32,14 @@ import {
 import { useFeePlanData } from "../../hooks/pages/super-admin/useFeePlanData";
 import { useFeePlanImport } from "../../hooks/pages/super-admin/useFeePlanImport";
 import { useFeePlanSelection } from "../../hooks/pages/super-admin/useFeePlanSelection";
+import { useSchool } from "../../contexts/SchoolContext";
 // import { useFeePlanForm } from "../../hooks/pages/super-admin/useFeePlanForm"; // TODO: Fix circular dependency
-import { FeePlanFilters } from "./components/FeePlanFilters";
 import { FeePlanDialogs } from "./components/FeePlanDialogs";
-import { FeePlanTable } from "./components/FeePlanTable";
 import { FeePlanForm } from "./components/FeePlanForm";
+import { DataTable } from "@/components/DataTable";
+import { getErrorMessage } from "@/utils/errorHandling";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -27,13 +47,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function FeePlan() {
@@ -43,7 +56,7 @@ export default function FeePlan() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [search, setSearch] = useState("");
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | number>("");
+  const { selectedSchoolId, selectedSchool } = useSchool();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<{
     id: number;
@@ -81,8 +94,6 @@ export default function FeePlan() {
     refetchFeeStructures,
     feeCategories,
     loadingCategories,
-    schools,
-    loadingSchools,
     categoryHeads,
     loadingCategoryHeads,
     classOptions,
@@ -92,14 +103,13 @@ export default function FeePlan() {
     page,
     limit,
     search,
-    selectedSchoolId,
+    selectedSchoolId: selectedSchoolId || "",
     formSchoolId: formData.schoolId,
   });
 
   // Use custom hook for import functionality
   const {
-    importSchoolId,
-    setImportSchoolId,
+    importSchoolId: hookImportSchoolId,
     importFile,
     setImportFile,
     importPreview,
@@ -117,14 +127,14 @@ export default function FeePlan() {
     setSuccess,
   });
 
+  // Sync importSchoolId with context school
+  const importSchoolId = selectedSchoolId || hookImportSchoolId;
+
   // Use custom hook for selection functionality
   const {
     selectedFeePlanIds,
     setSelectedFeePlanIds,
-    isSelectAll,
     setIsSelectAll,
-    handleSelectAll,
-    handleSelectFeePlan,
     handleExport,
     handleBulkDelete,
   } = useFeePlanSelection({
@@ -198,7 +208,16 @@ export default function FeePlan() {
           classOptions
         );
 
-        const payload: any = {
+        interface FeePlanPayload {
+          name: string;
+          feeCategoryId: number;
+          amount: number;
+          status: "active" | "inactive";
+          categoryHeadId?: number;
+          classId?: number;
+        }
+
+        const payload: FeePlanPayload = {
           name: planName,
           feeCategoryId: parseInt(formData.feeCategoryId as string),
           amount: parseFloat(formData.amount),
@@ -283,7 +302,16 @@ export default function FeePlan() {
                 classOptions
               );
 
-              const payload: any = {
+              interface FeePlanCreatePayload {
+                name: string;
+                feeCategoryId: number;
+                amount: number;
+                status: "active" | "inactive";
+                categoryHeadId?: number;
+                classId?: number;
+              }
+
+              const payload: FeePlanCreatePayload = {
                 name: planName,
                 feeCategoryId: combo.feeCategoryId,
                 amount: parseFloat(formData.amount),
@@ -303,7 +331,7 @@ export default function FeePlan() {
                 payload
               );
               successCount++;
-            } catch (err: any) {
+            } catch (err: unknown) {
               failedCount++;
               // Generate plan name using utility function
               const planName = generatePlanNameFromIds(
@@ -316,7 +344,8 @@ export default function FeePlan() {
               );
 
               // Check if it's a duplicate error (400) or other error
-              if (err.response?.status === 400) {
+              const apiError = err as { response?: { status?: number } };
+              if (apiError.response?.status === 400) {
                 // Likely a duplicate, skip it
                 failedNames.push(planName);
               } else {
@@ -366,7 +395,16 @@ export default function FeePlan() {
             classOptions
           );
 
-          const payload: any = {
+          interface FeePlanSingleCreatePayload {
+            name: string;
+            feeCategoryId: number;
+            amount: number;
+            status: "active" | "inactive";
+            categoryHeadId?: number;
+            classId?: number;
+          }
+
+          const payload: FeePlanSingleCreatePayload = {
             name: planName,
             feeCategoryId: parseInt(formData.feeCategoryId as string),
             amount: parseFloat(formData.amount),
@@ -395,9 +433,8 @@ export default function FeePlan() {
       refetchFeeStructures();
 
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to save fee plan";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Failed to save fee plan");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
@@ -425,7 +462,7 @@ export default function FeePlan() {
     setFormResetKey((prev) => prev + 1);
   };
 
-  const handleEdit = (structure: FeeStructure) => {
+  const handleEdit = useCallback((structure: FeeStructure) => {
     setEditingStructure(structure);
     // Use classId directly
     const classId: string | number = structure.classId || "";
@@ -440,12 +477,12 @@ export default function FeePlan() {
     });
     setError("");
     setSuccess("");
-  };
+  }, []);
 
-  const handleDeleteClick = (id: number, schoolId: number) => {
+  const handleDeleteClick = useCallback((id: number, schoolId: number) => {
     setDeleteItem({ id, schoolId });
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
   const handleDelete = async () => {
     if (!deleteItem) return;
@@ -460,9 +497,8 @@ export default function FeePlan() {
       setDeleteItem(null);
       refetchFeeStructures();
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to delete fee plan";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Failed to delete fee plan");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
@@ -484,6 +520,191 @@ export default function FeePlan() {
     setBulkDeleteDialogOpen(true);
   };
 
+  const handlePaginationChange = useCallback(
+    (pageIndex: number, pageSize: number) => {
+      setPage(pageIndex + 1);
+      setLimit(pageSize);
+    },
+    []
+  );
+
+  const handleSearchChange = useCallback((searchValue: string) => {
+    setSearch(searchValue);
+    setPage(1);
+  }, []);
+
+  const columns: ColumnDef<FeeStructure>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2 lg:px-3"
+            >
+              Plan Name
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          return <div className="font-semibold">{row.getValue("name")}</div>;
+        },
+      },
+      {
+        accessorKey: "school",
+        header: "School",
+        cell: ({ row }) => {
+          const school = row.original.school;
+          return (
+            <div className="text-sm text-gray-600">
+              {school?.name || `School ID: ${row.original.schoolId}`}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "classId",
+        header: "Class",
+        cell: ({ row }) => {
+          const classId = row.original.classId;
+          const className = classId
+            ? classOptions.find((c) => c.id === classId)?.name
+            : null;
+          return (
+            <div className="text-sm text-gray-600">{className || "-"}</div>
+          );
+        },
+      },
+      {
+        accessorKey: "categoryHead",
+        header: "Category Head",
+        cell: ({ row }) => {
+          const categoryHead = row.original.categoryHead;
+          return (
+            <div className="text-sm text-gray-600">
+              {categoryHead?.name || "General"}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "category",
+        header: "Fee Heading",
+        cell: ({ row }) => {
+          const category = row.original.category;
+          return (
+            <div className="text-sm text-gray-600">
+              {category?.name || `Category ID: ${row.original.feeCategoryId}`}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "amount",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2 lg:px-3"
+            >
+              Amount
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          const amount = parseFloat(row.getValue("amount") as string);
+          return (
+            <div className="flex items-center text-sm font-semibold">
+              <FiDollarSign className="w-4 h-4 mr-1 text-indigo-500" />
+              {amount.toLocaleString()}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="h-8 px-2 lg:px-3"
+            >
+              Status
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => {
+          const status = row.getValue("status") as string;
+          return (
+            <span
+              className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                status === "active"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-gray-100 text-gray-800"
+              }`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+          );
+        },
+        filterConfig: {
+          column: "status",
+          title: "Status",
+          options: [
+            { label: "Active", value: "active" },
+            { label: "Inactive", value: "inactive" },
+          ],
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const structure = row.original;
+          return (
+            <div className="flex items-center justify-end gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleEdit(structure)}
+                className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                title="Edit"
+              >
+                <FiEdit className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  handleDeleteClick(structure.id, structure.schoolId)
+                }
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
+                title="Delete"
+              >
+                <FiTrash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          );
+        },
+        enableSorting: false,
+      },
+    ],
+    [classOptions, handleEdit, handleDeleteClick]
+  );
+
   const handleBulkDeleteWithDialog = async () => {
     await handleBulkDelete();
     setBulkDeleteDialogOpen(false);
@@ -493,6 +714,29 @@ export default function FeePlan() {
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/super-admin/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/super-admin/settings/fee-settings/fee-plan">
+                Settings
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Fee Plan</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <Card>
         <CardHeader>
@@ -583,8 +827,6 @@ export default function FeePlan() {
                   formResetKey={formResetKey}
                   handleSubmit={handleSubmit}
                   handleCancel={handleCancel}
-                  schools={schools}
-                  loadingSchools={loadingSchools}
                   feeCategories={feeCategories}
                   loadingCategories={loadingCategories}
                   categoryHeads={categoryHeads}
@@ -601,41 +843,16 @@ export default function FeePlan() {
                     <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       School <span className="text-red-500">*</span>
                     </label>
-                    {loadingSchools ? (
-                      <div className="flex items-center justify-center py-2">
-                        <FiLoader className="w-3 h-3 animate-spin text-indigo-600" />
-                        <span className="ml-1.5 text-xs text-gray-600">
-                          Loading...
-                        </span>
-                      </div>
-                    ) : (
-                      <Select
-                        value={
-                          importSchoolId && importSchoolId !== ""
-                            ? importSchoolId.toString()
-                            : undefined
-                        }
-                        onValueChange={(value) => {
-                          const schoolId = value ? parseInt(value) : "";
-                          setImportSchoolId(schoolId);
-                          setImportFile(null);
-                          setImportPreview([]);
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a school..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                          {schools.map((school) => (
-                            <SelectItem
-                              key={school.id}
-                              value={school.id.toString()}
-                            >
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <Input
+                      type="text"
+                      value={selectedSchool?.name || "No school selected"}
+                      disabled
+                      className="bg-gray-50 cursor-not-allowed text-xs"
+                    />
+                    {!selectedSchool && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select a school from the top navigation bar
+                      </p>
                     )}
                   </div>
 
@@ -866,38 +1083,82 @@ export default function FeePlan() {
         {/* Right Side - List */}
         <Card className="lg:col-span-2">
           <CardContent className="pt-6">
-            {/* Search and Filter */}
-            <FeePlanFilters
-              search={search}
-              setSearch={setSearch}
-              selectedSchoolId={selectedSchoolId}
-              setSelectedSchoolId={setSelectedSchoolId}
-              schools={schools}
-              setPage={setPage}
-            />
+            {/* Bulk Actions Bar */}
+            {selectedFeePlanIds.length > 0 && (
+              <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-indigo-900">
+                    {selectedFeePlanIds.length} fee plan(s) selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleExport}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    size="sm"
+                  >
+                    <FiDownload className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                  <Button
+                    onClick={handleBulkDeleteClick}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    size="sm"
+                  >
+                    <FiTrash2 className="w-4 h-4 mr-2" />
+                    Delete ({selectedFeePlanIds.length})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedFeePlanIds([]);
+                      setIsSelectAll(false);
+                    }}
+                    size="sm"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Table */}
-            <FeePlanTable
-              feeStructures={feeStructures}
-              loading={loading}
-              paginationMeta={paginationMeta}
-              page={page}
-              limit={limit}
-              setPage={setPage}
-              setLimit={setLimit}
-              search={search}
-              selectedSchoolId={selectedSchoolId}
-              selectedFeePlanIds={selectedFeePlanIds}
-              setSelectedFeePlanIds={setSelectedFeePlanIds}
-              setIsSelectAll={setIsSelectAll}
-              isSelectAll={isSelectAll}
-              handleSelectAll={handleSelectAll}
-              handleSelectFeePlan={handleSelectFeePlan}
-              handleEdit={handleEdit}
-              handleDeleteClick={handleDeleteClick}
-              handleExport={handleExport}
-              handleBulkDeleteClick={handleBulkDeleteClick}
-            />
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <FiLoader className="w-8 h-8 animate-spin text-indigo-600" />
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={feeStructures}
+                searchKey="name"
+                searchPlaceholder="Search fee plans..."
+                enableRowSelection={true}
+                onRowSelectionChange={(selectedRows) => {
+                  const selectedIds = selectedRows.map((row) => row.id);
+                  setSelectedFeePlanIds(selectedIds);
+                  setIsSelectAll(
+                    selectedIds.length === feeStructures.length &&
+                      feeStructures.length > 0
+                  );
+                }}
+                rowSelection={selectedFeePlanIds.reduce((acc, id) => {
+                  acc[id] = true;
+                  return acc;
+                }, {} as Record<number, boolean>)}
+                manualPagination={true}
+                pageCount={paginationMeta?.totalPages || 0}
+                totalRows={paginationMeta?.total || 0}
+                onPaginationChange={handlePaginationChange}
+                onSearchChange={handleSearchChange}
+                externalPageIndex={page - 1}
+                externalPageSize={limit}
+                externalSearchValue={search}
+                exportFileName="fee-plans"
+                exportTitle="Fee Plans List"
+                enableExport={true}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

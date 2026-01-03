@@ -1,132 +1,432 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { ColumnDef } from '@tanstack/react-table';
+import { ArrowUpDown } from 'lucide-react';
 import Layout from '../components/Layout';
-import Modal from '../components/Modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { studentsService } from '../services/students.service';
-import { Student } from '../types';
-import { FiPlus, FiEdit2, FiTrash2, FiUser, FiMail, FiBook, FiLoader } from 'react-icons/fi';
+import { academicYearsService } from '../services/academicYears.service';
+import { studentAcademicRecordsService } from '../services/studentAcademicRecords.service';
+import { useAuth } from '../contexts/AuthContext';
+import { useSchool } from '../contexts/SchoolContext';
+import { Student, AcademicYear, StudentAcademicRecord } from '../types';
+import { FiPlus, FiEdit2, FiTrash2, FiUser, FiMail, FiBook, FiLoader, FiCalendar } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { DataTable } from '@/components/DataTable';
+import api from '../services/api';
+
+interface Class {
+  id: number;
+  name: string;
+}
 
 export default function Students() {
+  const { user } = useAuth();
+  const { selectedSchoolId, setSelectedSchoolId } = useSchool();
+  const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [formData, setFormData] = useState<Partial<Student>>({
-    studentId: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    class: '',
+  const [success, setSuccess] = useState('');
+  const [showAcademicRecordModal, setShowAcademicRecordModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [currentAcademicYear, setCurrentAcademicYear] = useState<AcademicYear | null>(null);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [academicRecords, setAcademicRecords] = useState<Record<number, StudentAcademicRecord>>({});
+
+
+  const [academicRecordData, setAcademicRecordData] = useState({
+    classId: '',
     section: '',
-    status: 'active',
+    rollNumber: '',
   });
 
+  // Check for success message from URL params
   useEffect(() => {
-    loadStudents();
+    const urlParams = new URLSearchParams(window.location.search);
+    const successMessage = urlParams.get('success');
+    if (successMessage) {
+      setSuccess(decodeURIComponent(successMessage));
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccess('');
+        // Remove success param from URL without reload
+        const newUrl = window.location.pathname + window.location.search.replace(/[?&]success=[^&]*/, '').replace(/^&/, '?');
+        window.history.replaceState({}, '', newUrl);
+      }, 5000);
+    }
   }, []);
 
-  const loadStudents = async () => {
+  // Set loading state based on school selection
+  useEffect(() => {
+    if (user?.role === 'super_admin' && !selectedSchoolId) {
+      // For super admin, don't load until school is selected
+      setLoading(false);
+      setStudents([]);
+    }
+  }, [user, selectedSchoolId]);
+
+  useEffect(() => {
+    if (user?.role === 'super_admin') {
+      // Only load if a school is selected
+      if (selectedSchoolId) {
+        loadData();
+      } else {
+        // No school selected, show empty state
+        setStudents([]);
+        setLoading(false);
+        setError('');
+      }
+    } else if (user?.schoolId) {
+      // For school admin, load immediately
+      loadData();
+    }
+  }, [selectedSchoolId, user]);
+
+  const loadData = async () => {
     try {
       setLoading(true);
       setError('');
-      const data = await studentsService.getAll();
-      setStudents(data);
+      
+      const schoolId =
+        user?.role === 'super_admin'
+          ? selectedSchoolId
+            ? +selectedSchoolId
+            : undefined
+          : user?.schoolId;
+
+      if (!schoolId && user?.role === 'super_admin') {
+        setError('Please select a school to view students');
+        setLoading(false);
+        return;
+      }
+
+      // Load current academic year
+      const year = await academicYearsService.getCurrent(schoolId);
+      setCurrentAcademicYear(year);
+      
+      // Load students
+      const studentsData = await studentsService.getAll(schoolId);
+      setStudents(studentsData);
+      
+      // Load classes
+      try {
+        const classesParams: any = { page: 1, limit: 100 };
+        if (schoolId) {
+          classesParams.schoolId = schoolId;
+        }
+        const classesResponse = await api.instance.get('/classes', {
+          params: classesParams,
+        });
+        
+        // Extract data array from paginated response
+        // axios response.data contains the JSON body, which has { data: [...], meta: {...} }
+        let classesData: Class[] = [];
+        if (classesResponse.data) {
+          if (Array.isArray(classesResponse.data)) {
+            // Direct array response
+            classesData = classesResponse.data;
+          } else if (classesResponse.data.data && Array.isArray(classesResponse.data.data)) {
+            // Paginated response { data: [...], meta: {...} }
+            classesData = classesResponse.data.data;
+          }
+        }
+        setClasses(classesData);
+      } catch (err: any) {
+        // Failed to load classes - set empty array
+        setClasses([]); // Set empty array on error
+      }
+      
+      // Load current academic records for all students
+      const recordsMap: Record<number, StudentAcademicRecord> = {};
+      for (const student of studentsData) {
+        try {
+          const record = await studentAcademicRecordsService.getCurrent(student.id);
+          if (record) {
+            recordsMap[student.id] = record;
+          }
+        } catch (err) {
+          // No record found, skip
+        }
+      }
+      setAcademicRecords(recordsMap);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load students');
+      setError(err.response?.data?.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  const handleAcademicRecordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedStudent || !currentAcademicYear) return;
+    
     try {
       setError('');
+      await studentAcademicRecordsService.create({
+        studentId: selectedStudent.id,
+        academicYearId: currentAcademicYear.id,
+        classId: parseInt(academicRecordData.classId),
+        section: academicRecordData.section || undefined,
+        rollNumber: academicRecordData.rollNumber || undefined,
+        status: 'active',
+      });
       
-      // Check if user has schoolId, if not try to get it from localStorage or user object
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
-      
-      // If user doesn't have schoolId and no school subdomain is set, show helpful error
-      if (!user?.schoolId && !localStorage.getItem('school_subdomain')) {
-        setError('School context required. Please ensure you have a school assigned or access via school subdomain.');
-        return;
-      }
-      
-      if (editingStudent) {
-        await studentsService.update(editingStudent.id, formData);
-      } else {
-        await studentsService.create(formData);
-      }
-      
-      // Clear error on success
-      setError('');
-      setShowModal(false);
-      setEditingStudent(null);
-      resetForm();
-      loadStudents();
+      setShowAcademicRecordModal(false);
+      setSelectedStudent(null);
+      setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+      loadData();
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Failed to save student';
+      const errorMessage = err.response?.data?.message || 'Failed to create academic record';
       setError(errorMessage);
-      
-      // If error mentions school context, provide helpful guidance
-      // Error message is already displayed to user via setError()
-      
-      // Don't close modal on error so user can fix and retry
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      studentId: '',
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      address: '',
-      class: '',
-      section: '',
-      status: 'active',
-    });
-  };
 
-  const handleEdit = (student: Student) => {
-    setError(''); // Clear error when editing
-    setEditingStudent(student);
-    setFormData({
-      studentId: student.studentId,
-      firstName: student.firstName,
-      lastName: student.lastName,
-      email: student.email,
-      phone: student.phone,
-      address: student.address,
-      class: student.class,
-      section: student.section,
-      status: student.status,
-    });
-    setShowModal(true);
-  };
+  const handleEdit = useCallback((student: Student) => {
+    // Include schoolId in URL for super admin when editing
+    if (user?.role === 'super_admin' && selectedSchoolId) {
+      navigate(`/super-admin/students/${student.id}/edit?schoolId=${selectedSchoolId}`);
+    } else {
+      navigate(`/super-admin/students/${student.id}/edit`);
+    }
+  }, [user, selectedSchoolId, navigate]);
 
-  const handleDelete = async (id: number) => {
+  const handleAddAcademicRecord = useCallback((student: Student) => {
+    setSelectedStudent(student);
+    setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+    setError('');
+    setShowAcademicRecordModal(true);
+  }, []);
+
+  const handleDelete = useCallback(async (id: number) => {
     if (!confirm('Are you sure you want to delete this student?')) return;
     try {
       await studentsService.delete(id);
-      loadStudents();
+      loadData();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to delete student');
     }
+  }, [loadData]);
+
+  const getCurrentClass = (student: Student): string => {
+    const record = academicRecords[student.id];
+    if (record?.class) {
+      return `${record.class.name}${record.section ? ` - ${record.section}` : ''}`;
+    }
+    return 'Not assigned';
   };
+
+  // Define columns for the data table
+  const columns: ColumnDef<Student>[] = useMemo(() => [
+    {
+      accessorKey: 'name',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="h-8 px-2 lg:px-3"
+          >
+            Student
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div className="flex items-center">
+            <div className="flex-shrink-0 h-10 w-10">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
+                <FiUser className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-semibold text-gray-900">
+                {student.firstName} {student.lastName}
+              </div>
+              <div className="text-sm text-gray-500">ID: {student.studentId}</div>
+            </div>
+          </div>
+        );
+      },
+      accessorFn: (row) => `${row.firstName} ${row.lastName} ${row.studentId}`,
+    },
+    {
+      accessorKey: 'email',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="h-8 px-2 lg:px-3"
+          >
+            Contact
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div>
+            <div className="flex items-center text-sm text-gray-900">
+              <FiMail className="w-4 h-4 mr-2 text-indigo-500" />
+              {student.email}
+            </div>
+            {student.phone && (
+              <div className="text-sm text-gray-500 mt-1">{student.phone}</div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'class',
+      header: `Class (${currentAcademicYear?.name || 'N/A'})`,
+      cell: ({ row }) => {
+        const student = row.original;
+        const record = academicRecords[student.id];
+        return (
+          <div>
+            <div className="flex items-center text-sm text-gray-900">
+              <FiBook className="w-4 h-4 mr-2 text-indigo-500" />
+              {getCurrentClass(student)}
+            </div>
+            {!record && (
+              <Button
+                variant="link"
+                size="sm"
+                className="text-xs mt-1 p-0 h-auto"
+                onClick={() => handleAddAcademicRecord(student)}
+              >
+                Assign class
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="h-8 px-2 lg:px-3"
+          >
+            Status
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const status = row.getValue('status') as string;
+        return (
+          <Badge
+            variant={
+              status === 'active'
+                ? 'default'
+                : status === 'graduated'
+                ? 'secondary'
+                : 'outline'
+            }
+            className={
+              status === 'active'
+                ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-0'
+                : status === 'graduated'
+                ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white border-0'
+                : ''
+            }
+          >
+            {status}
+          </Badge>
+        );
+      },
+      filterFn: (row, id, value) => {
+        const rowValue = row.getValue(id);
+        if (typeof value === 'function') {
+          return value(rowValue);
+        }
+        if (Array.isArray(value)) {
+          return value.includes(rowValue);
+        }
+        return rowValue === value;
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div className="flex items-center justify-end space-x-2">
+            <Button
+              onClick={() => handleEdit(student)}
+              variant="ghost"
+              size="icon"
+              className="text-primary hover:text-primary hover:bg-primary/10"
+              title="Edit"
+            >
+              <FiEdit2 className="w-5 h-5" />
+            </Button>
+            <Button
+              onClick={() => handleDelete(student.id)}
+              variant="ghost"
+              size="icon"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              title="Delete"
+            >
+              <FiTrash2 className="w-5 h-5" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ], [academicRecords, currentAcademicYear, handleEdit, handleDelete, handleAddAcademicRecord, getCurrentClass]);
 
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header - Using shadcn/ui Card */}
+        {/* Breadcrumb */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <a href="/">Home</a>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Students</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        {/* Header */}
         <Card className="shadow-lg">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -135,27 +435,62 @@ export default function Students() {
                   Students
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Manage student information and records
+                  Manage student information and academic records
                 </CardDescription>
               </div>
-              <Button
-                onClick={() => {
-                  setEditingStudent(null);
-                  resetForm();
-                  setError(''); // Clear error when opening modal
-                  setShowModal(true);
-                }}
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
-              >
-                <FiPlus className="w-5 h-5 mr-2" />
-                Add Student
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={() => {
+                    if (user?.role === 'super_admin') {
+                      if (!selectedSchoolId) {
+                        alert('Please select a school from the top navigation bar before adding a student.');
+                        return;
+                      }
+                      const url = `/super-admin/students/new?schoolId=${selectedSchoolId}`;
+                      navigate(url);
+                    } else {
+                      navigate('/super-admin/students/new');
+                    }
+                  }}
+                  disabled={
+                    user?.role === 'super_admin' && !selectedSchoolId
+                  }
+                  className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
+                >
+                  <FiPlus className="w-5 h-5 mr-2" />
+                  Add Student
+                </Button>
+              </div>
             </div>
           </CardHeader>
         </Card>
 
-        {/* Error Alert - Only show if modal is not open (for load/delete errors) - Using shadcn/ui Card */}
-        {error && !showModal && (
+        {/* Success Alert */}
+        {success && (
+          <Card className="border-l-4 border-l-green-400 bg-green-50 animate-fade-in">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-green-700">{success}</p>
+                </div>
+                <button
+                  onClick={() => setSuccess('')}
+                  className="text-green-600 hover:text-green-800"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Error Alert */}
+        {error && !showAcademicRecordModal && (
           <Card className="border-destructive border-l-4 animate-pulse-slow">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -165,28 +500,30 @@ export default function Students() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-destructive mb-1">Error</p>
                   <p className="text-sm text-destructive/90">{error}</p>
-                  {error.includes('School context') && (
-                    <div className="mt-3 text-xs text-destructive/80">
-                      <p className="font-semibold mb-1">To fix this:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Ensure your user account has a school assigned</li>
-                        <li>Or access the application via school subdomain (e.g., school1.localhost:5173)</li>
-                        <li>If you're a super admin, create a school first and assign it to your account</li>
-                      </ul>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Loading State - Using shadcn/ui Card */}
+        {/* Loading State */}
         {loading ? (
           <Card className="p-12">
             <CardContent className="flex items-center justify-center">
               <FiLoader className="w-8 h-8 text-primary animate-spin" />
               <span className="ml-3 text-muted-foreground">Loading students...</span>
+            </CardContent>
+          </Card>
+        ) : user?.role === 'super_admin' && !selectedSchoolId ? (
+          <Card className="text-center py-12 animate-fade-in">
+            <CardContent>
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full mb-4 shadow-lg">
+                <FiUser className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="mb-2">Select a School</CardTitle>
+              <CardDescription className="mb-4">
+                Please select a school from the dropdown above to view students.
+              </CardDescription>
             </CardContent>
           </Card>
         ) : students.length === 0 ? (
@@ -199,9 +536,15 @@ export default function Students() {
               <CardDescription className="mb-4">Get started by creating a new student.</CardDescription>
               <Button
                 onClick={() => {
-                  resetForm();
-                  setError(''); // Clear error when opening modal
-                  setShowModal(true);
+                  if (user?.role === 'super_admin') {
+                    if (!selectedSchoolId) {
+                      alert('Please select a school from the top navigation bar before adding a student.');
+                      return;
+                    }
+                    navigate(`/super-admin/students/new?schoolId=${selectedSchoolId}`);
+                  } else {
+                    navigate('/super-admin/students/new');
+                  }
                 }}
                 className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
               >
@@ -211,265 +554,133 @@ export default function Students() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Class
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white/50 divide-y divide-gray-200">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-white/80 transition-smooth">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-12 w-12">
-                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                              <FiUser className="w-6 h-6 text-white" />
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-semibold text-gray-900">
-                              {student.firstName} {student.lastName}
-                            </div>
-                            <div className="text-sm text-gray-500">ID: {student.studentId}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <FiMail className="w-4 h-4 mr-2 text-indigo-500" />
-                          {student.email}
-                        </div>
-                        {student.phone && (
-                          <div className="text-sm text-gray-500 mt-1">{student.phone}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <FiBook className="w-4 h-4 mr-2 text-indigo-500" />
-                          {student.class}
-                          {student.section && <span className="ml-1">- {student.section}</span>}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge
-                          variant={
-                            student.status === 'active'
-                              ? 'default'
-                              : student.status === 'graduated'
-                              ? 'secondary'
-                              : 'outline'
-                          }
-                          className={
-                            student.status === 'active'
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-0'
-                              : student.status === 'graduated'
-                              ? 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white border-0'
-                              : ''
-                          }
-                        >
-                          {student.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button
-                            onClick={() => handleEdit(student)}
-                            variant="ghost"
-                            size="icon"
-                            className="text-primary hover:text-primary hover:bg-primary/10"
-                            title="Edit"
-                          >
-                            <FiEdit2 className="w-5 h-5" />
-                          </Button>
-                          <Button
-                            onClick={() => handleDelete(student.id)}
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Delete"
-                          >
-                            <FiTrash2 className="w-5 h-5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <DataTable
+                columns={columns}
+                data={students}
+                searchKey="name"
+                searchPlaceholder="Search students by name or ID..."
+              />
+            </CardContent>
           </Card>
         )}
 
-        {/* Modal */}
-        <Modal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setEditingStudent(null);
-            resetForm();
-            setError(''); // Clear error when closing modal
+
+        {/* Academic Record Dialog */}
+        <Dialog
+          open={showAcademicRecordModal}
+          onOpenChange={(open) => {
+            setShowAcademicRecordModal(open);
+            if (!open) {
+              setSelectedStudent(null);
+              setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+              setError('');
+            }
           }}
-          title={editingStudent ? 'Edit Student' : 'Add New Student'}
         >
-          {/* Show error inside modal if present */}
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
-              <div className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-red-700 mb-1">Error</p>
-                  <p className="text-sm text-red-600">{error}</p>
-                  {error.includes('School context') && (
-                    <div className="mt-2 text-xs text-red-500">
-                      <p className="font-semibold mb-1">To fix this:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Ensure your user account has a school assigned</li>
-                        <li>Or access the application via school subdomain</li>
-                      </ul>
-                    </div>
-                  )}
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>
+                Assign Class - {selectedStudent?.firstName} {selectedStudent?.lastName}
+              </DialogTitle>
+              <DialogDescription>
+                Assign this student to a class for the current academic year
+              </DialogDescription>
+            </DialogHeader>
+            {error && (
+              <div className="p-4 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+            <form onSubmit={handleAcademicRecordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Academic Year
+                </label>
+                <Input
+                  type="text"
+                  value={currentAcademicYear?.name || 'N/A'}
+                  disabled
+                  className="bg-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Class *
+                </label>
+                <Select
+                  key={`class-select-${classes.length}`}
+                  value={academicRecordData.classId}
+                  onValueChange={(value) => setAcademicRecordData({ ...academicRecordData, classId: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      return Array.isArray(classes) && classes.length > 0 ? (
+                        classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id.toString()}>
+                            {cls.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          {classes?.length === 0 ? 'No classes available' : 'Loading classes...'}
+                        </div>
+                      );
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Section
+                  </label>
+                  <Input
+                    type="text"
+                    value={academicRecordData.section}
+                    onChange={(e) => setAcademicRecordData({ ...academicRecordData, section: e.target.value })}
+                    placeholder="A"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Roll Number
+                  </label>
+                  <Input
+                    type="text"
+                    value={academicRecordData.rollNumber}
+                    onChange={(e) => setAcademicRecordData({ ...academicRecordData, rollNumber: e.target.value })}
+                    placeholder="001"
+                  />
                 </div>
               </div>
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Student ID *
-                </label>
-                <Input
-                  type="text"
-                  required
-                  value={formData.studentId}
-                  onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                  placeholder="STU001"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth bg-white/50 backdrop-blur-sm"
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowAcademicRecordModal(false);
+                    setSelectedStudent(null);
+                    setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
+                  }}
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="graduated">Graduated</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  First Name *
-                </label>
-                <Input
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  placeholder="John"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Last Name *
-                </label>
-                <Input
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
-              <Input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="john.doe@example.com"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Class *</label>
-                <Input
-                  type="text"
-                  required
-                  value={formData.class}
-                  onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                  placeholder="10th Grade"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Section</label>
-                <Input
-                  type="text"
-                  value={formData.section}
-                  onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                  placeholder="A"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-              <Input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+1234567890"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingStudent(null);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
-              >
-                {editingStudent ? 'Update Student' : 'Create Student'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700"
+                >
+                  Assign Class
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

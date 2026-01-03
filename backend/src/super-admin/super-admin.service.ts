@@ -2,13 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, ILike } from 'typeorm';
 import { School, SchoolStatus } from '../schools/entities/school.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
 import { UpdateSchoolDto } from '../schools/dto/update-school.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { SchoolsService } from '../schools/schools.service';
 import { UsersService } from '../users/users.service';
+import { UserRolesService } from '../user-roles/user-roles.service';
 import { Student, StudentStatus } from '../students/entities/student.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
@@ -20,7 +21,7 @@ import { UpdateFeeCategoryDto } from '../fee-categories/dto/update-fee-category.
 import { CreateFeeStructureDto } from '../fee-structures/dto/create-fee-structure.dto';
 import { UpdateFeeStructureDto } from '../fee-structures/dto/update-fee-structure.dto';
 import { CategoryHead } from '../category-heads/entities/category-head.entity';
-import { Class } from '../classes/entities/class.entity';
+import { Class, ClassStatus } from '../classes/entities/class.entity';
 import { Route } from '../routes/entities/route.entity';
 import { RoutePlan } from '../route-plans/entities/route-plan.entity';
 import { CreateRoutePlanDto } from '../route-plans/dto/create-route-plan.dto';
@@ -51,6 +52,7 @@ export class SuperAdminService {
     private routePlansRepository: Repository<RoutePlan>,
     private schoolsService: SchoolsService,
     private usersService: UsersService,
+    private userRolesService: UserRolesService,
   ) {}
 
   // ========== SCHOOL MANAGEMENT ==========
@@ -134,6 +136,16 @@ export class SuperAdminService {
     ]);
 
     // Calculate statistics
+    const [
+      totalRoutePlans,
+      totalClasses,
+      totalCategoryHeads,
+    ] = await Promise.all([
+      this.routePlansRepository.count({ where: { schoolId: id } }),
+      this.classesRepository.count({ where: { schoolId: id, status: ClassStatus.ACTIVE } }),
+      this.categoryHeadsRepository.count({ where: { schoolId: id } }),
+    ]);
+
     const stats = {
       totalStudents: await this.studentsRepository.count({ where: { schoolId: id } }),
       activeStudents: await this.studentsRepository.count({
@@ -153,6 +165,9 @@ export class SuperAdminService {
         .then(result => parseFloat(result?.total || '0')),
       totalFeeStructures: feeStructures.length,
       activeFeeStructures: feeStructures.filter(fs => fs.status === 'active').length,
+      totalRoutePlans,
+      totalClasses,
+      totalCategoryHeads,
     };
 
     return {
@@ -177,11 +192,15 @@ export class SuperAdminService {
   /**
    * Check if a school has at least one administrator
    */
-  private async hasAdministrator(schoolId: number): Promise<boolean> {
+  private   async hasAdministrator(schoolId: number): Promise<boolean> {
+    // Find administrator role
+    const adminRole = await this.userRolesService.findByName('administrator');
+    if (!adminRole) return false;
+
     const adminCount = await this.usersRepository.count({
       where: {
         schoolId,
-        role: UserRole.ADMINISTRATOR,
+        roleId: adminRole.id,
       },
     });
     return adminCount > 0;
@@ -189,7 +208,7 @@ export class SuperAdminService {
 
   async createUser(createUserDto: CreateUserDto) {
     // If user has a schoolId and is not an administrator, ensure school has at least one administrator
-    if (createUserDto.schoolId && createUserDto.role !== UserRole.ADMINISTRATOR) {
+    if (createUserDto.schoolId && createUserDto.role !== 'administrator') {
       const hasAdmin = await this.hasAdministrator(createUserDto.schoolId);
       if (!hasAdmin) {
         throw new BadRequestException(
@@ -200,28 +219,41 @@ export class SuperAdminService {
     return await this.usersService.create(createUserDto);
   }
 
-  async getAllUsers(page: number = 1, limit: number = 10, search?: string) {
+  async getAllUsers(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    schoolId?: number,
+  ) {
     try {
       const { skip, limit: take } = getPaginationParams(page, limit);
 
       // Build where clause - exclude super_admin users
-      let whereConditions: any = {
-        role: Not(UserRole.SUPER_ADMIN),
+      let baseCondition: any = {
+        roleId: Not(null), // Will filter by role name later
       };
 
+      // Add schoolId filter if provided
+      if (schoolId) {
+        baseCondition.schoolId = schoolId;
+      }
+
       // Add search filter if provided
+      let whereConditions: any;
       if (search && search.trim()) {
         const searchTerm = `%${search.trim()}%`;
         whereConditions = [
           {
-            role: Not(UserRole.SUPER_ADMIN),
+            ...baseCondition,
             name: ILike(searchTerm),
           },
           {
-            role: Not(UserRole.SUPER_ADMIN),
+            ...baseCondition,
             email: ILike(searchTerm),
           },
         ];
+      } else {
+        whereConditions = baseCondition;
       }
 
       const [users, total] = await this.usersRepository.findAndCount({
@@ -260,26 +292,35 @@ export class SuperAdminService {
   async updateUser(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.usersService.findOne(id);
 
+    // Get user role name
+    const userRoleName = user.role?.name || (user.role as any);
+
     // Prevent changing SUPER_ADMIN role
     if (
-      user.role === UserRole.SUPER_ADMIN &&
+      userRoleName === 'super_admin' &&
       updateUserDto.role &&
-      updateUserDto.role !== UserRole.SUPER_ADMIN
+      updateUserDto.role !== 'super_admin'
     ) {
       throw new BadRequestException('Cannot change SUPER_ADMIN role');
     }
 
     // Check if changing role from administrator to something else
     const schoolId = updateUserDto.schoolId !== undefined ? updateUserDto.schoolId : user.schoolId;
-    const newRole = updateUserDto.role !== undefined ? updateUserDto.role : user.role;
+    const newRole = updateUserDto.role !== undefined ? updateUserDto.role : userRoleName;
 
     // If user is currently an administrator and role is being changed to non-administrator
-    if (user.role === UserRole.ADMINISTRATOR && newRole !== UserRole.ADMINISTRATOR && schoolId) {
+    if (userRoleName === 'administrator' && newRole !== 'administrator' && schoolId) {
+      // Find administrator role
+      const adminRole = await this.userRolesService.findByName('administrator');
+      if (!adminRole) {
+        throw new BadRequestException('Administrator role not found');
+      }
+
       // Count other administrators for this school (excluding current user)
       const adminCount = await this.usersRepository.count({
         where: {
           schoolId,
-          role: UserRole.ADMINISTRATOR,
+          roleId: adminRole.id,
         },
       });
 
@@ -292,11 +333,16 @@ export class SuperAdminService {
     }
 
     // If schoolId is being removed and user is an administrator, check if they're the last administrator
-    if (updateUserDto.schoolId === null && user.role === UserRole.ADMINISTRATOR && user.schoolId) {
+    if (updateUserDto.schoolId === null && userRoleName === 'administrator' && user.schoolId) {
+      const adminRole = await this.userRolesService.findByName('administrator');
+      if (!adminRole) {
+        throw new BadRequestException('Administrator role not found');
+      }
+
       const adminCount = await this.usersRepository.count({
         where: {
           schoolId: user.schoolId,
-          role: UserRole.ADMINISTRATOR,
+          roleId: adminRole.id,
         },
       });
 
@@ -312,7 +358,7 @@ export class SuperAdminService {
       updateUserDto.schoolId !== undefined &&
       updateUserDto.schoolId !== null &&
       updateUserDto.schoolId !== user.schoolId &&
-      newRole !== UserRole.ADMINISTRATOR
+      newRole !== 'administrator'
     ) {
       const hasAdmin = await this.hasAdministrator(updateUserDto.schoolId);
       if (!hasAdmin) {
@@ -327,18 +373,24 @@ export class SuperAdminService {
 
   async deleteUser(id: number) {
     const user = await this.usersService.findOne(id);
+    const userRoleName = user.role?.name || (user.role as any);
 
     // Prevent deleting SUPER_ADMIN
-    if (user.role === UserRole.SUPER_ADMIN) {
+    if (userRoleName === 'super_admin') {
       throw new BadRequestException('Cannot delete SUPER_ADMIN user');
     }
 
     // Prevent deleting the last administrator of a school
-    if (user.role === UserRole.ADMINISTRATOR && user.schoolId) {
+    if (userRoleName === 'administrator' && user.schoolId) {
+      const adminRole = await this.userRolesService.findByName('administrator');
+      if (!adminRole) {
+        throw new BadRequestException('Administrator role not found');
+      }
+
       const adminCount = await this.usersRepository.count({
         where: {
           schoolId: user.schoolId,
-          role: UserRole.ADMINISTRATOR,
+          roleId: adminRole.id,
         },
       });
 
@@ -443,15 +495,8 @@ export class SuperAdminService {
           continue;
         }
 
-        if (!studentDto.class?.trim()) {
-          results.failed++;
-          results.errors.push({
-            row: rowNumber,
-            studentId: studentDto.studentId,
-            error: 'Class is required',
-          });
-          continue;
-        }
+        // Note: Class assignment is now done via StudentAcademicRecord, not during student creation
+        // We'll create the student without class/section, and class can be assigned later
 
         // Check for duplicates within the import batch
         const duplicateInBatch = bulkImportDto.students
@@ -509,7 +554,7 @@ export class SuperAdminService {
           continue;
         }
 
-        // Create the student
+        // Create the student (without class/section - those are now in StudentAcademicRecord)
         const studentData: Partial<Student> = {
           studentId: studentDto.studentId.trim(),
           firstName: studentDto.firstName.trim(),
@@ -517,8 +562,15 @@ export class SuperAdminService {
           email: studentDto.email.trim().toLowerCase(),
           phone: studentDto.phone?.trim() || undefined,
           address: studentDto.address?.trim() || undefined,
-          class: studentDto.class.trim(),
-          section: studentDto.section?.trim() || undefined,
+          dateOfBirth: studentDto.dateOfBirth ? new Date(studentDto.dateOfBirth) : undefined,
+          gender: studentDto.gender?.trim() || undefined,
+          bloodGroup: studentDto.bloodGroup?.trim() || undefined,
+          admissionDate: studentDto.admissionDate ? new Date(studentDto.admissionDate) : new Date(),
+          admissionNumber: studentDto.admissionNumber?.trim() || undefined,
+          parentName: studentDto.parentName?.trim() || undefined,
+          parentEmail: studentDto.parentEmail?.trim() || undefined,
+          parentPhone: studentDto.parentPhone?.trim() || undefined,
+          parentRelation: studentDto.parentRelation?.trim() || undefined,
           status: (studentDto.status || StudentStatus.ACTIVE) as StudentStatus,
           schoolId,
         };
@@ -1283,16 +1335,15 @@ export class SuperAdminService {
       throw new NotFoundException(`School with ID ${schoolId} not found`);
     }
 
-    // Fetch all students for the school to get unique classes
-    const students = await this.studentsRepository.find({
-      where: { schoolId },
-      select: ['class'],
+    // Fetch all classes for the school (from Classes entity, not from students)
+    const classes = await this.classesRepository.find({
+      where: { schoolId, status: ClassStatus.ACTIVE },
+      select: ['name'],
+      order: { name: 'ASC' },
     });
 
-    // Extract unique classes, filter out null/empty values, and sort
-    const uniqueClasses = Array.from(
-      new Set(students.map(student => student.class).filter(cls => cls && cls.trim())),
-    ).sort() as string[];
+    // Extract class names and return as sorted array
+    const uniqueClasses = classes.map(cls => cls.name).sort();
 
     return uniqueClasses;
   }

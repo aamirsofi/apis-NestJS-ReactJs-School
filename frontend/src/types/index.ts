@@ -46,11 +46,52 @@ export interface Student {
   email: string;
   phone?: string;
   address?: string;
-  class: string;
-  section?: string;
-  status: 'active' | 'inactive' | 'graduated';
+  dateOfBirth?: string;
+  gender?: string;
+  bloodGroup?: string;
+  admissionDate: string;
+  admissionNumber?: string;
+  photoUrl?: string;
+  parentName?: string;
+  parentEmail?: string;
+  parentPhone?: string;
+  parentRelation?: string;
+  status: 'active' | 'inactive' | 'graduated' | 'transferred';
   schoolId: number;
   userId?: number;
+  academicRecords?: StudentAcademicRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcademicYear {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description?: string;
+  schoolId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudentAcademicRecord {
+  id: number;
+  studentId: number;
+  academicYearId: number;
+  classId: number;
+  section?: string;
+  rollNumber?: string;
+  admissionNumber?: string;
+  status: 'active' | 'promoted' | 'repeating' | 'transferred' | 'dropped';
+  remarks?: string;
+  student?: Student;
+  academicYear?: AcademicYear;
+  class?: {
+    id: number;
+    name: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
