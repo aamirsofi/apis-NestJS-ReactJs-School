@@ -226,7 +226,7 @@ export default function SuperAdminDashboard() {
               value={stats?.totalUsers || 0}
               icon={FiUsers}
               color="bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500"
-              link="/super-admin/users"
+              link="/super-admin/settings/users"
               isLoading={loading}
             />
             <StatCard
@@ -298,7 +298,7 @@ export default function SuperAdminDashboard() {
               value={schoolStats?.totalUsers || 0}
               icon={FiUsers}
               color="bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500"
-              link="/super-admin/users"
+              link="/super-admin/settings/users"
               isLoading={loadingSchoolStats}
             />
             <StatCard

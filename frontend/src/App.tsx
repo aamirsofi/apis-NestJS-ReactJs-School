@@ -98,9 +98,9 @@ function App() {
                 }
               />
 
-              {/* Users */}
+              {/* User Management */}
               <Route
-                path="/super-admin/users"
+                path="/super-admin/settings/users"
                 element={
                   <ProtectedLayoutRoute>
                     <SuperAdminUsers />
@@ -171,15 +171,6 @@ function App() {
                 </ProtectedLayoutRoute>
               }
             /> */}
-              {/* Note: User Management route matches sidebar but uses same component as /super-admin/users */}
-              <Route
-                path="/super-admin/settings/users"
-                element={
-                  <ProtectedLayoutRoute>
-                    <SuperAdminUsers />
-                  </ProtectedLayoutRoute>
-                }
-              />
               {/* TODO: Add Notifications component when ready */}
               {/* <Route
               path="/super-admin/settings/notifications"
@@ -202,7 +193,7 @@ function App() {
 
               {/* Communication */}
               <Route
-                path="/super-admin/announcements"
+                path="/super-admin/settings/announcements"
                 element={
                   <ProtectedLayoutRoute>
                     <Announcements />

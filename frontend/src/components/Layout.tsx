@@ -22,9 +22,6 @@ import {
   FiSettings,
   FiBarChart2,
   FiFileText,
-  FiMenu,
-  FiX,
-  FiMail,
   FiBell,
   FiChevronUp,
   FiUpload,
@@ -53,7 +50,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -64,9 +60,7 @@ import {
   SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar";
 
 interface LayoutProps {
@@ -90,7 +84,6 @@ export default function Layout({ children }: LayoutProps) {
     Record<string, boolean>
   >({
     schools: true,
-    users: true,
     students: true,
     settings: false,
     "fee-settings": false,
@@ -144,15 +137,6 @@ export default function Layout({ children }: LayoutProps) {
         },
       ],
     },
-    {
-      name: "Users",
-      icon: FiUser,
-      section: "users",
-      children: [
-        { name: "All Users", path: "/super-admin/users", icon: FiUser },
-      ],
-    },
-
     {
       name: "Analytics",
       icon: FiBarChart2,
@@ -254,7 +238,7 @@ export default function Layout({ children }: LayoutProps) {
         },
         {
           name: "Announcements",
-          path: "/super-admin/announcements",
+          path: "/super-admin/settings/announcements",
           icon: FiBell,
         },
       ],
