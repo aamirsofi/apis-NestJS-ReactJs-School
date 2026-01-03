@@ -18,7 +18,7 @@ import { studentAcademicRecordsService } from '../services/studentAcademicRecord
 import { useAuth } from '../contexts/AuthContext';
 import { useSchool } from '../contexts/SchoolContext';
 import { Student, AcademicYear, StudentAcademicRecord } from '../types';
-import { FiPlus, FiEdit2, FiTrash2, FiCopy, FiUser, FiMail, FiBook, FiLoader, FiCalendar } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiCopy, FiEye, FiUser, FiMail, FiBook, FiLoader, FiCalendar, FiDollarSign, FiHome, FiMapPin, FiAward, FiPhone } from 'react-icons/fi';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -222,6 +222,15 @@ export default function Students() {
     }
   }, [user, selectedSchoolId, navigate]);
 
+  const handleView = useCallback((student: Student) => {
+    // Navigate to view page
+    if (user?.role === 'super_admin' && selectedSchoolId) {
+      navigate(`/super-admin/students/${student.id}/view?schoolId=${selectedSchoolId}`);
+    } else {
+      navigate(`/super-admin/students/${student.id}/view`);
+    }
+  }, [user, selectedSchoolId, navigate]);
+
   const handleAddAcademicRecord = useCallback((student: Student) => {
     setSelectedStudent(student);
     setAcademicRecordData({ classId: '', section: '', rollNumber: '' });
@@ -324,6 +333,9 @@ export default function Students() {
               <FiBook className="w-4 h-4 mr-2 text-indigo-500" />
               {getCurrentClass(student)}
             </div>
+            {record?.rollNumber && (
+              <div className="text-xs text-gray-500 mt-1">Roll: {record.rollNumber}</div>
+            )}
             {!record && (
               <Button
                 variant="link"
@@ -333,6 +345,109 @@ export default function Students() {
               >
                 Assign class
               </Button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'admission',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="h-8 px-2 lg:px-3"
+          >
+            Admission
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div>
+            {student.admissionDate && (
+              <div className="flex items-center text-sm text-gray-900">
+                <FiCalendar className="w-4 h-4 mr-2 text-purple-500" />
+                {new Date(student.admissionDate).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric'
+                })}
+              </div>
+            )}
+            {student.admissionNumber && (
+              <div className="text-xs text-gray-500 mt-1 flex items-center">
+                <FiAward className="w-3 h-3 mr-1" />
+                {student.admissionNumber}
+              </div>
+            )}
+          </div>
+        );
+      },
+      accessorFn: (row) => row.admissionDate || '',
+    },
+    {
+      id: 'parent',
+      header: 'Parent/Guardian',
+      cell: ({ row }) => {
+        const student = row.original;
+        return (
+          <div>
+            {student.parentName && (
+              <div className="flex items-center text-sm text-gray-900">
+                <FiHome className="w-4 h-4 mr-2 text-orange-500" />
+                <span className="font-medium">{student.parentName}</span>
+              </div>
+            )}
+            {student.parentPhone && (
+              <div className="text-xs text-gray-500 mt-1 flex items-center">
+                <FiPhone className="w-3 h-3 mr-1" />
+                {student.parentPhone}
+              </div>
+            )}
+            {student.parentRelation && (
+              <div className="text-xs text-gray-500 mt-0.5">
+                ({student.parentRelation})
+              </div>
+            )}
+            {!student.parentName && (
+              <span className="text-xs text-gray-400">Not provided</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'financial',
+      header: 'Financial',
+      cell: ({ row }) => {
+        const student = row.original;
+        const openingBalance = student.openingBalance ? parseFloat(student.openingBalance.toString()) : 0;
+        return (
+          <div>
+            {openingBalance !== 0 && (
+              <div className="flex items-center text-sm">
+                <FiDollarSign className={`w-4 h-4 mr-2 ${openingBalance > 0 ? 'text-red-500' : 'text-green-500'}`} />
+                <span className={`font-semibold ${openingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {new Intl.NumberFormat('en-IN', {
+                    style: 'currency',
+                    currency: 'INR',
+                  }).format(Math.abs(openingBalance))}
+                </span>
+              </div>
+            )}
+            {student.busNumber && (
+              <div className="text-xs text-gray-500 mt-1 flex items-center">
+                <FiMapPin className="w-3 h-3 mr-1" />
+                Bus: {student.busNumber}
+                {student.busSeatNumber && ` (Seat ${student.busSeatNumber})`}
+              </div>
+            )}
+            {openingBalance === 0 && !student.busNumber && (
+              <span className="text-xs text-gray-400">-</span>
             )}
           </div>
         );
@@ -392,39 +507,60 @@ export default function Students() {
       cell: ({ row }) => {
         const student = row.original;
         return (
-          <div className="flex items-center justify-end space-x-2">
+          <div className="flex items-center justify-end gap-1.5">
+            <Button
+              onClick={() => handleView(student)}
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950 rounded-lg transition-all hover:scale-110 group"
+              title="View Details"
+            >
+              <div className="relative">
+                <FiEye className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+                <div className="absolute inset-0 bg-emerald-500/10 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300"></div>
+              </div>
+            </Button>
             <Button
               onClick={() => handleEdit(student)}
               variant="ghost"
               size="icon"
-              className="text-primary hover:text-primary hover:bg-primary/10"
-              title="Edit"
+              className="h-9 w-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-all hover:scale-110 group"
+              title="Edit Student"
             >
-              <FiEdit2 className="w-5 h-5" />
+              <div className="relative">
+                <FiEdit2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+                <div className="absolute inset-0 bg-blue-500/10 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300"></div>
+              </div>
             </Button>
             <Button
               onClick={() => handleDuplicate(student)}
               variant="ghost"
               size="icon"
-              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              title="Duplicate"
+              className="h-9 w-9 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg transition-all hover:scale-110 group"
+              title="Duplicate Student"
             >
-              <FiCopy className="w-5 h-5" />
+              <div className="relative">
+                <FiCopy className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+                <div className="absolute inset-0 bg-indigo-500/10 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300"></div>
+              </div>
             </Button>
             <Button
               onClick={() => handleDelete(student.id)}
               variant="ghost"
               size="icon"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              title="Delete"
+              className="h-9 w-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-all hover:scale-110 group"
+              title="Delete Student"
             >
-              <FiTrash2 className="w-5 h-5" />
+              <div className="relative">
+                <FiTrash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+                <div className="absolute inset-0 bg-red-500/10 rounded-full scale-0 group-hover:scale-150 transition-transform duration-300"></div>
+              </div>
             </Button>
           </div>
         );
       },
     },
-  ], [academicRecords, currentAcademicYear, handleEdit, handleDelete, handleDuplicate, handleAddAcademicRecord, getCurrentClass]);
+  ], [academicRecords, currentAcademicYear, handleEdit, handleDelete, handleDuplicate, handleView, handleAddAcademicRecord, getCurrentClass]);
 
   return (
     <Layout>

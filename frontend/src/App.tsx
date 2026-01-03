@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Students from "./pages/Students";
 import AddEditStudent from "./pages/AddEditStudent";
+import ViewStudent from "./pages/ViewStudent";
 import FeeStructures from "./pages/FeeStructures";
 import Payments from "./pages/Payments";
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
@@ -288,6 +289,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <AddEditStudent />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/students/:id/view"
+                element={
+                  <ProtectedRoute>
+                    <ViewStudent />
                   </ProtectedRoute>
                 }
               />
