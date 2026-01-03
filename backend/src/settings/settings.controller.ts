@@ -8,7 +8,11 @@ import {
   Param,
   Query,
   UseGuards,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import { Response } from 'express';
+import * as fs from 'fs';
 import { SettingsService } from './settings.service';
 import { CreateSettingDto } from './dto/create-setting.dto';
 import { UpdateSettingDto } from './dto/update-setting.dto';
@@ -66,6 +70,34 @@ export class SettingsController {
   @Post('test/sms')
   testSms(@Body() testSmsDto: TestSmsDto) {
     return this.settingsService.testSms(testSmsDto);
+  }
+
+  @Post('backup/create')
+  createBackup() {
+    return this.settingsService.createBackup();
+  }
+
+  @Get('backup/list')
+  listBackups() {
+    return this.settingsService.listBackups();
+  }
+
+  @Get('backup/download/:fileName')
+  async downloadBackup(
+    @Param('fileName') fileName: string,
+    @Res() res: Response,
+  ) {
+    const filePath = await this.settingsService.getBackupFilePath(fileName);
+    
+    if (!filePath || !fs.existsSync(filePath)) {
+      throw new NotFoundException('Backup file not found');
+    }
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
   }
 }
 

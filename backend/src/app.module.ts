@@ -24,6 +24,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { UserRolesModule } from './user-roles/user-roles.module';
 import { SettingsModule } from './settings/settings.module';
+import { BackupModule } from './backup/backup.module';
 import { DatabaseConfig } from './database/database.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -73,6 +74,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     AnnouncementsModule,
     UserRolesModule,
     SettingsModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [

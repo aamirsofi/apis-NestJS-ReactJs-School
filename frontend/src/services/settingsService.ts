@@ -101,5 +101,37 @@ export const settingsService = {
     const response = await api.instance.post('/settings/test/sms', data);
     return response.data;
   },
+
+  // Create manual backup
+  createBackup: async (): Promise<{ success: boolean; message: string; downloadUrl?: string }> => {
+    const response = await api.instance.post('/settings/backup/create');
+    return response.data;
+  },
+
+  // List backups
+  listBackups: async (): Promise<Array<{ name: string; size: number; sizeFormatted: string; createdAt: Date }>> => {
+    const response = await api.instance.get('/settings/backup/list');
+    return response.data;
+  },
+
+  // Download backup file
+  downloadBackup: async (fileName: string): Promise<void> => {
+    const response = await api.instance.get(`/settings/backup/download/${fileName}`, {
+      responseType: 'blob', // Important: tell axios to handle binary data
+    });
+    
+    // Create a blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'application/octet-stream' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
 

@@ -7,6 +7,7 @@ import { UpdateSettingDto } from './dto/update-setting.dto';
 import { BulkUpdateSettingsDto } from './dto/bulk-update-settings.dto';
 import { TestEmailDto } from './dto/test-email.dto';
 import { TestSmsDto } from './dto/test-sms.dto';
+import { BackupService } from '../backup/backup.service';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(Setting)
     private settingsRepository: Repository<Setting>,
+    private backupService: BackupService,
   ) {}
 
   async findAll(): Promise<Record<string, any>> {
@@ -209,6 +211,18 @@ export class SettingsService {
         message: error.message || 'Failed to send test SMS',
       };
     }
+  }
+
+  async createBackup(): Promise<{ success: boolean; message: string; downloadUrl?: string }> {
+    return this.backupService.createBackup();
+  }
+
+  async getBackupFilePath(fileName: string): Promise<string | null> {
+    return this.backupService.getBackupFilePath(fileName);
+  }
+
+  async listBackups(): Promise<Array<{ name: string; size: number; sizeFormatted: string; createdAt: Date }>> {
+    return this.backupService.listBackups();
   }
 
   private parseValue(value: string | null, type: string): any {

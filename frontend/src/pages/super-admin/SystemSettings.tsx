@@ -22,6 +22,9 @@ import {
   FiRefreshCw,
   FiAlertCircle,
   FiCheckCircle,
+  FiDownload,
+  FiClock,
+  FiFile,
 } from "react-icons/fi";
 import {
   Select,
@@ -98,6 +101,8 @@ export default function SystemSettings() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
+  const [backupHistory, setBackupHistory] = useState<Array<{ name: string; size: number; sizeFormatted: string; createdAt: Date }>>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
   const [settings, setSettings] = useState<SystemSettings>({
     // General
     appName: "School ERP Platform",
@@ -147,6 +152,12 @@ export default function SystemSettings() {
     loadSettings();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "backup") {
+      loadBackupHistory();
+    }
+  }, [activeTab]);
+
   const loadSettings = async () => {
     setLoading(true);
     try {
@@ -161,6 +172,28 @@ export default function SystemSettings() {
         "destructive"
       );
       setLoading(false);
+    }
+  };
+
+  const loadBackupHistory = async () => {
+    setLoadingBackups(true);
+    try {
+      const backups = await settingsService.listBackups();
+      // Convert createdAt strings to Date objects
+      const backupsWithDates = backups.map(backup => ({
+        ...backup,
+        createdAt: new Date(backup.createdAt),
+      }));
+      setBackupHistory(backupsWithDates);
+    } catch (error: any) {
+      console.error("Failed to load backup history:", error);
+      showToast(
+        "Error",
+        error.response?.data?.message || "Failed to load backup history",
+        "destructive"
+      );
+    } finally {
+      setLoadingBackups(false);
     }
   };
 
@@ -968,13 +1001,141 @@ export default function SystemSettings() {
               )}
 
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                <Button variant="outline">
-                  <FiRefreshCw className="mr-2 h-4 w-4" />
-                  Create Manual Backup
+                <Button 
+                  variant="outline"
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      const result = await settingsService.createBackup();
+                      if (result.success) {
+                        showToast("Success", result.message || "Backup created successfully!");
+                        // Reload backup history after creating backup
+                        await loadBackupHistory();
+                        // Extract filename from downloadUrl if provided
+                        if (result.downloadUrl) {
+                          const fileName = result.downloadUrl.split('/').pop();
+                          if (fileName) {
+                            // Small delay to ensure file is written
+                            setTimeout(async () => {
+                              try {
+                                await settingsService.downloadBackup(fileName);
+                              } catch (error: any) {
+                                // Silently fail - user can download manually
+                                console.error('Auto-download failed:', error);
+                              }
+                            }, 1000);
+                          }
+                        }
+                      } else {
+                        showToast("Error", result.message || "Failed to create backup", "destructive");
+                      }
+                    } catch (error: any) {
+                      showToast("Error", error.response?.data?.message || "Failed to create backup", "destructive");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <FiRefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Backup...
+                    </>
+                  ) : (
+                    <>
+                      <FiRefreshCw className="mr-2 h-4 w-4" />
+                      Create Manual Backup
+                    </>
+                  )}
                 </Button>
                 <p className="text-sm text-muted-foreground">
                   Create an immediate backup of your database
                 </p>
+              </div>
+
+              {/* Backup History */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Backup History</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadBackupHistory}
+                    disabled={loadingBackups}
+                  >
+                    <FiRefreshCw className={`mr-2 h-4 w-4 ${loadingBackups ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+
+                {loadingBackups ? (
+                  <div className="flex items-center justify-center py-8">
+                    <FiRefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading backups...</span>
+                  </div>
+                ) : backupHistory.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FiFile className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No backups found</p>
+                    <p className="text-sm mt-1">Create your first backup to see it here</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">File Name</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Size</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Created At</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {backupHistory.map((backup) => (
+                          <tr key={backup.name} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <FiFile className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{backup.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
+                              {backup.sizeFormatted}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <FiClock className="h-3 w-3" />
+                                {backup.createdAt.toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await settingsService.downloadBackup(backup.name);
+                                    showToast("Success", `Downloaded ${backup.name}`);
+                                  } catch (error: any) {
+                                    showToast(
+                                      "Error",
+                                      error.response?.data?.message || "Failed to download backup",
+                                      "destructive"
+                                    );
+                                  }
+                                }}
+                              >
+                                <FiDownload className="mr-2 h-4 w-4" />
+                                Download
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end">
