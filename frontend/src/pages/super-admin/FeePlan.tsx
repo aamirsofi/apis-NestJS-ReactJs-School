@@ -1,6 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { FiLoader, FiDownload, FiUpload, FiEdit, FiTrash2, FiDollarSign } from "react-icons/fi";
+import {
+  FiLoader,
+  FiDownload,
+  FiUpload,
+  FiEdit,
+  FiTrash2,
+  FiDollarSign,
+} from "react-icons/fi";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 // useDropzone is now in useFeePlanImport hook
@@ -30,6 +37,7 @@ import { useSchool } from "../../contexts/SchoolContext";
 import { FeePlanDialogs } from "./components/FeePlanDialogs";
 import { FeePlanForm } from "./components/FeePlanForm";
 import { DataTable } from "@/components/DataTable";
+import { getErrorMessage } from "@/utils/errorHandling";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -102,7 +110,6 @@ export default function FeePlan() {
   // Use custom hook for import functionality
   const {
     importSchoolId: hookImportSchoolId,
-    setImportSchoolId: setHookImportSchoolId,
     importFile,
     setImportFile,
     importPreview,
@@ -122,18 +129,12 @@ export default function FeePlan() {
 
   // Sync importSchoolId with context school
   const importSchoolId = selectedSchoolId || hookImportSchoolId;
-  const setImportSchoolId = (schoolId: string | number) => {
-    setHookImportSchoolId(schoolId);
-  };
 
   // Use custom hook for selection functionality
   const {
     selectedFeePlanIds,
     setSelectedFeePlanIds,
-    isSelectAll,
     setIsSelectAll,
-    handleSelectAll,
-    handleSelectFeePlan,
     handleExport,
     handleBulkDelete,
   } = useFeePlanSelection({
@@ -207,7 +208,16 @@ export default function FeePlan() {
           classOptions
         );
 
-        const payload: any = {
+        interface FeePlanPayload {
+          name: string;
+          feeCategoryId: number;
+          amount: number;
+          status: "active" | "inactive";
+          categoryHeadId?: number;
+          classId?: number;
+        }
+
+        const payload: FeePlanPayload = {
           name: planName,
           feeCategoryId: parseInt(formData.feeCategoryId as string),
           amount: parseFloat(formData.amount),
@@ -292,7 +302,16 @@ export default function FeePlan() {
                 classOptions
               );
 
-              const payload: any = {
+              interface FeePlanCreatePayload {
+                name: string;
+                feeCategoryId: number;
+                amount: number;
+                status: "active" | "inactive";
+                categoryHeadId?: number;
+                classId?: number;
+              }
+
+              const payload: FeePlanCreatePayload = {
                 name: planName,
                 feeCategoryId: combo.feeCategoryId,
                 amount: parseFloat(formData.amount),
@@ -312,7 +331,7 @@ export default function FeePlan() {
                 payload
               );
               successCount++;
-            } catch (err: any) {
+            } catch (err: unknown) {
               failedCount++;
               // Generate plan name using utility function
               const planName = generatePlanNameFromIds(
@@ -325,7 +344,8 @@ export default function FeePlan() {
               );
 
               // Check if it's a duplicate error (400) or other error
-              if (err.response?.status === 400) {
+              const apiError = err as { response?: { status?: number } };
+              if (apiError.response?.status === 400) {
                 // Likely a duplicate, skip it
                 failedNames.push(planName);
               } else {
@@ -375,7 +395,16 @@ export default function FeePlan() {
             classOptions
           );
 
-          const payload: any = {
+          interface FeePlanSingleCreatePayload {
+            name: string;
+            feeCategoryId: number;
+            amount: number;
+            status: "active" | "inactive";
+            categoryHeadId?: number;
+            classId?: number;
+          }
+
+          const payload: FeePlanSingleCreatePayload = {
             name: planName,
             feeCategoryId: parseInt(formData.feeCategoryId as string),
             amount: parseFloat(formData.amount),
@@ -404,9 +433,8 @@ export default function FeePlan() {
       refetchFeeStructures();
 
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to save fee plan";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Failed to save fee plan");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
@@ -434,7 +462,7 @@ export default function FeePlan() {
     setFormResetKey((prev) => prev + 1);
   };
 
-  const handleEdit = (structure: FeeStructure) => {
+  const handleEdit = useCallback((structure: FeeStructure) => {
     setEditingStructure(structure);
     // Use classId directly
     const classId: string | number = structure.classId || "";
@@ -449,12 +477,12 @@ export default function FeePlan() {
     });
     setError("");
     setSuccess("");
-  };
+  }, []);
 
-  const handleDeleteClick = (id: number, schoolId: number) => {
+  const handleDeleteClick = useCallback((id: number, schoolId: number) => {
     setDeleteItem({ id, schoolId });
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
   const handleDelete = async () => {
     if (!deleteItem) return;
@@ -469,9 +497,8 @@ export default function FeePlan() {
       setDeleteItem(null);
       refetchFeeStructures();
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to delete fee plan";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Failed to delete fee plan");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
@@ -493,10 +520,13 @@ export default function FeePlan() {
     setBulkDeleteDialogOpen(true);
   };
 
-  const handlePaginationChange = useCallback((pageIndex: number, pageSize: number) => {
-    setPage(pageIndex + 1);
-    setLimit(pageSize);
-  }, []);
+  const handlePaginationChange = useCallback(
+    (pageIndex: number, pageSize: number) => {
+      setPage(pageIndex + 1);
+      setLimit(pageSize);
+    },
+    []
+  );
 
   const handleSearchChange = useCallback((searchValue: string) => {
     setSearch(searchValue);
@@ -511,7 +541,9 @@ export default function FeePlan() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2 lg:px-3"
             >
               Plan Name
@@ -536,13 +568,16 @@ export default function FeePlan() {
         },
       },
       {
-        accessorKey: "class",
+        accessorKey: "classId",
         header: "Class",
         cell: ({ row }) => {
-          const classItem = row.original.class;
           const classId = row.original.classId;
-          const className = classItem?.name || (classId ? classOptions.find((c) => c.id === classId)?.name : null) || "-";
-          return <div className="text-sm text-gray-600">{className}</div>;
+          const className = classId
+            ? classOptions.find((c) => c.id === classId)?.name
+            : null;
+          return (
+            <div className="text-sm text-gray-600">{className || "-"}</div>
+          );
         },
       },
       {
@@ -575,7 +610,9 @@ export default function FeePlan() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2 lg:px-3"
             >
               Amount
@@ -599,7 +636,9 @@ export default function FeePlan() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2 lg:px-3"
             >
               Status
@@ -649,7 +688,9 @@ export default function FeePlan() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleDeleteClick(structure.id, structure.schoolId)}
+                onClick={() =>
+                  handleDeleteClick(structure.id, structure.schoolId)
+                }
                 className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                 title="Delete"
               >
@@ -684,7 +725,9 @@ export default function FeePlan() {
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link to="/super-admin/settings/fee-settings/fee-plan">Settings</Link>
+              <Link to="/super-admin/settings/fee-settings/fee-plan">
+                Settings
+              </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -1092,9 +1135,12 @@ export default function FeePlan() {
                 searchPlaceholder="Search fee plans..."
                 enableRowSelection={true}
                 onRowSelectionChange={(selectedRows) => {
-                  const selectedIds = selectedRows.map((row) => row.original.id);
+                  const selectedIds = selectedRows.map((row) => row.id);
                   setSelectedFeePlanIds(selectedIds);
-                  setIsSelectAll(selectedIds.length === feeStructures.length && feeStructures.length > 0);
+                  setIsSelectAll(
+                    selectedIds.length === feeStructures.length &&
+                      feeStructures.length > 0
+                  );
                 }}
                 rowSelection={selectedFeePlanIds.reduce((acc, id) => {
                   acc[id] = true;

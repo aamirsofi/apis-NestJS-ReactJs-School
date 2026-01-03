@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/DataTable";
+import { getErrorMessage } from "@/utils/errorHandling";
 import { useRoutePlanData } from "../../hooks/pages/super-admin/useRoutePlanData";
 import { useRoutePlanImport } from "../../hooks/pages/super-admin/useRoutePlanImport";
 import { routePlanService } from "../../services/routePlanService";
@@ -303,8 +304,10 @@ export default function RoutePlans() {
                 status: routePlanFormData.status,
               });
               successCount++;
-            } catch (err: any) {
+            } catch (err: unknown) {
               errorCount++;
+              // Log error for debugging but don't show to user in bulk import
+              console.error("Failed to create route plan:", getErrorMessage(err));
             }
           }
 
@@ -353,9 +356,8 @@ export default function RoutePlans() {
 
       refetchRoutePlans();
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to save route plan";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Failed to save route plan");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }

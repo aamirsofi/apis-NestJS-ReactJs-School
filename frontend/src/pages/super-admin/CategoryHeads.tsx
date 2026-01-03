@@ -31,6 +31,7 @@ import CategoryHeadsDialogs from "./components/CategoryHeadsDialogs";
 import { DataTable } from "@/components/DataTable";
 import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { exportToCSV } from "@/utils/export";
+import { getErrorMessage } from "@/utils/errorHandling";
 import { FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 export default function CategoryHeads() {
@@ -113,7 +114,13 @@ export default function CategoryHeads() {
         return;
       }
 
-      const payload: any = {
+      interface CategoryHeadPayload {
+        name: string;
+        description?: string;
+        status: string;
+      }
+
+      const payload: CategoryHeadPayload = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         status: formData.status,
@@ -145,9 +152,8 @@ export default function CategoryHeads() {
       refetchCategoryHeads();
 
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to save category head";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Failed to save category head");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
@@ -195,9 +201,11 @@ export default function CategoryHeads() {
       setDeleteItem(null);
       refetchCategoryHeads();
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to delete category head";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(
+        err,
+        "Failed to delete category head"
+      );
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
@@ -288,9 +296,11 @@ export default function CategoryHeads() {
       setBulkDeleteDialogOpen(false);
       refetchCategoryHeads();
       setTimeout(() => setSuccess(""), 5000);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || "Failed to delete category heads";
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(
+        err,
+        "Failed to delete category heads"
+      );
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     } finally {
@@ -321,9 +331,11 @@ export default function CategoryHeads() {
         setSelectedCategoryHeads([]);
         refetchCategoryHeads();
         setTimeout(() => setSuccess(""), 5000);
-      } catch (err: any) {
-        const errorMessage =
-          err.response?.data?.message || "Failed to update category heads";
+      } catch (err: unknown) {
+        const errorMessage = getErrorMessage(
+          err,
+          "Failed to update category heads"
+        );
         setError(errorMessage);
         setTimeout(() => setError(""), 5000);
       } finally {
