@@ -32,7 +32,32 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Current user data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getProfile(@Request() req: any) {
-    return req.user;
+  async getProfile(@Request() req: any) {
+    try {
+      // req.user comes from JWT strategy validate() method
+      // It contains: { id, email, role, schoolId }
+      if (!req.user || !req.user.id) {
+        throw new Error('User not found in request');
+      }
+
+      // Try to fetch full user profile from database
+      try {
+        const fullUser = await this.authService.getUserProfile(req.user.id);
+        return fullUser;
+      } catch (error: any) {
+        // If fetching fails, return the JWT payload as fallback
+        console.warn('Could not fetch full user profile, returning JWT payload:', error?.message);
+        return {
+          id: req.user.id,
+          email: req.user.email,
+          role: req.user.role,
+          schoolId: req.user.schoolId,
+        };
+      }
+    } catch (error: any) {
+      console.error('Error in getProfile:', error);
+      // Return a safe fallback
+      return req.user || {};
+    }
   }
 }

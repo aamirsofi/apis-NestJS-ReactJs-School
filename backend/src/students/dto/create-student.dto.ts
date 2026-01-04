@@ -82,6 +82,44 @@ export class CreateStudentDto {
   @IsOptional()
   parentRelation?: string;
 
+  @ApiProperty({ required: true, example: 1 })
+  @IsNumber()
+  @Type(() => Number)
+  categoryHeadId!: number; // Required: Fee category head assignment
+
+  // Father Information
+  @ApiProperty({ required: false, example: 'John Doe Sr.' })
+  @IsString()
+  @IsOptional()
+  fatherName?: string;
+
+  @ApiProperty({ required: false, example: '+1234567890' })
+  @IsString()
+  @IsOptional()
+  fatherContact?: string;
+
+  // Mother Information
+  @ApiProperty({ required: false, example: 'Jane Doe' })
+  @IsString()
+  @IsOptional()
+  motherName?: string;
+
+  @ApiProperty({ required: false, example: '+1234567891' })
+  @IsString()
+  @IsOptional()
+  motherContact?: string;
+
+  // Guardian Information
+  @ApiProperty({ required: false, example: 'Guardian Name' })
+  @IsString()
+  @IsOptional()
+  guardianName?: string;
+
+  @ApiProperty({ required: false, example: '+1234567892' })
+  @IsString()
+  @IsOptional()
+  guardianContact?: string;
+
   @ApiProperty({ enum: StudentStatus, required: false })
   @IsEnum(StudentStatus)
   @IsOptional()
@@ -92,11 +130,10 @@ export class CreateStudentDto {
   userId?: number;
 
   // Route and Transport
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: true, example: 1 })
   @IsNumber()
-  @IsOptional()
   @Type(() => Number)
-  routeId?: number;
+  routeId!: number; // Required: Student's route assignment
 
   @ApiProperty({ required: false })
   @IsNumber()
@@ -168,11 +205,16 @@ export class CreateStudentDto {
   @IsOptional()
   whatsappNo?: string;
 
-  @ApiProperty({ required: false })
-  @IsNumber()
+  // Previous School Information
+  @ApiProperty({ required: false, example: '10th' })
+  @IsString()
   @IsOptional()
-  @Type(() => Number)
-  categoryHeadId?: number;
+  previousClass?: string;
+
+  @ApiProperty({ required: false, example: 'ABC School' })
+  @IsString()
+  @IsOptional()
+  previousSchoolName?: string;
 
   @ApiProperty({ required: false })
   @IsBoolean()

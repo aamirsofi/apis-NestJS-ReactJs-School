@@ -92,4 +92,22 @@ export class AuthService {
       user: userWithoutPassword,
     };
   }
+
+  async getUserProfile(userId: number) {
+    try {
+      const user = await this.usersService.findOne(userId);
+      const roleName = user.role?.name || (user.role as any)?.name || (user.role as any);
+      
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password: _, role: __, ...userWithoutPassword } = user;
+      
+      return {
+        ...userWithoutPassword,
+        role: roleName,
+      };
+    } catch (error: any) {
+      console.error('Error fetching user profile:', error);
+      throw error;
+    }
+  }
 }

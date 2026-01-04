@@ -43,26 +43,33 @@ export class ClassesService {
     limit: number = 10,
     search?: string,
   ) {
-    const { skip, limit: take } = getPaginationParams(page, limit);
+    try {
+      const { skip, limit: take } = getPaginationParams(page, limit);
 
-    const queryBuilder = this.classesRepository.createQueryBuilder('class');
+      const queryBuilder = this.classesRepository.createQueryBuilder('class');
 
-    if (schoolId) {
-      queryBuilder.where('class.schoolId = :schoolId', { schoolId });
+      if (schoolId) {
+        queryBuilder.where('class.schoolId = :schoolId', { schoolId });
+      }
+
+      // Search by name or description
+      if (search && search.trim()) {
+        queryBuilder.andWhere('(class.name ILike :search OR class.description ILike :search)', {
+          search: `%${search.trim()}%`,
+        });
+      }
+
+      queryBuilder.orderBy('class.name', 'ASC');
+
+      const [classes, total] = await queryBuilder.skip(skip).take(take).getManyAndCount();
+
+      return createPaginatedResponse(classes, total, page, limit);
+    } catch (error: any) {
+      console.error('Error in ClassesService.findAll:', error);
+      throw new BadRequestException(
+        `Failed to fetch classes: ${error.message || 'Unknown error'}`,
+      );
     }
-
-    // Search by name or description
-    if (search && search.trim()) {
-      queryBuilder.andWhere('(class.name ILike :search OR class.description ILike :search)', {
-        search: `%${search.trim()}%`,
-      });
-    }
-
-    queryBuilder.orderBy('class.name', 'ASC');
-
-    const [classes, total] = await queryBuilder.skip(skip).take(take).getManyAndCount();
-
-    return createPaginatedResponse(classes, total, page, limit);
   }
 
   async findOne(id: number, schoolId: number) {

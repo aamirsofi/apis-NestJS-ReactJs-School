@@ -78,8 +78,25 @@ export class StudentsController {
     type: Number,
     description: 'Filter by school ID (optional for super admin)',
   })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by status (active, inactive, graduated, transferred)',
+  })
+  @ApiQuery({
+    name: 'studentId',
+    required: false,
+    type: String,
+    description: 'Search by student ID (unique identifier)',
+  })
   @ApiResponse({ status: 200, description: 'List of students' })
-  findAll(@Request() req: any, @Query('schoolId') schoolId?: string) {
+  findAll(
+    @Request() req: any,
+    @Query('schoolId') schoolId?: string,
+    @Query('status') status?: string,
+    @Query('studentId') studentIdParam?: string,
+  ) {
     const userSchoolId = req.school?.id || req.user?.schoolId;
     const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
@@ -92,7 +109,7 @@ export class StudentsController {
       throw new BadRequestException('School ID is required. Use ?schoolId=X query parameter for super admin.');
     }
 
-    return this.studentsService.findAll(targetSchoolId);
+    return this.studentsService.findAll(targetSchoolId, status, studentIdParam);
   }
 
   @Get('last-id')

@@ -82,6 +82,27 @@ export class Student {
   @Column({ nullable: true, length: 255 })
   parentRelation?: string; // 'father', 'mother', 'guardian'
 
+  // Father Information
+  @Column({ nullable: true, length: 255 })
+  fatherName?: string;
+
+  @Column({ nullable: true, length: 255 })
+  fatherContact?: string;
+
+  // Mother Information
+  @Column({ nullable: true, length: 255 })
+  motherName?: string;
+
+  @Column({ nullable: true, length: 255 })
+  motherContact?: string;
+
+  // Guardian Information
+  @Column({ nullable: true, length: 255 })
+  guardianName?: string;
+
+  @Column({ nullable: true, length: 255 })
+  guardianContact?: string;
+
   // Route and Transport Information
   @Column({ nullable: true })
   routeId?: number; // Assigned route
@@ -127,6 +148,13 @@ export class Student {
 
   @Column({ nullable: true, length: 20 })
   whatsappNo?: string;
+
+  // Previous School Information
+  @Column({ nullable: true, length: 255 })
+  previousClass?: string;
+
+  @Column({ nullable: true, length: 255 })
+  previousSchoolName?: string;
 
   @Column({ nullable: true })
   categoryHeadId?: number; // Fee category head assignment

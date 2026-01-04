@@ -91,18 +91,26 @@ export class ClassesController {
     @Query('schoolId') schoolId?: string,
   ) {
     const userSchoolId = req.school?.id || req.user.schoolId;
-    const targetSchoolId = schoolId
-      ? +schoolId
-      : req.user.role === 'super_admin'
-        ? undefined
-        : userSchoolId;
+    let targetSchoolId: number | undefined;
+    
+    if (schoolId) {
+      const parsedSchoolId = +schoolId;
+      if (isNaN(parsedSchoolId) || parsedSchoolId <= 0) {
+        throw new BadRequestException('Invalid school ID');
+      }
+      targetSchoolId = parsedSchoolId;
+    } else if (req.user.role === 'super_admin') {
+      targetSchoolId = undefined;
+    } else {
+      targetSchoolId = userSchoolId;
+    }
 
     if (!targetSchoolId && req.user.role !== 'super_admin') {
       throw new BadRequestException('School ID is required');
     }
 
     return this.classesService.findAll(
-      targetSchoolId!,
+      targetSchoolId,
       page ? +page : 1,
       limit ? +limit : 10,
       search,

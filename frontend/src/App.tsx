@@ -24,6 +24,7 @@ import Announcements from "./pages/super-admin/Announcements";
 import Analytics from "./pages/super-admin/Analytics";
 import Reports from "./pages/super-admin/Reports";
 import SystemSettings from "./pages/super-admin/SystemSettings";
+import FeeGeneration from "./pages/super-admin/FeeGeneration";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProtectedLayoutRoute from "./components/ProtectedLayoutRoute";
@@ -143,6 +144,14 @@ function App() {
                 element={
                   <ProtectedLayoutRoute>
                     <RoutePlans />
+                  </ProtectedLayoutRoute>
+                }
+              />
+              <Route
+                path="/super-admin/finance/fee-generation"
+                element={
+                  <ProtectedLayoutRoute>
+                    <FeeGeneration />
                   </ProtectedLayoutRoute>
                 }
               />

@@ -40,8 +40,29 @@ export class StudentFeeStructure {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount!: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  originalAmount?: number; // Original amount before discount
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  discountAmount!: number; // Discount amount (calculated from percentage or fixed)
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  discountPercentage?: number; // Discount percentage (if applicable)
+
   @Column({ type: 'date' })
   dueDate!: Date;
+
+  @Column({ type: 'date', nullable: true })
+  installmentStartDate?: Date; // For installment-based fees
+
+  @Column({ nullable: true })
+  installmentCount?: number; // Number of installments (e.g., 12 for monthly)
+
+  @Column({ nullable: true })
+  installmentNumber?: number; // Current installment number (1, 2, 3, etc.)
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  installmentAmount?: number; // Amount per installment
 
   @Column({
     type: 'enum',

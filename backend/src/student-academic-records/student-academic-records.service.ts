@@ -50,6 +50,7 @@ export class StudentAcademicRecordsService {
     }
 
     // Check if record already exists for this student and academic year
+    // This ensures only one record per student per academic year (session)
     const existing = await this.studentAcademicRecordsRepository.findOne({
       where: {
         studentId: createDto.studentId,
@@ -58,9 +59,10 @@ export class StudentAcademicRecordsService {
     });
 
     if (existing) {
-      throw new BadRequestException(
-        `Academic record already exists for this student and academic year`,
-      );
+      // If record exists, update it instead of creating a duplicate
+      // This ensures one entry per academic year (session)
+      console.log(`Academic record already exists for student ${createDto.studentId} and academic year ${createDto.academicYearId}. Updating existing record instead.`);
+      return await this.update(existing.id, createDto);
     }
 
     const record = this.studentAcademicRecordsRepository.create({
@@ -68,6 +70,30 @@ export class StudentAcademicRecordsService {
       schoolId,
     });
     return await this.studentAcademicRecordsRepository.save(record);
+  }
+
+  /**
+   * Upsert method: Create or update academic record for a student and academic year
+   * Ensures only one record exists per student per academic year (session)
+   */
+  async upsert(createDto: CreateStudentAcademicRecordDto): Promise<StudentAcademicRecord> {
+    // Check if record already exists for this student and academic year
+    const existing = await this.studentAcademicRecordsRepository.findOne({
+      where: {
+        studentId: createDto.studentId,
+        academicYearId: createDto.academicYearId,
+      },
+    });
+
+    if (existing) {
+      // Update existing record
+      console.log(`Updating existing academic record ID ${existing.id} for student ${createDto.studentId} and academic year ${createDto.academicYearId}`);
+      return await this.update(existing.id, createDto);
+    } else {
+      // Create new record
+      console.log(`Creating new academic record for student ${createDto.studentId} and academic year ${createDto.academicYearId}`);
+      return await this.create(createDto);
+    }
   }
 
   async findAll(studentId?: number, academicYearId?: number): Promise<StudentAcademicRecord[]> {
@@ -131,13 +157,37 @@ export class StudentAcademicRecordsService {
       status: record.status
     }, null, 2));
     
-    Object.assign(record, updateDto);
+    // Build update object with only updatable fields
+    // Note: studentId, academicYearId, and schoolId should not be changed
+    const updateData: Partial<StudentAcademicRecord> = {};
     
-    const saved = await this.studentAcademicRecordsRepository.save(record);
+    // Explicitly update classId if provided
+    if (updateDto.classId !== undefined && updateDto.classId !== null) {
+      updateData.classId = Number(updateDto.classId);
+      console.log('Setting classId to:', updateData.classId);
+    }
+    
+    // Update other fields
+    if (updateDto.section !== undefined) updateData.section = updateDto.section;
+    if (updateDto.rollNumber !== undefined) updateData.rollNumber = updateDto.rollNumber;
+    if (updateDto.status !== undefined) updateData.status = updateDto.status;
+    if (updateDto.remarks !== undefined) updateData.remarks = updateDto.remarks;
+    if (updateDto.admissionNumber !== undefined) updateData.admissionNumber = updateDto.admissionNumber;
+    
+    console.log('Update data to apply:', JSON.stringify(updateData, null, 2));
+    
+    // Use update method for direct database update (bypasses entity caching)
+    const updateResult = await this.studentAcademicRecordsRepository.update(id, updateData);
+    console.log('Update result:', updateResult);
+    
+    // Verify the update was applied
+    if (updateResult.affected === 0) {
+      throw new NotFoundException(`Failed to update academic record with ID ${id}. No rows were affected.`);
+    }
     
     // Reload the record with relations to get the updated class
     const updated = await this.studentAcademicRecordsRepository.findOne({
-      where: { id: saved.id },
+      where: { id },
       relations: ['student', 'academicYear', 'class', 'feeStructures'],
     });
     
@@ -145,7 +195,7 @@ export class StudentAcademicRecordsService {
       throw new NotFoundException(`Student academic record with ID ${id} not found after update`);
     }
     
-    console.log('Academic record after save and reload:', JSON.stringify({
+    console.log('Academic record after update and reload:', JSON.stringify({
       id: updated.id,
       studentId: updated.studentId,
       academicYearId: updated.academicYearId,

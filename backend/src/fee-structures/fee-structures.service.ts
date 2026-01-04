@@ -24,16 +24,43 @@ export class FeeStructuresService {
     return await this.feeStructuresRepository.save(feeStructure);
   }
 
-  async findAll(schoolId?: number): Promise<FeeStructure[]> {
-    const where: any = {};
+  async findAll(
+    schoolId?: number,
+    classId?: number,
+    categoryHeadId?: number,
+    status?: string,
+  ): Promise<FeeStructure[]> {
+    const queryBuilder = this.feeStructuresRepository.createQueryBuilder('feeStructure')
+      .leftJoinAndSelect('feeStructure.school', 'school')
+      .leftJoinAndSelect('feeStructure.category', 'category')
+      .leftJoinAndSelect('feeStructure.class', 'class')
+      .leftJoinAndSelect('feeStructure.categoryHead', 'categoryHead');
+
     if (schoolId) {
-      where.schoolId = schoolId;
+      queryBuilder.where('feeStructure.schoolId = :schoolId', { schoolId });
     }
-    return await this.feeStructuresRepository.find({
-      where,
-      relations: ['school', 'category', 'class'],
-      order: { createdAt: 'desc' },
-    });
+
+    if (classId) {
+      if (schoolId) {
+        queryBuilder.andWhere('feeStructure.classId = :classId', { classId });
+      } else {
+        queryBuilder.where('feeStructure.classId = :classId', { classId });
+      }
+    }
+
+    if (categoryHeadId) {
+      const condition = schoolId || classId ? 'andWhere' : 'where';
+      queryBuilder[condition]('feeStructure.categoryHeadId = :categoryHeadId', { categoryHeadId });
+    }
+
+    if (status) {
+      const condition = schoolId || classId || categoryHeadId ? 'andWhere' : 'where';
+      queryBuilder[condition]('feeStructure.status = :status', { status });
+    }
+
+    queryBuilder.orderBy('feeStructure.createdAt', 'DESC');
+
+    return await queryBuilder.getMany();
   }
 
   async findOne(id: number, schoolId?: number): Promise<FeeStructure> {

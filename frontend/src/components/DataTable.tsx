@@ -197,9 +197,18 @@ export function DataTable<TData, TValue>({
     }
   }, [debouncedSearchValue, manualPagination, onSearchChange])
 
+  // Use refs to access latest values in callbacks
+  const dataRef = React.useRef(data)
+  const onRowSelectionChangeRef = React.useRef(onRowSelectionChange)
+  
+  React.useEffect(() => {
+    dataRef.current = data
+    onRowSelectionChangeRef.current = onRowSelectionChange
+  }, [data, onRowSelectionChange])
+
   /**
    * Handles row selection changes from TanStack Table.
-   * Updates internal state if uncontrolled, and triggers callback via useEffect.
+   * Updates internal state if uncontrolled, and triggers callback immediately.
    */
   const handleRowSelectionChange = React.useCallback((updater: any) => {
     const currentSelection = externalRowSelection !== undefined ? externalRowSelection : internalRowSelection
@@ -209,7 +218,17 @@ export function DataTable<TData, TValue>({
     if (externalRowSelection === undefined) {
       setInternalRowSelection(newSelection)
     }
-  }, [externalRowSelection, internalRowSelection])
+    
+    // Immediately notify parent of selection change (for both controlled and uncontrolled)
+    if (onRowSelectionChangeRef.current && enableRowSelection) {
+      // Map selection IDs to row objects using current data
+      const selectedRows = dataRef.current.filter((row: any) => {
+        const rowId = row.id !== undefined ? String(row.id) : undefined
+        return rowId && newSelection[rowId]
+      })
+      onRowSelectionChangeRef.current(selectedRows)
+    }
+  }, [externalRowSelection, internalRowSelection, enableRowSelection])
 
   const table = useReactTable({
     data,
@@ -225,6 +244,11 @@ export function DataTable<TData, TValue>({
     enableRowSelection: enableRowSelection,
     manualPagination: manualPagination,
     pageCount: manualPagination ? pageCount : undefined,
+    // Use the 'id' field from data objects as row ID (if available)
+    getRowId: (row: any) => {
+      // If row has an 'id' property, use it as string; otherwise use index
+      return row.id !== undefined ? String(row.id) : undefined;
+    },
     state: {
       sorting,
       columnFilters,
@@ -240,15 +264,27 @@ export function DataTable<TData, TValue>({
     },
   })
 
-  // Call parent callback when row selection changes (works for both controlled and uncontrolled modes)
+  // Sync external rowSelection prop changes to table state
   React.useEffect(() => {
-    if (onRowSelectionChange && enableRowSelection && table) {
-      const selectedRows = table.getRowModel().rows
-        .filter((row) => rowSelection[row.id])
-        .map((row) => row.original)
-      onRowSelectionChange(selectedRows)
+    if (externalRowSelection !== undefined && table) {
+      // Force table to update its row selection state when external prop changes
+      const currentSelection = table.getState().rowSelection
+      const externalKeys = Object.keys(externalRowSelection)
+      const currentKeys = Object.keys(currentSelection)
+      
+      // Only update if there's a difference to avoid infinite loops
+      const keysMatch = externalKeys.length === currentKeys.length &&
+        externalKeys.every(key => currentKeys.includes(key) && externalRowSelection[key] === currentSelection[key])
+      
+      if (!keysMatch) {
+        // Update table's row selection state
+        table.setRowSelection(externalRowSelection)
+      }
     }
-  }, [rowSelection, table, onRowSelectionChange, enableRowSelection])
+  }, [externalRowSelection, table])
+
+  // Note: Parent callback is now triggered immediately in handleRowSelectionChange
+  // This useEffect is removed to avoid duplicate callbacks and potential infinite loops
 
   return (
     <div className="w-full">

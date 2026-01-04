@@ -89,6 +89,7 @@ export default function Layout({ children }: LayoutProps) {
     "fee-settings": false,
     analytics: false,
     reports: false,
+    finance: false,
   });
 
   const handleLogout = () => {
@@ -174,6 +175,18 @@ export default function Layout({ children }: LayoutProps) {
           name: "User Reports",
           path: "/super-admin/reports/users",
           icon: FiUser,
+        },
+      ],
+    },
+    {
+      name: "Finance",
+      icon: FiDollarSign,
+      section: "finance",
+      children: [
+        {
+          name: "Fee Generation",
+          path: "/super-admin/finance/fee-generation",
+          icon: FiDollarSign,
         },
       ],
     },

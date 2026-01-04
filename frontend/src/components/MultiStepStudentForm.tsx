@@ -182,7 +182,8 @@ export default function MultiStepStudentForm({
     useState<AcademicYear | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [busFeeStructures, setBusFeeStructures] = useState<FeeStructure[]>([]);
+  const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]); // Routes filtered by class
+  // Bus fee structure is now auto-determined from route + class, no manual selection needed
   const [categoryHeads, setCategoryHeads] = useState<CategoryHead[]>([]);
   const [lastStudentId, setLastStudentId] = useState<number | null>(null);
   const [nextStudentId, setNextStudentId] = useState<number | null>(null);
@@ -436,6 +437,7 @@ export default function MultiStepStudentForm({
       }
 
       // Load routes (only if schoolId is available)
+      // Note: Routes will be filtered by class when class is selected
       if (schoolId) {
         try {
           const routesResponse = await routeService.getRoutes({
@@ -444,11 +446,15 @@ export default function MultiStepStudentForm({
             schoolId: schoolId,
           });
           setRoutes(routesResponse.data || []);
+          // Initially set available routes to all routes
+          setAvailableRoutes(routesResponse.data || []);
         } catch (err: any) {
           setRoutes([]);
+          setAvailableRoutes([]);
         }
       } else {
         setRoutes([]);
+        setAvailableRoutes([]);
       }
 
       // Load category heads
@@ -464,16 +470,8 @@ export default function MultiStepStudentForm({
         setCategoryHeads([]);
       }
 
-      // Load transport fee structures
-      try {
-        const feeStructures = await feeStructuresService.getAll();
-        const transportFees = feeStructures.filter(
-          (fs) => fs.category?.type === "transport"
-        );
-        setBusFeeStructures(transportFees || []);
-      } catch (err: any) {
-        setBusFeeStructures([]);
-      }
+      // Note: Bus fee structure (route plan) is now auto-determined from route + class
+      // No need to load it manually - it will be determined when route and class are selected
     } catch (err: any) {
       // Failed to load dependencies
     }
@@ -524,38 +522,41 @@ export default function MultiStepStudentForm({
         classId: record?.classId.toString() || "",
         section: record?.section || "",
         rollNumber: record?.rollNumber || "",
-        routeId: "",
-        busFeeStructureId: "",
-        openingBalance: "",
-        bankAccountNumber: "",
-        bankName: "",
-        bankIfsc: "",
+        routeId: editingStudent.routeId?.toString() || "",
+        busFeeStructureId: editingStudent.routePlanId?.toString() || "",
+        openingBalance: editingStudent.openingBalance?.toString() || "",
+        bankAccountNumber: editingStudent.bankAccountNumber || "",
+        bankName: editingStudent.bankName || "",
+        bankIfsc: editingStudent.bankIfsc || "",
+        branchName: editingStudent.branchName || "",
         photoFile: null,
         photoUrl: editingStudent.photoUrl || "",
         // Initialize other required fields
-        penNumber: "",
-        aadharNumber: "",
-        admissionFormNumber: "",
-        whatsappNo: "",
-        previousClass: "",
-        previousSchoolName: "",
-        fatherName: "",
-        fatherContactNumber: "",
+        penNumber: editingStudent.penNumber || "",
+        aadharNumber: editingStudent.aadharNumber || "",
+        admissionFormNumber: editingStudent.admissionFormNumber || "",
+        whatsappNo: editingStudent.whatsappNo || "",
+        // Previous school info
+        previousClass: (editingStudent as any).previousClass || "",
+        previousSchoolName: (editingStudent as any).previousSchoolName || "",
+        // Initialize parent fields - use separate fields if available, otherwise use parentName/parentPhone
+        fatherName: (editingStudent as any).fatherName || (editingStudent.parentRelation === "father" ? editingStudent.parentName || "" : ""),
+        fatherContactNumber: (editingStudent as any).fatherContact || (editingStudent.parentRelation === "father" ? editingStudent.parentPhone || "" : ""),
         fatherOccupation: "",
         fatherQualification: "",
         fathersMonthlyIncome: "",
         fathersPhotoFile: null,
         fathersPhotoUrl: "",
-        motherName: "",
-        motherContactNumber: "",
+        motherName: (editingStudent as any).motherName || (editingStudent.parentRelation === "mother" ? editingStudent.parentName || "" : ""),
+        motherContactNumber: (editingStudent as any).motherContact || (editingStudent.parentRelation === "mother" ? editingStudent.parentPhone || "" : ""),
         motherOccupation: "",
         motherQualification: "",
         mothersMonthlyIncome: "",
         mothersPhotoFile: null,
         mothersPhotoUrl: "",
-        guardianName: "",
-        guardiansRelation: "",
-        guardianMobile: "",
+        guardianName: (editingStudent as any).guardianName || (editingStudent.parentRelation === "guardian" ? editingStudent.parentName || "" : ""),
+        guardiansRelation: editingStudent.parentRelation === "guardian" ? editingStudent.parentRelation || "" : "",
+        guardianMobile: (editingStudent as any).guardianContact || (editingStudent.parentRelation === "guardian" ? editingStudent.parentPhone || "" : ""),
         guardianAddress: "",
         guardianQualification: "",
         guardianOccupation: "",
@@ -563,12 +564,11 @@ export default function MultiStepStudentForm({
         guardianPhotoFile: null,
         guardianPhotoUrl: "",
         busId: "",
-        busNumber: "",
-        busSeatNumber: "",
-        shift: "",
-        categoryHeadId: "",
-        isSibling: "no",
-        branchName: "",
+        busNumber: editingStudent.busNumber || "",
+        busSeatNumber: editingStudent.busSeatNumber || "",
+        shift: editingStudent.shift || "",
+        categoryHeadId: editingStudent.categoryHeadId?.toString() || "",
+        isSibling: editingStudent.isSibling ? "yes" : "no",
         profileImageFile: null,
         profileImageUrl: "",
         attachmentsFile: null,
@@ -700,6 +700,85 @@ export default function MultiStepStudentForm({
     }
   };
 
+  // Filter routes based on selected class - only show routes that have route plans for this class
+  useEffect(() => {
+    const filterRoutesByClass = async () => {
+      if (!formData.classId || formData.classId.trim() === "" || routes.length === 0) {
+        // If no class selected or no routes, show all routes
+        setAvailableRoutes(routes);
+        return;
+      }
+
+      const classId = parseInt(formData.classId);
+      if (isNaN(classId) || classId <= 0) {
+        setAvailableRoutes(routes);
+        return;
+      }
+
+      // Get schoolId
+      const urlParams = new URLSearchParams(window.location.search);
+      const schoolIdFromUrl = urlParams.get("schoolId");
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const schoolId = schoolIdFromUrl
+        ? parseInt(schoolIdFromUrl, 10)
+        : user?.schoolId;
+
+      if (!schoolId) {
+        setAvailableRoutes(routes);
+        return;
+      }
+
+      try {
+        // Fetch route plans for this class
+        const routePlansResponse = await api.instance.get("/super-admin/route-plans", {
+          params: {
+            schoolId: schoolId,
+            classId: classId,
+            limit: 1000, // Get all route plans
+          },
+        });
+
+        const routePlans = routePlansResponse.data?.data || routePlansResponse.data || [];
+        
+        // Get unique route IDs that have plans for this class
+        const routeIdsWithPlans = new Set(
+          routePlans.map((rp: any) => rp.routeId).filter((id: any) => id != null)
+        );
+
+        // Also include routes that have general plans (without classId)
+        const generalRoutePlansResponse = await api.instance.get("/super-admin/route-plans", {
+          params: {
+            schoolId: schoolId,
+            limit: 1000,
+          },
+        });
+
+        const generalRoutePlans = generalRoutePlansResponse.data?.data || generalRoutePlansResponse.data || [];
+        const generalRouteIds = new Set(
+          generalRoutePlans
+            .filter((rp: any) => !rp.classId) // General plans (no classId)
+            .map((rp: any) => rp.routeId)
+            .filter((id: any) => id != null)
+        );
+
+        // Combine both sets
+        const allValidRouteIds = new Set([...routeIdsWithPlans, ...generalRouteIds]);
+
+        // Filter routes to only show those with valid route plans
+        const filteredRoutes = routes.filter((route) => allValidRouteIds.has(route.id));
+        
+        setAvailableRoutes(filteredRoutes.length > 0 ? filteredRoutes : routes); // Fallback to all routes if none match
+      } catch (err) {
+        console.warn("Failed to filter routes by class:", err);
+        // On error, show all routes
+        setAvailableRoutes(routes);
+      }
+    };
+
+    filterRoutesByClass();
+  }, [formData.classId, routes]);
+
   const checkForDraft = () => {
     if (editingStudent) {
       setHasDraft(false);
@@ -753,7 +832,7 @@ export default function MultiStepStudentForm({
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1: {
-        // Step 1: Essential Information - Only name, email, class, parent name, and parent contact are required
+        // Step 1: Essential Information - name, email, class, parent name, and parent contact are required
         const hasName = formData.name && formData.name.trim().length >= 2;
         const hasEmail = formData.emailAddress && formData.emailAddress.includes("@");
         const hasClass = formData.classId && formData.classId.trim() !== "" && parseInt(formData.classId) > 0;
@@ -780,6 +859,26 @@ export default function MultiStepStudentForm({
       case 2:
         // Step 2: Additional Details - All optional
         return true;
+      case 3:
+        // Step 3: Additional Details - All optional
+        return true;
+      case 4: {
+        // Step 4: Route and Other Details - Route and Category Head are required
+        const hasRoute = formData.routeId && formData.routeId.trim() !== "" && parseInt(formData.routeId) > 0;
+        const hasCategoryHead = formData.categoryHeadId && formData.categoryHeadId.trim() !== "" && parseInt(formData.categoryHeadId) > 0;
+        
+        const step4Valid = hasRoute && hasCategoryHead;
+        
+        if (!step4Valid) {
+          console.log('Step 4 validation failed:', {
+            hasRoute,
+            hasCategoryHead,
+            routeId: formData.routeId,
+            categoryHeadId: formData.categoryHeadId
+          });
+        }
+        return step4Valid;
+      }
       default:
         return true;
     }
@@ -791,25 +890,39 @@ export default function MultiStepStudentForm({
       setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
       setError("");
     } else {
-      // Provide specific error message
+      // Provide specific error message based on current step
       const missingFields: string[] = [];
-      if (!formData.name || formData.name.trim().length < 2) {
-        missingFields.push("Full Name");
-      }
-      if (!formData.emailAddress || !formData.emailAddress.includes("@")) {
-        missingFields.push("Email Address");
-      }
-      if (!formData.classId || formData.classId.trim() === "" || parseInt(formData.classId) <= 0) {
-        missingFields.push("Class");
-      }
-      if (!formData.fatherName?.trim() && !formData.guardianName?.trim() && !formData.parentName?.trim()) {
-        missingFields.push("Parent/Guardian Name");
-      }
-      if (!formData.fatherContactNumber?.trim() && !formData.guardianMobile?.trim() && !formData.parentPhone?.trim()) {
-        missingFields.push("Contact Number");
+      
+      if (currentStep === 1) {
+        // Step 1 validation errors
+        if (!formData.name || formData.name.trim().length < 2) {
+          missingFields.push("Full Name");
+        }
+        if (!formData.emailAddress || !formData.emailAddress.includes("@")) {
+          missingFields.push("Email Address");
+        }
+        if (!formData.classId || formData.classId.trim() === "" || parseInt(formData.classId) <= 0) {
+          missingFields.push("Class");
+        }
+        if (!formData.fatherName?.trim() && !formData.guardianName?.trim() && !formData.parentName?.trim()) {
+          missingFields.push("Parent/Guardian Name");
+        }
+        if (!formData.fatherContactNumber?.trim() && !formData.guardianMobile?.trim() && !formData.parentPhone?.trim()) {
+          missingFields.push("Contact Number");
+        }
+      } else if (currentStep === 4) {
+        // Step 4 validation errors
+        if (!formData.routeId || formData.routeId.trim() === "" || parseInt(formData.routeId) <= 0) {
+          missingFields.push("Route");
+        }
+        if (!formData.categoryHeadId || formData.categoryHeadId.trim() === "" || parseInt(formData.categoryHeadId) <= 0) {
+          missingFields.push("Fee Category");
+        }
       }
       
-      setError(`Please fill in all required fields: ${missingFields.join(", ")}`);
+      if (missingFields.length > 0) {
+        setError(`Please fill in all required fields: ${missingFields.join(", ")}`);
+      }
     }
   };
 
@@ -888,6 +1001,25 @@ export default function MultiStepStudentForm({
       }
       if (!formData.admissionDate) {
         setError("Admission date is required");
+        setLoading(false);
+        return;
+      }
+      
+      // Validate required fields: Class, Fee Category, Route
+      if (!formData.classId || formData.classId.trim() === "" || parseInt(formData.classId) <= 0) {
+        setError("Class is required. Please select a class.");
+        setLoading(false);
+        return;
+      }
+      
+      if (!formData.categoryHeadId || formData.categoryHeadId.trim() === "" || parseInt(formData.categoryHeadId) <= 0) {
+        setError("Fee Category is required. Please select a category head.");
+        setLoading(false);
+        return;
+      }
+      
+      if (!formData.routeId || formData.routeId.trim() === "" || parseInt(formData.routeId) <= 0) {
+        setError("Route is required. Please select a route.");
         setLoading(false);
         return;
       }
@@ -973,38 +1105,46 @@ export default function MultiStepStudentForm({
         studentData.photoUrl = photoUrl;
       }
 
-      // Add route and transport information
-      if (formData.routeId && formData.routeId.trim() !== "") {
-        const parsedRouteId = parseInt(formData.routeId);
-        if (!isNaN(parsedRouteId) && parsedRouteId > 0) {
-          studentData.routeId = parsedRouteId;
-        }
-      }
+      // Route is required (already validated above)
+      const parsedRouteId = parseInt(formData.routeId);
+      studentData.routeId = parsedRouteId;
 
-      if (formData.busFeeStructureId && formData.busFeeStructureId.trim() !== "") {
-        const parsedRoutePlanId = parseInt(formData.busFeeStructureId);
-        if (!isNaN(parsedRoutePlanId) && parsedRoutePlanId > 0) {
-          studentData.routePlanId = parsedRoutePlanId;
-        }
-      } else if (formData.routeId && formData.routeId.trim() !== "") {
-        // Try to find a route plan for this route and class
+      // Auto-determine route plan from route and class (no manual selection needed)
+      // Route plan is automatically determined based on:
+      // 1. Student's route (routeId)
+      // 2. Student's class (classId from academic record)
+      // The system finds the matching route plan that has the same route and class
+      if (formData.routeId && formData.routeId.trim() !== "" && formData.classId && formData.classId.trim() !== "") {
         const parsedRouteId = parseInt(formData.routeId);
-        if (!isNaN(parsedRouteId) && parsedRouteId > 0) {
+        const parsedClassId = parseInt(formData.classId);
+        if (!isNaN(parsedRouteId) && parsedRouteId > 0 && !isNaN(parsedClassId) && parsedClassId > 0) {
           try {
             const routePlansResponse = await api.instance.get("/super-admin/route-plans", {
               params: {
                 routeId: parsedRouteId,
-                classId: formData.classId && formData.classId.trim() !== "" ? parseInt(formData.classId) : undefined,
+                classId: parsedClassId,
                 schoolId: schoolId,
-                limit: 1,
+                limit: 100, // Get all to find best match
                 page: 1,
               },
             });
             const routePlans = routePlansResponse.data?.data || routePlansResponse.data || [];
-            if (routePlans.length > 0 && routePlans[0].id) {
-              studentData.routePlanId = routePlans[0].id;
+            
+            // Find matching route plan (prefer class-specific, fallback to general route plan)
+            // Priority: 1. Route plan with matching classId, 2. Route plan without classId (general), 3. First available
+            const routePlan =
+              routePlans.find((rp: any) => rp.classId === parsedClassId) ||
+              routePlans.find((rp: any) => !rp.classId) ||
+              routePlans[0];
+            
+            if (routePlan && routePlan.id) {
+              studentData.routePlanId = routePlan.id;
+              console.log(`Auto-determined route plan: ${routePlan.name} (₹${routePlan.amount}) for route ${parsedRouteId} and class ${parsedClassId}`);
+            } else {
+              console.warn(`No route plan found for route ${parsedRouteId} and class ${parsedClassId}`);
             }
           } catch (err) {
+            console.warn('Failed to auto-determine route plan:', err);
             // Route plan lookup failed, continue without it
           }
         }
@@ -1023,10 +1163,14 @@ export default function MultiStepStudentForm({
       }
 
       // Add financial information
-      if (formData.openingBalance && formData.openingBalance.trim() !== "") {
-        const openingBalance = parseFloat(formData.openingBalance);
-        if (!isNaN(openingBalance)) {
-          studentData.openingBalance = openingBalance;
+      if (formData.openingBalance !== undefined) {
+        if (formData.openingBalance.trim() === "") {
+          studentData.openingBalance = null;
+        } else {
+          const openingBalance = parseFloat(formData.openingBalance);
+          if (!isNaN(openingBalance)) {
+            studentData.openingBalance = openingBalance;
+          }
         }
       }
 
@@ -1064,17 +1208,54 @@ export default function MultiStepStudentForm({
         studentData.whatsappNo = formData.whatsappNo.trim();
       }
 
-      if (formData.categoryHeadId && formData.categoryHeadId.trim() !== "") {
-        const parsedCategoryHeadId = parseInt(formData.categoryHeadId);
-        if (!isNaN(parsedCategoryHeadId) && parsedCategoryHeadId > 0) {
-          studentData.categoryHeadId = parsedCategoryHeadId;
-        }
+      // Save previous school information
+      if (formData.previousClass?.trim()) {
+        studentData.previousClass = formData.previousClass.trim();
       }
+      if (formData.previousSchoolName?.trim()) {
+        studentData.previousSchoolName = formData.previousSchoolName.trim();
+      }
+
+      // Category Head is required (already validated above)
+      const parsedCategoryHeadId = parseInt(formData.categoryHeadId);
+      studentData.categoryHeadId = parsedCategoryHeadId;
 
       if (formData.isSibling === "yes") {
         studentData.isSibling = true;
       } else if (formData.isSibling === "no") {
         studentData.isSibling = false;
+      }
+
+      // Save father information
+      if (formData.fatherName?.trim()) {
+        studentData.fatherName = formData.fatherName.trim();
+      }
+      if (formData.fatherContactNumber?.trim()) {
+        studentData.fatherContact = formData.fatherContactNumber.trim();
+      }
+
+      // Save mother information
+      if (formData.motherName?.trim()) {
+        studentData.motherName = formData.motherName.trim();
+      }
+      if (formData.motherContactNumber?.trim()) {
+        studentData.motherContact = formData.motherContactNumber.trim();
+      }
+
+      // Save guardian information
+      if (formData.guardianName?.trim()) {
+        studentData.guardianName = formData.guardianName.trim();
+      }
+      if (formData.guardianMobile?.trim()) {
+        studentData.guardianContact = formData.guardianMobile.trim();
+      }
+
+      // Save previous school information
+      if (formData.previousClass?.trim()) {
+        studentData.previousClass = formData.previousClass.trim();
+      }
+      if (formData.previousSchoolName?.trim()) {
+        studentData.previousSchoolName = formData.previousSchoolName.trim();
       }
 
       // Upload photo if a new file is selected
@@ -1174,20 +1355,33 @@ export default function MultiStepStudentForm({
             }
             
             console.log("Existing record found:", existingRecord);
+            console.log("Academic record data being sent to backend:", JSON.stringify(academicRecordData, null, 2));
             
+            // Use upsert to ensure only one record per student per academic year (session)
+            // This will create if doesn't exist, or update if it does
+            let result: any;
             if (existingRecord && existingRecord.id) {
-              // Update existing record
-              console.log("Updating academic record ID:", existingRecord.id);
-              const updated = await studentAcademicRecordsService.update(
+              // Update existing record to ensure one entry per academic year
+              console.log("Updating existing academic record ID:", existingRecord.id);
+              console.log("Current classId in existing record:", existingRecord.classId);
+              console.log("New classId to update:", academicRecordData.classId);
+              
+              result = await studentAcademicRecordsService.update(
                 existingRecord.id,
                 academicRecordData
               );
-              console.log("Academic record updated successfully:", updated);
+              console.log("Academic record updated successfully:", result);
             } else {
-              // Create new record
-              console.log("Creating new academic record");
-              const created = await studentAcademicRecordsService.create(academicRecordData);
-              console.log("Academic record created successfully:", created);
+              // Use upsert to ensure no duplicates (creates if doesn't exist)
+              console.log("Creating/upserting academic record (ensures one per academic year)");
+              result = await studentAcademicRecordsService.upsert(academicRecordData);
+              console.log("Academic record upserted successfully:", result);
+            }
+            
+            // Verify the classId was set correctly
+            if (result && result.classId !== academicRecordData.classId) {
+              console.error(`Class update failed! Expected classId: ${academicRecordData.classId}, Got: ${result.classId}`);
+              setError(`Warning: Class could not be updated to ${academicRecordData.classId}. Please try again or update manually.`);
             }
           } catch (err: any) {
             // Show error to user but don't block form submission
@@ -1457,16 +1651,27 @@ export default function MultiStepStudentForm({
                     Parent/Guardian Name *
                   </label>
                   <Input
-                    value={formData.fatherName || formData.guardianName || formData.parentName || ""}
+                    value={formData.parentName || formData.fatherName || formData.guardianName || ""}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Update both fatherName and parentName (father takes priority)
-                      // If guardian name exists, also update guardian
-                      if (formData.guardianName && !formData.fatherName) {
-                        setFormData({ ...formData, guardianName: value, parentName: value });
-                      } else {
-                        setFormData({ ...formData, fatherName: value, parentName: value });
+                      // Update parentName (primary field that gets saved)
+                      // Also sync with the appropriate detailed field based on parentRelation
+                      const updates: any = { parentName: value };
+                      if (formData.parentRelation === "father") {
+                        updates.fatherName = value;
+                      } else if (formData.parentRelation === "mother") {
+                        updates.motherName = value;
+                      } else if (formData.parentRelation === "guardian") {
+                        updates.guardianName = value;
+                      } else if (formData.fatherName) {
+                        // Default to father if no relation set
+                        updates.fatherName = value;
+                        updates.parentRelation = "father";
+                      } else if (formData.guardianName) {
+                        updates.guardianName = value;
+                        updates.parentRelation = "guardian";
                       }
+                      setFormData({ ...formData, ...updates });
                     }}
                     placeholder="Enter parent or guardian name"
                     required
@@ -1480,16 +1685,27 @@ export default function MultiStepStudentForm({
                   </label>
                   <Input
                     type="tel"
-                    value={formData.fatherContactNumber || formData.guardianMobile || formData.parentPhone || ""}
+                    value={formData.parentPhone || formData.fatherContactNumber || formData.guardianMobile || ""}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Update both fatherContactNumber and parentPhone (father takes priority)
-                      // If guardian mobile exists, also update guardian
-                      if (formData.guardianMobile && !formData.fatherContactNumber) {
-                        setFormData({ ...formData, guardianMobile: value, parentPhone: value });
-                      } else {
-                        setFormData({ ...formData, fatherContactNumber: value, parentPhone: value });
+                      // Update parentPhone (primary field that gets saved)
+                      // Also sync with the appropriate detailed field based on parentRelation
+                      const updates: any = { parentPhone: value };
+                      if (formData.parentRelation === "father") {
+                        updates.fatherContactNumber = value;
+                      } else if (formData.parentRelation === "mother") {
+                        updates.motherContactNumber = value;
+                      } else if (formData.parentRelation === "guardian") {
+                        updates.guardianMobile = value;
+                      } else if (formData.fatherContactNumber) {
+                        // Default to father if no relation set
+                        updates.fatherContactNumber = value;
+                        updates.parentRelation = "father";
+                      } else if (formData.guardianMobile) {
+                        updates.guardianMobile = value;
+                        updates.parentRelation = "guardian";
                       }
+                      setFormData({ ...formData, ...updates });
                     }}
                     placeholder="10-digit mobile number"
                     required
@@ -1677,10 +1893,16 @@ export default function MultiStepStudentForm({
             {/* Parent/Guardian Details Section */}
             <Collapsible className="border rounded-lg p-4">
               <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
-                <span className="font-semibold text-gray-700">Parent/Guardian Details</span>
+                <span className="font-semibold text-gray-700">Additional Parent/Guardian Details (Optional)</span>
                 <FiChevronDown className="w-4 h-4" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-4">
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded-r-lg">
+                  <p className="text-sm text-yellow-700">
+                    <strong>Note:</strong> The primary parent/guardian name and contact from Step 1 will be saved. 
+                    These fields below are for additional details and will sync with Step 1 based on the selected relation type.
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-4 pt-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1688,9 +1910,16 @@ export default function MultiStepStudentForm({
                     </label>
                     <Input
                       value={formData.fatherName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fatherName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          fatherName: value,
+                          // Sync with parentName if father is the primary relation
+                          parentName: formData.parentRelation === "father" ? value : formData.parentName,
+                          parentRelation: formData.parentRelation || "father"
+                        });
+                      }}
                       placeholder="Father Name"
                     />
                   </div>
@@ -1701,9 +1930,16 @@ export default function MultiStepStudentForm({
                     <Input
                       type="tel"
                       value={formData.fatherContactNumber}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fatherContactNumber: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          fatherContactNumber: value,
+                          // Sync with parentPhone if father is the primary relation
+                          parentPhone: formData.parentRelation === "father" ? value : formData.parentPhone,
+                          parentRelation: formData.parentRelation || "father"
+                        });
+                      }}
                       placeholder="Father Contact"
                     />
                   </div>
@@ -1713,9 +1949,16 @@ export default function MultiStepStudentForm({
                     </label>
                     <Input
                       value={formData.motherName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, motherName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          motherName: value,
+                          // Sync with parentName if mother is the primary relation
+                          parentName: formData.parentRelation === "mother" ? value : formData.parentName,
+                          parentRelation: formData.parentRelation === "mother" ? "mother" : formData.parentRelation
+                        });
+                      }}
                       placeholder="Mother Name"
                     />
                   </div>
@@ -1726,9 +1969,16 @@ export default function MultiStepStudentForm({
                     <Input
                       type="tel"
                       value={formData.motherContactNumber}
-                      onChange={(e) =>
-                        setFormData({ ...formData, motherContactNumber: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          motherContactNumber: value,
+                          // Sync with parentPhone if mother is the primary relation
+                          parentPhone: formData.parentRelation === "mother" ? value : formData.parentPhone,
+                          parentRelation: formData.parentRelation === "mother" ? "mother" : formData.parentRelation
+                        });
+                      }}
                       placeholder="Mother Contact"
                     />
                   </div>
@@ -1738,9 +1988,16 @@ export default function MultiStepStudentForm({
                     </label>
                     <Input
                       value={formData.guardianName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, guardianName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          guardianName: value,
+                          // Sync with parentName if guardian is the primary relation
+                          parentName: formData.parentRelation === "guardian" ? value : formData.parentName,
+                          parentRelation: formData.parentRelation === "guardian" ? "guardian" : formData.parentRelation
+                        });
+                      }}
                       placeholder="Guardian Name"
                     />
                   </div>
@@ -1751,9 +2008,16 @@ export default function MultiStepStudentForm({
                     <Input
                       type="tel"
                       value={formData.guardianMobile}
-                      onChange={(e) =>
-                        setFormData({ ...formData, guardianMobile: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ 
+                          ...formData, 
+                          guardianMobile: value,
+                          // Sync with parentPhone if guardian is the primary relation
+                          parentPhone: formData.parentRelation === "guardian" ? value : formData.parentPhone,
+                          parentRelation: formData.parentRelation === "guardian" ? "guardian" : formData.parentRelation
+                        });
+                      }}
                       placeholder="Guardian Contact"
                     />
                   </div>
@@ -1783,12 +2047,18 @@ export default function MultiStepStudentForm({
                         <SelectValue placeholder="Select route" />
                       </SelectTrigger>
                       <SelectContent>
-                        {routes.length > 0 ? (
-                          routes.map((route) => (
+                        {availableRoutes.length > 0 ? (
+                          availableRoutes.map((route) => (
                             <SelectItem key={route.id} value={route.id.toString()}>
                               {route.name}
                             </SelectItem>
                           ))
+                        ) : routes.length > 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            {formData.classId 
+                              ? `No routes available for selected class. Please create route plans for this class first.`
+                              : "Please select a class first to see available routes"}
+                          </div>
                         ) : (
                           <div className="px-2 py-1.5 text-sm text-muted-foreground">
                             No routes available
@@ -1796,34 +2066,9 @@ export default function MultiStepStudentForm({
                         )}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Bus Fee Structure (Route Plan)
-                    </label>
-                    <Select
-                      value={formData.busFeeStructureId || undefined}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, busFeeStructureId: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select bus fee structure" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {busFeeStructures.length > 0 ? (
-                          busFeeStructures.map((fs) => (
-                            <SelectItem key={fs.id} value={fs.id.toString()}>
-                              {fs.name} - ₹{fs.amount}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                            No bus fee structures available
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Bus fee will be automatically determined from route and class
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">

@@ -27,6 +27,7 @@ import { UserRolesModule } from './user-roles/user-roles.module';
 import { SettingsModule } from './settings/settings.module';
 import { BackupModule } from './backup/backup.module';
 import { UploadModule } from './upload/upload.module';
+import { FeeGenerationModule } from './fee-generation/fee-generation.module';
 import { DatabaseConfig } from './database/database.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -81,6 +82,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     SettingsModule,
     BackupModule,
     UploadModule,
+    FeeGenerationModule,
   ],
   controllers: [AppController],
   providers: [

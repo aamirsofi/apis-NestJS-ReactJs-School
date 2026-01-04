@@ -31,8 +31,18 @@ export class StudentAcademicRecordsController {
   @Roles('administrator', 'super_admin')
   @ApiOperation({ summary: 'Create a new student academic record' })
   @ApiResponse({ status: 201, description: 'Student academic record created successfully' })
+  @ApiResponse({ status: 200, description: 'Student academic record updated (if already exists for this academic year)' })
   create(@Body() createDto: CreateStudentAcademicRecordDto) {
+    // Use create method which will automatically update if record exists for this academic year
     return this.studentAcademicRecordsService.create(createDto);
+  }
+
+  @Post('upsert')
+  @Roles('administrator', 'super_admin')
+  @ApiOperation({ summary: 'Create or update student academic record (ensures one per academic year)' })
+  @ApiResponse({ status: 200, description: 'Student academic record created or updated successfully' })
+  upsert(@Body() createDto: CreateStudentAcademicRecordDto) {
+    return this.studentAcademicRecordsService.upsert(createDto);
   }
 
   @Get()

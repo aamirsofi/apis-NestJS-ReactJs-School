@@ -92,7 +92,7 @@ export class StudentsService {
         schoolId,
         userId: createStudentDto.userId || null,
         // Route and Transport - only set if valid positive integer
-        routeId: (createStudentDto.routeId && createStudentDto.routeId > 0) ? createStudentDto.routeId : null,
+        routeId: createStudentDto.routeId, // Required field
         routePlanId: (createStudentDto.routePlanId && createStudentDto.routePlanId > 0) ? createStudentDto.routePlanId : null,
         busNumber: createStudentDto.busNumber?.trim() || null,
         busSeatNumber: createStudentDto.busSeatNumber?.trim() || null,
@@ -109,8 +109,19 @@ export class StudentsService {
         aadharNumber: createStudentDto.aadharNumber?.trim() || null,
         admissionFormNumber: createStudentDto.admissionFormNumber?.trim() || null,
         whatsappNo: createStudentDto.whatsappNo?.trim() || null,
-        categoryHeadId: (createStudentDto.categoryHeadId && createStudentDto.categoryHeadId > 0) ? createStudentDto.categoryHeadId : null,
+        previousClass: createStudentDto.previousClass?.trim() || null,
+        previousSchoolName: createStudentDto.previousSchoolName?.trim() || null,
+        categoryHeadId: createStudentDto.categoryHeadId, // Required field
         isSibling: createStudentDto.isSibling !== undefined ? createStudentDto.isSibling : false,
+        // Father Information
+        fatherName: createStudentDto.fatherName?.trim() || null,
+        fatherContact: createStudentDto.fatherContact?.trim() || null,
+        // Mother Information
+        motherName: createStudentDto.motherName?.trim() || null,
+        motherContact: createStudentDto.motherContact?.trim() || null,
+        // Guardian Information
+        guardianName: createStudentDto.guardianName?.trim() || null,
+        guardianContact: createStudentDto.guardianContact?.trim() || null,
       } as Student);
       return await this.studentsRepository.save(student);
     } catch (error: any) {
@@ -156,16 +167,55 @@ export class StudentsService {
     }
   }
 
-  async findAll(schoolId?: number): Promise<Student[]> {
-    const where: any = {};
+  async findAll(schoolId?: number, status?: string, studentId?: string): Promise<Student[]> {
+    const queryBuilder = this.studentsRepository.createQueryBuilder('student')
+      .leftJoinAndSelect('student.school', 'school')
+      .leftJoinAndSelect('student.user', 'user')
+      .leftJoinAndSelect('student.academicRecords', 'academicRecords')
+      .leftJoinAndSelect('academicRecords.academicYear', 'academicYear')
+      .leftJoinAndSelect('academicRecords.class', 'class')
+      .leftJoinAndSelect('student.route', 'route')
+      .leftJoinAndSelect('student.routePlan', 'routePlan')
+      .leftJoinAndSelect('student.categoryHead', 'categoryHead');
+
+    // Build where conditions
+    const conditions: string[] = [];
+    const params: any = {};
+
     if (schoolId) {
-      where.schoolId = schoolId;
+      conditions.push('student.schoolId = :schoolId');
+      params.schoolId = schoolId;
     }
-    return await this.studentsRepository.find({
-      where,
-      relations: ['school', 'user', 'academicRecords', 'academicRecords.academicYear', 'academicRecords.class'],
-      order: { createdAt: 'desc' },
-    });
+    
+    if (status) {
+      conditions.push('student.status = :status');
+      params.status = status;
+    }
+    
+    if (studentId) {
+      // Search by studentId field (unique identifier, not database ID) - exact match
+      const trimmedStudentId = studentId.trim();
+      conditions.push('student.studentId = :studentId');
+      params.studentId = trimmedStudentId;
+      console.log(`[StudentsService] Searching for studentId: "${trimmedStudentId}"`);
+    }
+
+    // Apply all conditions
+    if (conditions.length > 0) {
+      const whereClause = conditions.join(' AND ');
+      console.log(`[StudentsService] Where clause: ${whereClause}`, params);
+      queryBuilder.where(whereClause, params);
+    } else {
+      // If no conditions, return empty array (shouldn't happen but safety check)
+      console.warn('[StudentsService] No conditions provided, returning empty array');
+      return [];
+    }
+
+    queryBuilder.orderBy('student.createdAt', 'DESC');
+
+    const results = await queryBuilder.getMany();
+    console.log(`[StudentsService] Found ${results.length} students`, results.map(s => ({ id: s.id, studentId: s.studentId })));
+    return results;
   }
 
   async findOne(id: number, schoolId?: number): Promise<Student> {
@@ -183,6 +233,9 @@ export class StudentsService {
         'academicRecords.class',
         'payments',
         'feeStructures',
+        'route',
+        'routePlan',
+        'categoryHead',
       ],
     });
 
@@ -204,16 +257,24 @@ export class StudentsService {
     const sanitizedDto: any = { ...updateStudentDto };
     
     // Only set foreign key fields if they are valid positive integers
+    // Route is required
     if (sanitizedDto.routeId !== undefined) {
-      sanitizedDto.routeId = (sanitizedDto.routeId && sanitizedDto.routeId > 0) ? sanitizedDto.routeId : null;
+      if (!sanitizedDto.routeId || sanitizedDto.routeId <= 0) {
+        throw new BadRequestException('Route is required and must be a valid route ID');
+      }
+      sanitizedDto.routeId = sanitizedDto.routeId;
     }
     
     if (sanitizedDto.routePlanId !== undefined) {
       sanitizedDto.routePlanId = (sanitizedDto.routePlanId && sanitizedDto.routePlanId > 0) ? sanitizedDto.routePlanId : null;
     }
     
+    // CategoryHead is required
     if (sanitizedDto.categoryHeadId !== undefined) {
-      sanitizedDto.categoryHeadId = (sanitizedDto.categoryHeadId && sanitizedDto.categoryHeadId > 0) ? sanitizedDto.categoryHeadId : null;
+      if (!sanitizedDto.categoryHeadId || sanitizedDto.categoryHeadId <= 0) {
+        throw new BadRequestException('Fee Category is required and must be a valid category head ID');
+      }
+      sanitizedDto.categoryHeadId = sanitizedDto.categoryHeadId;
     }
 
     // Handle string fields - trim if they exist
@@ -240,6 +301,12 @@ export class StudentsService {
     if (sanitizedDto.aadharNumber !== undefined) sanitizedDto.aadharNumber = sanitizedDto.aadharNumber?.trim() || null;
     if (sanitizedDto.admissionFormNumber !== undefined) sanitizedDto.admissionFormNumber = sanitizedDto.admissionFormNumber?.trim() || null;
     if (sanitizedDto.whatsappNo !== undefined) sanitizedDto.whatsappNo = sanitizedDto.whatsappNo?.trim() || null;
+    if (sanitizedDto.fatherName !== undefined) sanitizedDto.fatherName = sanitizedDto.fatherName?.trim() || null;
+    if (sanitizedDto.fatherContact !== undefined) sanitizedDto.fatherContact = sanitizedDto.fatherContact?.trim() || null;
+    if (sanitizedDto.motherName !== undefined) sanitizedDto.motherName = sanitizedDto.motherName?.trim() || null;
+    if (sanitizedDto.motherContact !== undefined) sanitizedDto.motherContact = sanitizedDto.motherContact?.trim() || null;
+    if (sanitizedDto.guardianName !== undefined) sanitizedDto.guardianName = sanitizedDto.guardianName?.trim() || null;
+    if (sanitizedDto.guardianContact !== undefined) sanitizedDto.guardianContact = sanitizedDto.guardianContact?.trim() || null;
     
     // Handle date fields
     if (sanitizedDto.dateOfBirth !== undefined) {
@@ -249,16 +316,26 @@ export class StudentsService {
       sanitizedDto.admissionDate = sanitizedDto.admissionDate ? new Date(sanitizedDto.admissionDate) : student.admissionDate;
     }
     
-    // Handle openingBalance
+    // Handle openingBalance - allow null, 0, or positive/negative numbers
     if (sanitizedDto.openingBalance !== undefined) {
-      sanitizedDto.openingBalance = sanitizedDto.openingBalance !== null && sanitizedDto.openingBalance !== undefined ? sanitizedDto.openingBalance : null;
+      if (sanitizedDto.openingBalance === null || sanitizedDto.openingBalance === '') {
+        sanitizedDto.openingBalance = null;
+      } else {
+        const balance = typeof sanitizedDto.openingBalance === 'string' 
+          ? parseFloat(sanitizedDto.openingBalance) 
+          : sanitizedDto.openingBalance;
+        sanitizedDto.openingBalance = isNaN(balance) ? null : balance;
+      }
     }
     
     // Debug: Log the update data
     console.log('Updating student with data:', JSON.stringify(sanitizedDto, null, 2));
     
     Object.assign(student, sanitizedDto);
-    return await this.studentsRepository.save(student);
+    const updatedStudent = await this.studentsRepository.save(student);
+    
+    // Reload with relations to ensure categoryHead is included
+    return await this.findOne(updatedStudent.id, schoolId);
   }
 
   async remove(id: number, schoolId?: number): Promise<void> {

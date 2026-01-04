@@ -82,7 +82,7 @@ export default function FeePlan() {
     limit,
     search,
     selectedSchoolId: selectedSchoolId || "",
-    formSchoolId: "", // Will be updated when form hook is initialized
+    formSchoolId: selectedSchoolId || "", // Use selectedSchoolId to load form data
   });
 
   // Use custom hook for form functionality (after data is loaded)
@@ -151,10 +151,12 @@ export default function FeePlan() {
     setSuccess,
   });
 
-  // Update formSchoolId for useFeePlanData when formData.schoolId changes
+  // Initialize formData.schoolId with selectedSchoolId when available
   useEffect(() => {
-    // This ensures categories/heads/classes are loaded for the selected school in the form
-  }, [formData.schoolId]);
+    if (selectedSchoolId && !formData.schoolId) {
+      setFormData((prev) => ({ ...prev, schoolId: selectedSchoolId }));
+    }
+  }, [selectedSchoolId, formData.schoolId]);
 
   const handleDeleteClick = useCallback((id: number, schoolId: number) => {
     setDeleteItem({ id, schoolId });
@@ -814,9 +816,9 @@ export default function FeePlan() {
                   );
                 }}
                 rowSelection={selectedFeePlanIds.reduce((acc, id) => {
-                  acc[id] = true;
+                  acc[String(id)] = true;
                   return acc;
-                }, {} as Record<number, boolean>)}
+                }, {} as Record<string, boolean>)}
                 manualPagination={true}
                 pageCount={paginationMeta?.totalPages || 0}
                 totalRows={paginationMeta?.total || 0}

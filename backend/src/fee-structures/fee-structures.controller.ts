@@ -71,6 +71,24 @@ export class FeeStructuresController {
     type: Number,
     description: 'Filter by school ID (optional for super admin)',
   })
+  @ApiQuery({
+    name: 'classId',
+    required: false,
+    type: Number,
+    description: 'Filter by class ID',
+  })
+  @ApiQuery({
+    name: 'categoryHeadId',
+    required: false,
+    type: Number,
+    description: 'Filter by category head ID',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description: 'Filter by status (active, inactive)',
+  })
   @ApiOkResponse({
     type: [FeeStructure],
     description: 'List of fee structures',
@@ -97,14 +115,25 @@ export class FeeStructuresController {
       ],
     },
   })
-  findAll(@Request() req: any, @Query('schoolId') schoolId?: string) {
+  findAll(
+    @Request() req: any,
+    @Query('schoolId') schoolId?: string,
+    @Query('classId') classId?: string,
+    @Query('categoryHeadId') categoryHeadId?: string,
+    @Query('status') status?: string,
+  ) {
     const userSchoolId = req.school?.id || req.user.schoolId;
     const targetSchoolId = schoolId
       ? +schoolId
       : req.user.role === 'super_admin'
         ? undefined
         : userSchoolId;
-    return this.feeStructuresService.findAll(targetSchoolId);
+    return this.feeStructuresService.findAll(
+      targetSchoolId,
+      classId ? +classId : undefined,
+      categoryHeadId ? +categoryHeadId : undefined,
+      status,
+    );
   }
 
   @Get(':id')

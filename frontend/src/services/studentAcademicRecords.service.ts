@@ -33,6 +33,11 @@ export const studentAcademicRecordsService = {
     return response.data;
   },
 
+  async upsert(data: Partial<StudentAcademicRecord>): Promise<StudentAcademicRecord> {
+    const response = await api.instance.post<StudentAcademicRecord>('/student-academic-records/upsert', data);
+    return response.data;
+  },
+
   async update(id: number, data: Partial<StudentAcademicRecord>): Promise<StudentAcademicRecord> {
     const response = await api.instance.patch<StudentAcademicRecord>(`/student-academic-records/${id}`, data);
     return response.data;
