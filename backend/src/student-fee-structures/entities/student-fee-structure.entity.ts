@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Unique,
 } from 'typeorm';
@@ -86,6 +87,10 @@ export class StudentFeeStructure {
   @ManyToOne(() => StudentAcademicRecord, { nullable: true })
   @JoinColumn({ name: 'academicRecordId' })
   academicRecord?: StudentAcademicRecord;
+
+  // Payments relationship - using forward reference to avoid circular dependency
+  @OneToMany('Payment', 'studentFeeStructure')
+  payments!: any[]; // Type will be Payment[] but using any to avoid circular import
 
   @CreateDateColumn()
   createdAt!: Date;

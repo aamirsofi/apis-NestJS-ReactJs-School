@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
@@ -30,19 +31,28 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Create a new payment' })
   @ApiResponse({ status: 201, description: 'Payment created successfully' })
   create(@Body() createPaymentDto: CreatePaymentDto, @Request() req: any) {
-    const schoolId = req.school?.id || req.user.schoolId;
-    if (!schoolId && req.user.role !== 'super_admin') {
-      throw new Error('School context required');
+    // Get schoolId from DTO, request context, or user (for super_admin)
+    const schoolId = createPaymentDto.schoolId || req.school?.id || req.user?.schoolId;
+    
+    if (!schoolId) {
+      throw new BadRequestException(
+        'School ID is required. Please provide schoolId in the request body or ensure school context is set.',
+      );
     }
+    
     return this.paymentsService.create(createPaymentDto, schoolId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all payments' })
-  @ApiQuery({ name: 'studentId', required: false, type: Number })
+  @ApiQuery({ name: 'studentId', required: false, type: Number, description: 'Filter by student ID' })
+  @ApiQuery({ name: 'studentFeeStructureId', required: false, type: Number, description: 'Filter by student fee structure ID' })
   @ApiResponse({ status: 200, description: 'List of payments' })
-  findAll(@Request() req: any, @Query('studentId') studentId?: string) {
+  findAll(@Request() req: any, @Query('studentId') studentId?: string, @Query('studentFeeStructureId') studentFeeStructureId?: string) {
     const schoolId = req.school?.id || req.user.schoolId;
+    if (studentFeeStructureId) {
+      return this.paymentsService.findByStudentFeeStructure(+studentFeeStructureId, schoolId);
+    }
     if (studentId) {
       return this.paymentsService.findByStudent(+studentId, schoolId);
     }

@@ -123,7 +123,7 @@ export class SuperAdminService {
       // Payments
       this.paymentsRepository.find({
         where: { schoolId: id },
-        relations: ['student', 'feeStructure'],
+        relations: ['student', 'studentFeeStructure', 'studentFeeStructure.feeStructure'],
         order: { createdAt: 'desc' },
         take: 100, // Limit to recent 100 for performance
       }),
@@ -1017,15 +1017,12 @@ export class SuperAdminService {
       throw new BadRequestException(`Fee structure does not belong to school with ID ${schoolId}`);
     }
 
-    // Check if fee structure has associated student structures or payments
-    if (
-      (feeStructure.studentStructures && feeStructure.studentStructures.length > 0) ||
-      (feeStructure.payments && feeStructure.payments.length > 0)
-    ) {
-      const studentCount = feeStructure.studentStructures?.length || 0;
-      const paymentCount = feeStructure.payments?.length || 0;
+    // Check if fee structure has associated student structures
+    // Payments are now linked to StudentFeeStructure, not FeeStructure directly
+    if (feeStructure.studentStructures && feeStructure.studentStructures.length > 0) {
+      const studentCount = feeStructure.studentStructures.length;
       throw new BadRequestException(
-        `Cannot delete fee structure. It has ${studentCount} student assignment(s) and ${paymentCount} payment(s). Please remove or reassign them first.`,
+        `Cannot delete fee structure. It has ${studentCount} student assignment(s). Please remove or reassign them first.`,
       );
     }
 
@@ -1331,18 +1328,14 @@ export class SuperAdminService {
 
     if (feeStructuresUsingCategory.length > 0) {
       // Count total payments and student assignments
-      let totalPayments = 0;
       let totalStudentAssignments = 0;
 
       for (const feeStructure of feeStructuresUsingCategory) {
-        totalPayments += feeStructure.payments?.length || 0;
+        // Payments are now linked to StudentFeeStructure, not FeeStructure directly
         totalStudentAssignments += feeStructure.studentStructures?.length || 0;
       }
 
       const issues: string[] = [];
-      if (totalPayments > 0) {
-        issues.push(`${totalPayments} payment(s)`);
-      }
       if (totalStudentAssignments > 0) {
         issues.push(`${totalStudentAssignments} student assignment(s)`);
       }

@@ -3,15 +3,15 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PaymentMethod, PaymentStatus } from '../entities/payment.entity';
 
 export class CreatePaymentDto {
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: 1, description: 'Student ID (kept for quick queries)' })
   @IsNumber()
   studentId!: number;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: 1, description: 'Student Fee Structure ID (the actual fee assigned to student)' })
   @IsNumber()
-  feeStructureId!: number;
+  studentFeeStructureId!: number;
 
-  @ApiProperty({ example: 5000.0 })
+  @ApiProperty({ example: 5000.0, description: 'Payment amount (can be partial)' })
   @IsNumber()
   @Min(0)
   amount!: number;
@@ -30,6 +30,11 @@ export class CreatePaymentDto {
   @IsOptional()
   transactionId?: string;
 
+  @ApiProperty({ required: false, example: 'REC-20260103-0001', description: 'Receipt number (auto-generated if not provided)' })
+  @IsString()
+  @IsOptional()
+  receiptNumber?: string;
+
   @ApiProperty({ enum: PaymentStatus, required: false })
   @IsEnum(PaymentStatus)
   @IsOptional()
@@ -39,4 +44,9 @@ export class CreatePaymentDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiProperty({ required: false, description: 'School ID (for super_admin or when school context is not available)' })
+  @IsNumber()
+  @IsOptional()
+  schoolId?: number;
 }

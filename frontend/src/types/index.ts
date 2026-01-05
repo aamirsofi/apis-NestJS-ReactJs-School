@@ -176,6 +176,30 @@ export interface RoutePlan {
 export interface Payment {
   id: number;
   studentId: number;
+  studentFeeStructureId: number; // Changed from feeStructureId
+  amount: number;
+  paymentDate: string;
+  paymentMethod: 'cash' | 'bank_transfer' | 'card' | 'online' | 'cheque';
+  transactionId?: string;
+  receiptNumber?: string; // Added
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  notes?: string;
+  schoolId: number;
+  student?: Student;
+  studentFeeStructure?: {
+    id: number;
+    feeStructure?: {
+      name: string;
+    };
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Legacy interface for backward compatibility (deprecated)
+export interface PaymentOld {
+  id: number;
+  studentId: number;
   feeStructureId: number;
   amount: number;
   paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'online';

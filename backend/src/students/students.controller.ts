@@ -91,25 +91,39 @@ export class StudentsController {
     description: 'Search by student ID (unique identifier)',
   })
   @ApiResponse({ status: 200, description: 'List of students' })
-  findAll(
+  async findAll(
     @Request() req: any,
     @Query('schoolId') schoolId?: string,
     @Query('status') status?: string,
     @Query('studentId') studentIdParam?: string,
   ) {
-    const userSchoolId = req.school?.id || req.user?.schoolId;
-    const targetSchoolId = schoolId ? +schoolId : userSchoolId;
+    try {
+      const userSchoolId = req.school?.id || req.user?.schoolId;
+      const targetSchoolId = schoolId ? +schoolId : userSchoolId;
 
-    if (!targetSchoolId && req.user.role !== 'super_admin') {
-      throw new BadRequestException('School context required');
+      if (!targetSchoolId && req.user.role !== 'super_admin') {
+        throw new BadRequestException('School context required');
+      }
+
+      // For super admin without schoolId, we could return all, but for now require schoolId
+      if (!targetSchoolId) {
+        throw new BadRequestException('School ID is required. Use ?schoolId=X query parameter for super admin.');
+      }
+
+      // Ensure schoolId is a valid number
+      const numericSchoolId = typeof targetSchoolId === 'string' ? parseInt(targetSchoolId, 10) : targetSchoolId;
+      if (isNaN(numericSchoolId)) {
+        throw new BadRequestException(`Invalid school ID: ${targetSchoolId}`);
+      }
+
+      return await this.studentsService.findAll(numericSchoolId, status, studentIdParam);
+    } catch (error: any) {
+      console.error('[StudentsController] Error in findAll:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to fetch students: ${error.message || 'Unknown error'}`);
     }
-
-    // For super admin without schoolId, we could return all, but for now require schoolId
-    if (!targetSchoolId) {
-      throw new BadRequestException('School ID is required. Use ?schoolId=X query parameter for super admin.');
-    }
-
-    return this.studentsService.findAll(targetSchoolId, status, studentIdParam);
   }
 
   @Get('last-id')

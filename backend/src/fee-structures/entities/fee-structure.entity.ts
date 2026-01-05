@@ -75,8 +75,9 @@ export class FeeStructure {
   @JoinColumn({ name: 'categoryHeadId' })
   categoryHead?: CategoryHead;
 
-  @OneToMany(() => Payment, payment => payment.feeStructure)
-  payments!: Payment[];
+  // Payments are now linked to StudentFeeStructure, not FeeStructure directly
+  // @OneToMany(() => Payment, payment => payment.feeStructure)
+  // payments!: Payment[];
 
   @OneToMany(() => StudentFeeStructure, sf => sf.feeStructure)
   studentStructures!: StudentFeeStructure[];

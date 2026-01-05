@@ -168,54 +168,64 @@ export class StudentsService {
   }
 
   async findAll(schoolId?: number, status?: string, studentId?: string): Promise<Student[]> {
-    const queryBuilder = this.studentsRepository.createQueryBuilder('student')
-      .leftJoinAndSelect('student.school', 'school')
-      .leftJoinAndSelect('student.user', 'user')
-      .leftJoinAndSelect('student.academicRecords', 'academicRecords')
-      .leftJoinAndSelect('academicRecords.academicYear', 'academicYear')
-      .leftJoinAndSelect('academicRecords.class', 'class')
-      .leftJoinAndSelect('student.route', 'route')
-      .leftJoinAndSelect('student.routePlan', 'routePlan')
-      .leftJoinAndSelect('student.categoryHead', 'categoryHead');
+    try {
+      const queryBuilder = this.studentsRepository.createQueryBuilder('student')
+        .leftJoinAndSelect('student.school', 'school')
+        .leftJoinAndSelect('student.user', 'user')
+        .leftJoinAndSelect('student.academicRecords', 'academicRecords')
+        .leftJoinAndSelect('academicRecords.academicYear', 'academicYear')
+        .leftJoinAndSelect('academicRecords.class', 'class')
+        .leftJoinAndSelect('student.route', 'route')
+        .leftJoinAndSelect('student.routePlan', 'routePlan')
+        .leftJoinAndSelect('student.categoryHead', 'categoryHead');
 
-    // Build where conditions
-    const conditions: string[] = [];
-    const params: any = {};
+      // Build where conditions
+      const conditions: string[] = [];
+      const params: any = {};
 
-    if (schoolId) {
-      conditions.push('student.schoolId = :schoolId');
-      params.schoolId = schoolId;
+      if (schoolId) {
+        conditions.push('student.schoolId = :schoolId');
+        params.schoolId = schoolId;
+      }
+      
+      if (status) {
+        conditions.push('student.status = :status');
+        params.status = status;
+      }
+      
+      if (studentId) {
+        // Search by studentId field (unique identifier, not database ID) - exact match
+        // Ensure studentId is a string before calling trim
+        const trimmedStudentId = typeof studentId === 'string' ? studentId.trim() : String(studentId).trim();
+        conditions.push('student.studentId = :studentId');
+        params.studentId = trimmedStudentId;
+        console.log(`[StudentsService] Searching for studentId: "${trimmedStudentId}"`);
+      }
+
+      // Apply all conditions
+      if (conditions.length > 0) {
+        const whereClause = conditions.join(' AND ');
+        console.log(`[StudentsService] Where clause: ${whereClause}`, params);
+        queryBuilder.where(whereClause, params);
+      } else {
+        // If no conditions, return empty array (shouldn't happen but safety check)
+        console.warn('[StudentsService] No conditions provided, returning empty array');
+        return [];
+      }
+
+      queryBuilder.orderBy('student.createdAt', 'DESC');
+
+      const results = await queryBuilder.getMany();
+      console.log(`[StudentsService] Found ${results.length} students`, results.map(s => ({ id: s.id, studentId: s.studentId })));
+      return results;
+    } catch (error: any) {
+      console.error('[StudentsService] Error in findAll:', error);
+      console.error('[StudentsService] Error stack:', error.stack);
+      console.error('[StudentsService] Query params:', { schoolId, status, studentId });
+      throw new BadRequestException(
+        `Failed to fetch students: ${error.message || 'Unknown error'}`,
+      );
     }
-    
-    if (status) {
-      conditions.push('student.status = :status');
-      params.status = status;
-    }
-    
-    if (studentId) {
-      // Search by studentId field (unique identifier, not database ID) - exact match
-      const trimmedStudentId = studentId.trim();
-      conditions.push('student.studentId = :studentId');
-      params.studentId = trimmedStudentId;
-      console.log(`[StudentsService] Searching for studentId: "${trimmedStudentId}"`);
-    }
-
-    // Apply all conditions
-    if (conditions.length > 0) {
-      const whereClause = conditions.join(' AND ');
-      console.log(`[StudentsService] Where clause: ${whereClause}`, params);
-      queryBuilder.where(whereClause, params);
-    } else {
-      // If no conditions, return empty array (shouldn't happen but safety check)
-      console.warn('[StudentsService] No conditions provided, returning empty array');
-      return [];
-    }
-
-    queryBuilder.orderBy('student.createdAt', 'DESC');
-
-    const results = await queryBuilder.getMany();
-    console.log(`[StudentsService] Found ${results.length} students`, results.map(s => ({ id: s.id, studentId: s.studentId })));
-    return results;
   }
 
   async findOne(id: number, schoolId?: number): Promise<Student> {

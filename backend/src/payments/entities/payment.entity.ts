@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { School } from '../../schools/entities/school.entity';
 import { Student } from '../../students/entities/student.entity';
-import { FeeStructure } from '../../fee-structures/entities/fee-structure.entity';
+import { StudentFeeStructure } from '../../student-fee-structures/entities/student-fee-structure.entity';
 
 export enum PaymentMethod {
   CASH = 'cash',
@@ -32,13 +32,13 @@ export class Payment {
   id!: number;
 
   @Column()
-  studentId!: number;
+  studentId!: number; // Keep for quick queries
 
   @Column()
-  feeStructureId!: number;
+  studentFeeStructureId!: number; // Link to actual student fee (StudentFeeStructure)
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
-  amount!: number;
+  amount!: number; // Payment amount (can be partial)
 
   @Column({ type: 'date' })
   paymentDate!: Date;
@@ -52,6 +52,9 @@ export class Payment {
 
   @Column({ nullable: true, unique: true, length: 255 })
   transactionId?: string;
+
+  @Column({ nullable: true, unique: true, length: 100 })
+  receiptNumber?: string; // Auto-generated receipt number
 
   @Column({
     type: 'enum',
@@ -74,9 +77,9 @@ export class Payment {
   @JoinColumn({ name: 'studentId' })
   student!: Student;
 
-  @ManyToOne(() => FeeStructure, feeStructure => feeStructure.payments)
-  @JoinColumn({ name: 'feeStructureId' })
-  feeStructure!: FeeStructure;
+  @ManyToOne(() => StudentFeeStructure, studentFeeStructure => studentFeeStructure.payments)
+  @JoinColumn({ name: 'studentFeeStructureId' })
+  studentFeeStructure!: StudentFeeStructure;
 
   @CreateDateColumn()
   createdAt!: Date;
