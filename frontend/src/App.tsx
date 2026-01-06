@@ -8,7 +8,6 @@ import Students from "./pages/Students";
 import AddEditStudent from "./pages/AddEditStudent";
 import ViewStudent from "./pages/ViewStudent";
 import FeeStructures from "./pages/FeeStructures";
-import Payments from "./pages/Payments";
 import SuperAdminDashboard from "./pages/super-admin/Dashboard";
 import SuperAdminSchools from "./pages/super-admin/Schools";
 import SuperAdminUsers from "./pages/super-admin/Users";
@@ -319,14 +318,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <FeeStructures />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/payments"
-                element={
-                  <ProtectedRoute>
-                    <Payments />
                   </ProtectedRoute>
                 }
               />

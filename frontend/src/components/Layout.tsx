@@ -194,11 +194,6 @@ export default function Layout({ children }: LayoutProps) {
           icon: FiFileText,
         },
         {
-          name: "Payments",
-          path: "/payments",
-          icon: FiDollarSign,
-        },
-        {
           name: "Financial Reports",
           path: "/reports/financial",
           icon: FiBarChart2,
@@ -391,12 +386,6 @@ export default function Layout({ children }: LayoutProps) {
       name: "Invoices",
       path: "/invoices",
       icon: FiFileText,
-      roles: ["administrator", "accountant"],
-    },
-    {
-      name: "Payments",
-      path: "/payments",
-      icon: FiCreditCard,
       roles: ["administrator", "accountant"],
     },
     {

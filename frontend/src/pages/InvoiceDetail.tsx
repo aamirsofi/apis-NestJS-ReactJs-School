@@ -29,6 +29,10 @@ export default function InvoiceDetail() {
     enabled: !!id && !!selectedSchoolId,
   });
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (isLoading) {
     return (
       <Layout>
@@ -47,8 +51,53 @@ export default function InvoiceDetail() {
 
   return (
     <Layout>
+      <style>{`
+        @media print {
+          /* Hide navigation, sidebar, and action buttons */
+          nav, aside, button, .no-print {
+            display: none !important;
+          }
+          
+          /* Reset page margins */
+          @page {
+            margin: 1cm;
+          }
+          
+          /* Format main content */
+          body {
+            background: white;
+          }
+          
+          /* Ensure cards print without shadows */
+          .print-card {
+            box-shadow: none !important;
+            border: 1px solid #e5e7eb;
+            page-break-inside: avoid;
+          }
+          
+          /* Format table for printing */
+          table {
+            border-collapse: collapse;
+            width: 100%;
+          }
+          
+          table th, table td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+          }
+          
+          /* Print header */
+          .print-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #000;
+          }
+        }
+      `}</style>
+      
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between no-print">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/invoices')}>
               <FiArrowLeft className="h-4 w-4 mr-2" />
@@ -66,15 +115,21 @@ export default function InvoiceDetail() {
                 Edit
               </Button>
             )}
-            <Button variant="outline">
+            <Button variant="outline" onClick={handlePrint}>
               <FiPrinter className="h-4 w-4 mr-2" />
               Print
             </Button>
           </div>
         </div>
+        
+        {/* Print Header - only visible when printing */}
+        <div className="print-header hidden print:block">
+          <h1 className="text-2xl font-bold">TAX INVOICE</h1>
+          <p className="text-lg font-medium mt-2">Invoice #{invoice.invoiceNumber}</p>
+        </div>
 
         <div className="grid grid-cols-3 gap-6">
-          <Card>
+          <Card className="print-card">
             <CardHeader>
               <CardTitle>Invoice Information</CardTitle>
             </CardHeader>
@@ -106,7 +161,7 @@ export default function InvoiceDetail() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="print-card">
             <CardHeader>
               <CardTitle>Student Information</CardTitle>
             </CardHeader>
@@ -132,7 +187,7 @@ export default function InvoiceDetail() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="print-card">
             <CardHeader>
               <CardTitle>Financial Summary</CardTitle>
             </CardHeader>
@@ -159,7 +214,7 @@ export default function InvoiceDetail() {
           </Card>
         </div>
 
-        <Card>
+        <Card className="print-card">
           <CardHeader>
             <CardTitle>Invoice Items</CardTitle>
           </CardHeader>
@@ -205,7 +260,7 @@ export default function InvoiceDetail() {
         </Card>
 
         {invoice.notes && (
-          <Card>
+          <Card className="print-card">
             <CardHeader>
               <CardTitle>Notes</CardTitle>
             </CardHeader>
