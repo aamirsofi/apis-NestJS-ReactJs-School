@@ -207,4 +207,60 @@ export class FeeStructuresController {
         : userSchoolId;
     return this.feeStructuresService.remove(+id, targetSchoolId);
   }
+
+  @Get('transport/by-route-price')
+  @ApiOperation({ summary: 'Find transport fee structures by route price' })
+  @ApiQuery({
+    name: 'routeId',
+    required: true,
+    type: Number,
+    description: 'Route ID',
+  })
+  @ApiQuery({
+    name: 'classId',
+    required: true,
+    type: Number,
+    description: 'Class ID',
+  })
+  @ApiQuery({
+    name: 'categoryHeadId',
+    required: true,
+    type: Number,
+    description: 'Category Head ID',
+  })
+  @ApiQuery({
+    name: 'schoolId',
+    required: false,
+    type: Number,
+    description: 'School ID (optional for super admin)',
+  })
+  @ApiOkResponse({
+    type: [FeeStructure],
+    description: 'List of transport fee structures matching the route price',
+  })
+  findTransportFeeStructuresByRoutePrice(
+    @Query('routeId') routeId: string,
+    @Query('classId') classId: string,
+    @Query('categoryHeadId') categoryHeadId: string,
+    @Request() req: any,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    const userSchoolId = req.school?.id || req.user.schoolId;
+    const targetSchoolId = schoolId
+      ? +schoolId
+      : req.user.role === 'super_admin'
+        ? undefined
+        : userSchoolId;
+
+    if (!targetSchoolId) {
+      throw new Error('School ID is required');
+    }
+
+    return this.feeStructuresService.findTransportFeeStructuresByRoutePrice(
+      +routeId,
+      +classId,
+      +categoryHeadId,
+      targetSchoolId,
+    );
+  }
 }

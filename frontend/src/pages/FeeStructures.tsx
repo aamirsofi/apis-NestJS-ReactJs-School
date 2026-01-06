@@ -72,7 +72,9 @@ export default function FeeStructures() {
         feeCategoriesService.getAll(),
       ]);
       setFeeStructures(structures);
-      setCategories(cats);
+      // Filter out transport fee categories - they should use Route Prices instead
+      const schoolFeeCategories = cats.filter(cat => cat.type !== 'transport');
+      setCategories(schoolFeeCategories);
     } catch (err: unknown) {
       const errorMessage = err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data && typeof err.response.data.message === 'string'
         ? err.response.data.message
@@ -421,23 +423,28 @@ export default function FeeStructures() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Fee Category (School Fees Only) *
+                </label>
                 <Select
                   value={formData.categoryId?.toString() || '0'}
                   onValueChange={(value) => setFormData({ ...formData, categoryId: parseInt(value) })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Category" />
+                    <SelectValue placeholder="Select Fee Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Select Category</SelectItem>
+                    <SelectItem value="0">Select Fee Category</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
+                        {cat.name} ({cat.type})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Note: Transport fees are managed via Route Prices (Settings → Route Prices)
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Academic Year *</label>

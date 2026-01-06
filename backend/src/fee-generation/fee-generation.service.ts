@@ -10,7 +10,7 @@ import { FeeGenerationHistory, GenerationType, GenerationStatus } from './entiti
 import { GenerateFeesDto } from './dto/generate-fees.dto';
 import { ForecastFeesDto, ForecastResult } from './dto/forecast-fees.dto';
 import { School, SchoolStatus } from '../schools/entities/school.entity';
-import { RoutePlan, RoutePlanStatus } from '../route-plans/entities/route-plan.entity';
+import { RoutePrice, RoutePriceStatus } from '../route-prices/entities/route-price.entity';
 import { addMonths, parseISO, format, startOfMonth, endOfMonth, isBefore, isAfter } from 'date-fns';
 
 @Injectable()
@@ -28,8 +28,8 @@ export class FeeGenerationService {
     private academicYearRepository: Repository<AcademicYear>,
     @InjectRepository(FeeGenerationHistory)
     private generationHistoryRepository: Repository<FeeGenerationHistory>,
-    @InjectRepository(RoutePlan)
-    private routePlanRepository: Repository<RoutePlan>,
+    @InjectRepository(RoutePrice)
+    private routePriceRepository: Repository<RoutePrice>,
   ) {}
 
   /**
@@ -186,7 +186,21 @@ export class FeeGenerationService {
             if (generateDto.installment?.enabled && generateDto.installment.count) {
               // Generate installments
               const installmentCount = generateDto.installment.count;
-              const installmentAmount = finalAmount / installmentCount;
+              
+              // Check if this is a monthly/recurring fee
+              // If category has applicableMonths set, this is a monthly fee
+              // For monthly fees, each installment should be the full amount (not divided)
+              // For one-time fees, divide the total amount across installments
+              const isMonthlyFee = feeStructure.category?.applicableMonths && 
+                                   Array.isArray(feeStructure.category.applicableMonths) &&
+                                   feeStructure.category.applicableMonths.length > 0;
+              
+              // For monthly fees: use full amount per installment
+              // For one-time fees: divide total amount across installments
+              const installmentAmount = isMonthlyFee 
+                ? finalAmount  // Full amount per month
+                : finalAmount / installmentCount;  // Divide total across installments
+              
               const startDate = generateDto.installment.startDate
                 ? parseISO(generateDto.installment.startDate)
                 : dueDate;
@@ -201,7 +215,7 @@ export class FeeGenerationService {
                   academicRecordId: academicRecord.id,
                   amount: installmentAmount,
                   originalAmount: parseFloat(feeStructure.amount.toString()),
-                  discountAmount,
+                  discountAmount: isMonthlyFee ? discountAmount : discountAmount / installmentCount,
                   discountPercentage: discountPercentage || undefined,
                   dueDate: installmentDueDate,
                   installmentStartDate: startDate,
@@ -464,7 +478,7 @@ export class FeeGenerationService {
     // Get student with relations
     const student = await this.studentRepository.findOne({
       where: { id: forecastDto.studentId, schoolId },
-      relations: ['routePlan', 'categoryHead'],
+      relations: ['categoryHead'],
     });
 
     if (!student) {
@@ -574,29 +588,30 @@ export class FeeGenerationService {
     let busFeesTotal = 0;
     let monthlyBusAmount = 0;
 
-    if (forecastDto.includeBusFees !== false && student.routePlanId) {
-      const routePlan = await this.routePlanRepository.findOne({
+    // Use route_prices for transport fees (preferred method)
+    if (forecastDto.includeBusFees !== false && student.routeId && academicRecord.classId && student.categoryHeadId) {
+      const routePrice = await this.routePriceRepository.findOne({
         where: {
-          id: student.routePlanId,
-          status: RoutePlanStatus.ACTIVE,
+          routeId: student.routeId,
+          classId: academicRecord.classId,
+          categoryHeadId: student.categoryHeadId,
+          schoolId: student.schoolId,
+          status: RoutePriceStatus.ACTIVE,
         },
       });
 
-      if (routePlan) {
-        // Check if route plan applies to student's class
-        if (!routePlan.classId || routePlan.classId === academicRecord.classId) {
-          monthlyBusAmount = parseFloat(routePlan.amount.toString());
+      if (routePrice) {
+        monthlyBusAmount = parseFloat(routePrice.amount.toString());
 
-          // Generate monthly bus fees
-          for (const month of monthsToForecast) {
-            const dueDate = format(endOfMonth(month), 'yyyy-MM-dd');
-            busFees.push({
-              month: format(month, 'MMMM yyyy'),
-              amount: monthlyBusAmount,
-              dueDate,
-            });
-            busFeesTotal += monthlyBusAmount;
-          }
+        // Generate monthly bus fees
+        for (const month of monthsToForecast) {
+          const dueDate = format(endOfMonth(month), 'yyyy-MM-dd');
+          busFees.push({
+            month: format(month, 'MMMM yyyy'),
+            amount: monthlyBusAmount,
+            dueDate,
+          });
+          busFeesTotal += monthlyBusAmount;
         }
       }
     }

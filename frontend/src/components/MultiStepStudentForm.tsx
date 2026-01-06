@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +46,7 @@ import { studentsService } from "../services/students.service";
 import { studentAcademicRecordsService } from "../services/studentAcademicRecords.service";
 import { academicYearsService } from "../services/academicYears.service";
 import { routeService } from "../services/routeService";
+import { routePriceService } from "../services/routePriceService";
 import { feeStructuresService } from "../services/feeStructures.service";
 import { uploadService } from "../services/uploadService";
 import api from "../services/api";
@@ -177,17 +179,50 @@ export default function MultiStepStudentForm({
   const [error, setError] = useState("");
   const [hasDraft, setHasDraft] = useState(false);
 
+  // Helper to get school ID from URL or user context
+  const getSchoolId = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const schoolIdFromUrl = urlParams.get("schoolId");
+    const userStr = localStorage.getItem("user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    if (schoolIdFromUrl && schoolIdFromUrl !== '' && schoolIdFromUrl !== 'all') {
+      const parsed = parseInt(schoolIdFromUrl, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+    return user?.schoolId;
+  };
+
   // Data dependencies
   const [currentAcademicYear, setCurrentAcademicYear] =
     useState<AcademicYear | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [routes, setRoutes] = useState<Route[]>([]);
   const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]); // Routes filtered by class
   // Bus fee structure is now auto-determined from route + class, no manual selection needed
   const [categoryHeads, setCategoryHeads] = useState<CategoryHead[]>([]);
   const [lastStudentId, setLastStudentId] = useState<number | null>(null);
   const [nextStudentId, setNextStudentId] = useState<number | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+
+  // Use React Query for routes so they update when cache is invalidated
+  const schoolId = getSchoolId();
+  const { data: routesData } = useQuery({
+    queryKey: ["routes", schoolId],
+    queryFn: async () => {
+      if (!schoolId) return { data: [], meta: null };
+      const response = await routeService.getRoutes({
+        page: 1,
+        limit: 1000,
+        schoolId: schoolId,
+        status: "active",
+      });
+      return response;
+    },
+    enabled: !!schoolId && isOpen, // Only fetch when modal is open and schoolId is available
+  });
+
+  const routes = routesData?.data || [];
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -436,25 +471,10 @@ export default function MultiStepStudentForm({
         setClasses([]); // Set empty array on error
       }
 
-      // Load routes (only if schoolId is available)
-      // Note: Routes will be filtered by class when class is selected
-      if (schoolId) {
-        try {
-          const routesResponse = await routeService.getRoutes({
-            page: 1,
-            limit: 100,
-            schoolId: schoolId,
-          });
-          setRoutes(routesResponse.data || []);
-          // Initially set available routes to all routes
-          setAvailableRoutes(routesResponse.data || []);
-        } catch (err: any) {
-          setRoutes([]);
-          setAvailableRoutes([]);
-        }
-      } else {
-        setRoutes([]);
-        setAvailableRoutes([]);
+      // Routes are now loaded via React Query (see useQuery above)
+      // Initially set available routes to all routes (will be filtered by class)
+      if (routes && routes.length > 0) {
+        setAvailableRoutes(routes);
       }
 
       // Load category heads
@@ -730,43 +750,25 @@ export default function MultiStepStudentForm({
       }
 
       try {
-        // Fetch route plans for this class
-        const routePlansResponse = await api.instance.get("/super-admin/route-plans", {
-          params: {
-            schoolId: schoolId,
-            classId: classId,
-            limit: 1000, // Get all route plans
-          },
+        // Fetch route prices for this class (replacing old route-plans)
+        const routePricesResponse = await routePriceService.getRoutePrices({
+          schoolId: schoolId,
+          classId: classId,
+          limit: 1000,
         });
 
-        const routePlans = routePlansResponse.data?.data || routePlansResponse.data || [];
+        // Handle both paginated and array responses
+        const routePrices = Array.isArray(routePricesResponse) 
+          ? routePricesResponse 
+          : (routePricesResponse.data || []);
         
-        // Get unique route IDs that have plans for this class
-        const routeIdsWithPlans = new Set(
-          routePlans.map((rp: any) => rp.routeId).filter((id: any) => id != null)
+        // Get unique route IDs that have prices configured for this class
+        const routeIdsWithPrices = new Set(
+          routePrices.map((rp: any) => rp.routeId).filter((id: any) => id != null)
         );
 
-        // Also include routes that have general plans (without classId)
-        const generalRoutePlansResponse = await api.instance.get("/super-admin/route-plans", {
-          params: {
-            schoolId: schoolId,
-            limit: 1000,
-          },
-        });
-
-        const generalRoutePlans = generalRoutePlansResponse.data?.data || generalRoutePlansResponse.data || [];
-        const generalRouteIds = new Set(
-          generalRoutePlans
-            .filter((rp: any) => !rp.classId) // General plans (no classId)
-            .map((rp: any) => rp.routeId)
-            .filter((id: any) => id != null)
-        );
-
-        // Combine both sets
-        const allValidRouteIds = new Set([...routeIdsWithPlans, ...generalRouteIds]);
-
-        // Filter routes to only show those with valid route plans
-        const filteredRoutes = routes.filter((route) => allValidRouteIds.has(route.id));
+        // Filter routes to only show those with configured pricing
+        const filteredRoutes = routes.filter((route) => routeIdsWithPrices.has(route.id));
         
         setAvailableRoutes(filteredRoutes.length > 0 ? filteredRoutes : routes); // Fallback to all routes if none match
       } catch (err) {
@@ -1109,46 +1111,12 @@ export default function MultiStepStudentForm({
       const parsedRouteId = parseInt(formData.routeId);
       studentData.routeId = parsedRouteId;
 
-      // Auto-determine route plan from route and class (no manual selection needed)
-      // Route plan is automatically determined based on:
-      // 1. Student's route (routeId)
-      // 2. Student's class (classId from academic record)
-      // The system finds the matching route plan that has the same route and class
-      if (formData.routeId && formData.routeId.trim() !== "" && formData.classId && formData.classId.trim() !== "") {
-        const parsedRouteId = parseInt(formData.routeId);
-        const parsedClassId = parseInt(formData.classId);
-        if (!isNaN(parsedRouteId) && parsedRouteId > 0 && !isNaN(parsedClassId) && parsedClassId > 0) {
-          try {
-            const routePlansResponse = await api.instance.get("/super-admin/route-plans", {
-              params: {
-                routeId: parsedRouteId,
-                classId: parsedClassId,
-                schoolId: schoolId,
-                limit: 100, // Get all to find best match
-                page: 1,
-              },
-            });
-            const routePlans = routePlansResponse.data?.data || routePlansResponse.data || [];
-            
-            // Find matching route plan (prefer class-specific, fallback to general route plan)
-            // Priority: 1. Route plan with matching classId, 2. Route plan without classId (general), 3. First available
-            const routePlan =
-              routePlans.find((rp: any) => rp.classId === parsedClassId) ||
-              routePlans.find((rp: any) => !rp.classId) ||
-              routePlans[0];
-            
-            if (routePlan && routePlan.id) {
-              studentData.routePlanId = routePlan.id;
-              console.log(`Auto-determined route plan: ${routePlan.name} (₹${routePlan.amount}) for route ${parsedRouteId} and class ${parsedClassId}`);
-            } else {
-              console.warn(`No route plan found for route ${parsedRouteId} and class ${parsedClassId}`);
-            }
-          } catch (err) {
-            console.warn('Failed to auto-determine route plan:', err);
-            // Route plan lookup failed, continue without it
-          }
-        }
-      }
+      // Note: routePlanId is deprecated - transport fees are now determined dynamically 
+      // from route_prices based on student's route + class. No need to store routePlanId.
+      // Transport fee calculation happens at payment time using:
+      // - Student's routeId
+      // - Student's classId (from academic record)
+      // - CategoryHeadId (from student or defaults to General)
 
       if (formData.busNumber?.trim()) {
         studentData.busNumber = formData.busNumber.trim();
@@ -1278,9 +1246,6 @@ export default function MultiStepStudentForm({
         studentData.photoUrl = formData.photoUrl;
       }
 
-      // Debug: Log the student data being sent
-      console.log("Student data being sent:", JSON.stringify(studentData, null, 2));
-
       let student: Student;
 
       if (editingStudent) {
@@ -1381,29 +1346,34 @@ export default function MultiStepStudentForm({
             // Verify the classId was set correctly
             if (result && result.classId !== academicRecordData.classId) {
               console.error(`Class update failed! Expected classId: ${academicRecordData.classId}, Got: ${result.classId}`);
-              setError(`Warning: Class could not be updated to ${academicRecordData.classId}. Please try again or update manually.`);
+              // Log warning but continue (student was saved successfully)
+              console.warn(`Warning: Class could not be updated to ${academicRecordData.classId}. Please update manually.`);
             }
           } catch (err: any) {
-            // Show error to user but don't block form submission
+            // Log warning but continue (student was saved successfully)
             const errorMsg = err.response?.data?.message || err.message || "Unknown error";
-            setError(`Warning: Academic record could not be saved: ${errorMsg}. Please update it manually.`);
+            console.warn(`Warning: Academic record could not be saved: ${errorMsg}. Please update it manually.`);
             console.error("Error saving academic record:", err);
             console.error("Error details:", err.response?.data);
           }
         } else {
-          setError("Warning: Invalid Class or Academic Year. Please check your selections.");
+          console.warn("Warning: Invalid Class or Academic Year. Academic record not saved.");
         }
       } else {
-        setError("Warning: Academic record was not created because Class or Academic Year is missing. Please update it manually.");
+        console.warn("Warning: Academic record was not created because Class or Academic Year is missing.");
       }
 
       // All fields (route, bus fee structure, opening balance, bank account) are now saved
       // as part of the student update above
 
       clearDraft();
-      onSuccess();
-      onClose();
       resetForm();
+      
+      // Call onSuccess and onClose after a small delay to ensure form state is cleared
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 0);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to save student");
     } finally {
@@ -2075,12 +2045,17 @@ export default function MultiStepStudentForm({
                       Bus Number
                     </label>
                     <Input
+                      type="text"
                       value={formData.busNumber}
                       onChange={(e) =>
                         setFormData({ ...formData, busNumber: e.target.value })
                       }
-                      placeholder="Bus Number"
+                      placeholder="e.g., JK12A 2012"
+                      maxLength={50}
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Alphanumeric with spaces allowed
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -2423,12 +2398,17 @@ export default function MultiStepStudentForm({
                   Select Bus
                 </label>
                 <Input
+                  type="text"
                   value={formData.busNumber}
                   onChange={(e) =>
                     setFormData({ ...formData, busNumber: e.target.value })
                   }
-                  placeholder="Bus Number"
+                  placeholder="e.g., JK12A 2012"
+                  maxLength={50}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Alphanumeric with spaces allowed
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">

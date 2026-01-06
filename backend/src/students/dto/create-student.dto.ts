@@ -136,12 +136,6 @@ export class CreateStudentDto {
   routeId!: number; // Required: Student's route assignment
 
   @ApiProperty({ required: false })
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  routePlanId?: number;
-
-  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   busNumber?: string;

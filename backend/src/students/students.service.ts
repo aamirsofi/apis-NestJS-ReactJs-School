@@ -93,7 +93,6 @@ export class StudentsService {
         userId: createStudentDto.userId || null,
         // Route and Transport - only set if valid positive integer
         routeId: createStudentDto.routeId, // Required field
-        routePlanId: (createStudentDto.routePlanId && createStudentDto.routePlanId > 0) ? createStudentDto.routePlanId : null,
         busNumber: createStudentDto.busNumber?.trim() || null,
         busSeatNumber: createStudentDto.busSeatNumber?.trim() || null,
         shift: createStudentDto.shift?.trim() || null,
@@ -176,7 +175,6 @@ export class StudentsService {
         .leftJoinAndSelect('academicRecords.academicYear', 'academicYear')
         .leftJoinAndSelect('academicRecords.class', 'class')
         .leftJoinAndSelect('student.route', 'route')
-        .leftJoinAndSelect('student.routePlan', 'routePlan')
         .leftJoinAndSelect('student.categoryHead', 'categoryHead');
 
       // Build where conditions
@@ -244,7 +242,6 @@ export class StudentsService {
         'payments',
         'feeStructures',
         'route',
-        'routePlan',
         'categoryHead',
       ],
     });
@@ -261,6 +258,7 @@ export class StudentsService {
     updateStudentDto: UpdateStudentDto,
     schoolId?: number,
   ): Promise<Student> {
+    // First verify the student exists
     const student = await this.findOne(id, schoolId);
     
     // Validate and sanitize foreign key fields before assignment
@@ -273,10 +271,6 @@ export class StudentsService {
         throw new BadRequestException('Route is required and must be a valid route ID');
       }
       sanitizedDto.routeId = sanitizedDto.routeId;
-    }
-    
-    if (sanitizedDto.routePlanId !== undefined) {
-      sanitizedDto.routePlanId = (sanitizedDto.routePlanId && sanitizedDto.routePlanId > 0) ? sanitizedDto.routePlanId : null;
     }
     
     // CategoryHead is required
@@ -338,14 +332,11 @@ export class StudentsService {
       }
     }
     
-    // Debug: Log the update data
-    console.log('Updating student with data:', JSON.stringify(sanitizedDto, null, 2));
+    // Use TypeORM's update method for direct SQL UPDATE
+    await this.studentsRepository.update(id, sanitizedDto);
     
-    Object.assign(student, sanitizedDto);
-    const updatedStudent = await this.studentsRepository.save(student);
-    
-    // Reload with relations to ensure categoryHead is included
-    return await this.findOne(updatedStudent.id, schoolId);
+    // Reload with relations to ensure all data is fresh
+    return await this.findOne(id, schoolId);
   }
 
   async remove(id: number, schoolId?: number): Promise<void> {

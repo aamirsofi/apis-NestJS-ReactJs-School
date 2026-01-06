@@ -6,10 +6,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { School } from '../../schools/entities/school.entity';
 import { Student } from '../../students/entities/student.entity';
 import { StudentFeeStructure } from '../../student-fee-structures/entities/student-fee-structure.entity';
+import { FeeInvoice } from '../../invoices/entities/fee-invoice.entity';
 
 export enum PaymentMethod {
   CASH = 'cash',
@@ -27,6 +29,7 @@ export enum PaymentStatus {
 }
 
 @Entity('payments')
+@Index(['invoiceId'])
 export class Payment {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -34,8 +37,15 @@ export class Payment {
   @Column()
   studentId!: number; // Keep for quick queries
 
-  @Column()
-  studentFeeStructureId!: number; // Link to actual student fee (StudentFeeStructure)
+  // ====== PAYMENT REFERENCE (Either/Or) ======
+  
+  @Column({ nullable: true })
+  studentFeeStructureId?: number; // OLD WAY: Link to student_fee_structures (legacy)
+
+  @Column({ nullable: true })
+  invoiceId?: number; // NEW WAY: Link to fee_invoices (recommended)
+  
+  // Note: Must have EITHER studentFeeStructureId OR invoiceId (enforced by DB constraint)
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount!: number; // Payment amount (can be partial)
@@ -77,9 +87,13 @@ export class Payment {
   @JoinColumn({ name: 'studentId' })
   student!: Student;
 
-  @ManyToOne(() => StudentFeeStructure, studentFeeStructure => studentFeeStructure.payments)
+  @ManyToOne(() => StudentFeeStructure, studentFeeStructure => studentFeeStructure.payments, { nullable: true })
   @JoinColumn({ name: 'studentFeeStructureId' })
-  studentFeeStructure!: StudentFeeStructure;
+  studentFeeStructure?: StudentFeeStructure;
+
+  @ManyToOne(() => FeeInvoice, invoice => invoice.payments, { nullable: true })
+  @JoinColumn({ name: 'invoiceId' })
+  invoice?: FeeInvoice;
 
   @CreateDateColumn()
   createdAt!: Date;

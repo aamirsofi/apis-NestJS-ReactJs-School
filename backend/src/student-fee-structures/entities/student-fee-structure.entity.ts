@@ -21,7 +21,7 @@ export enum PaymentStatus {
 }
 
 @Entity('student_fee_structures')
-@Unique(['studentId', 'feeStructureId', 'academicYearId']) // One fee structure per student per academic year
+// Note: Removed unique constraint to allow multiple installments per fee structure
 export class StudentFeeStructure {
   @PrimaryGeneratedColumn()
   id!: number;

@@ -11,7 +11,7 @@ async function createAdmin() {
 
   // Check if admin already exists
   const existingAdmin = await userRepository.findOne({
-    where: { email: 'admin@example.com' },
+    where: { email: 'su@admin.com' },
   });
 
   if (existingAdmin) {
@@ -35,14 +35,14 @@ async function createAdmin() {
   const hashedPassword = await bcrypt.hash('admin123', 10);
   const admin = userRepository.create({
     name: 'Super Admin',
-    email: 'admin@example.com',
+    email: 'su@admin.com',
     password: hashedPassword,
     roleId: superAdminRole.id,
   });
 
   await userRepository.save(admin);
   console.log('✅ Admin user created successfully!');
-  console.log('📧 Email: admin@example.com');
+  console.log('📧 Email: su@admin.com');
   console.log('🔑 Password: admin123');
   console.log('⚠️  Please change the password after first login!');
 

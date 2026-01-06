@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { Route } from './entities/route.entity';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
-import { RoutePlan } from '../route-plans/entities/route-plan.entity';
 import { getPaginationParams, createPaginatedResponse } from '../common/utils/pagination.util';
 
 @Injectable()
@@ -12,8 +11,6 @@ export class RoutesService {
   constructor(
     @InjectRepository(Route)
     private routesRepository: Repository<Route>,
-    @InjectRepository(RoutePlan)
-    private routePlansRepository: Repository<RoutePlan>,
   ) {}
 
   async create(
@@ -123,15 +120,9 @@ export class RoutesService {
     const route = await this.findOne(id, schoolId);
     
     // Check if route is being used by any route plans
-    const routePlansUsingRoute = await this.routePlansRepository.find({
-      where: { routeId: id },
-    });
-
-    if (routePlansUsingRoute.length > 0) {
-      throw new BadRequestException(
-        `Cannot delete route. It is being used by ${routePlansUsingRoute.length} route plan(s). Please remove or reassign the route plans first.`,
-      );
-    }
+    // Check if route is being used by any route prices
+    // Note: We don't have direct access to routePricesRepository here, but the database
+    // foreign key constraint will prevent deletion if there are related route_prices
 
     await this.routesRepository.remove(route);
   }

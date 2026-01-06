@@ -7,16 +7,18 @@
 3. Find `POST /api/auth/register`
 4. Click "Try it out"
 5. Use this JSON:
+
 ```json
 {
   "name": "Super Admin",
-  "email": "admin@example.com",
+  "email": "su@admin.com",
   "password": "admin123"
 }
 ```
+
 6. Click "Execute"
 7. Login at http://localhost:5173 with:
-   - Email: `admin@example.com`
+   - Email: `su@admin.com`
    - Password: `admin123`
 
 ## Option 2: Using curl
@@ -26,7 +28,7 @@ curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Super Admin",
-    "email": "admin@example.com",
+    "email": "su@admin.com",
     "password": "admin123"
   }'
 ```
@@ -39,14 +41,16 @@ npm run create:admin
 ```
 
 This will create:
-- Email: `admin@example.com`
+
+- Email: `su@admin.com`
 - Password: `admin123`
 - Role: `super_admin`
 
 ## Default Credentials (After Registration)
 
 **Super Admin:**
-- Email: `admin@example.com`
+
+- Email: `su@admin.com`
 - Password: `admin123`
 
 **Note:** The first user registered will have role `student` by default. To create a super admin, you can:
@@ -58,7 +62,7 @@ This will create:
 ## Login
 
 After creating a user, go to:
+
 - Frontend: http://localhost:5173
 - Enter email and password
 - Click "Sign in"
-

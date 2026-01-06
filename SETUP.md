@@ -130,8 +130,8 @@ docker-compose exec postgres psql -U postgres -d fee_management
    POST http://localhost:3000/api/auth/register
    {
      "name": "Admin User",
-     "email": "admin@example.com",
-     "password": "password123"
+     "email": "su@admin.com",
+     "password": "admin123"
    }
    ```
 
@@ -140,8 +140,8 @@ docker-compose exec postgres psql -U postgres -d fee_management
    ```bash
    POST http://localhost:3000/api/auth/login
    {
-     "email": "admin@example.com",
-     "password": "password123"
+     "email": "su@admin.com",
+     "password": "admin123"
    }
    ```
 

@@ -4,36 +4,34 @@
 
 export interface RoutePlanCombination {
   routeId: number;
-  feeCategoryId: number;
-  categoryHeadId: number | null;
+  feeCategoryId?: number; // Deprecated for route_prices
+  categoryHeadId: number; // Required for route_prices
   classId: number;
 }
 
 /**
- * Generate all combinations from selected items
+ * Generate all combinations from selected items (updated for route_prices)
  */
 export function generateRoutePlanCombinations(
   routeIds: number[],
-  feeCategoryIds: number[],
-  categoryHeadIds: number[],
+  feeCategoryIds: number[], // Deprecated but kept for compatibility
+  categoryHeadIds: number[], // Required for route_prices
   classIds: number[]
 ): RoutePlanCombination[] {
   const combinations: RoutePlanCombination[] = [];
 
-  // If no category heads selected, include null (General)
-  const categoryHeadIdsToUse =
-    categoryHeadIds.length > 0 ? categoryHeadIds : [null];
+  // Category heads are required for route_prices (no null allowed)
+  if (categoryHeadIds.length === 0) {
+    return []; // Cannot generate combinations without category heads
+  }
 
   routeIds.forEach((routeId) => {
-    feeCategoryIds.forEach((feeCategoryId) => {
-      categoryHeadIdsToUse.forEach((categoryHeadId) => {
-        classIds.forEach((classId) => {
-          combinations.push({
-            routeId,
-            feeCategoryId,
-            categoryHeadId,
-            classId,
-          });
+    categoryHeadIds.forEach((categoryHeadId) => {
+      classIds.forEach((classId) => {
+        combinations.push({
+          routeId,
+          categoryHeadId,
+          classId,
         });
       });
     });

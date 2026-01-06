@@ -155,7 +155,7 @@ export interface RoutePlan {
   schoolId: number;
   routeId: number;
   categoryHeadId?: number;
-  feeCategoryId: number; // Transport fee category (Fee Heading of type transport)
+  feeCategoryId: number; // Transport fee category (Fee Heading of type transport) - DEPRECATED
   classId?: number;
   name: string;
   description?: string;
@@ -164,6 +164,25 @@ export interface RoutePlan {
   route?: Route;
   categoryHead?: CategoryHead;
   feeCategory?: FeeCategory;
+  class?: {
+    id: number;
+    name: string;
+  };
+  school?: School;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoutePrice {
+  id: number;
+  schoolId: number;
+  routeId: number;
+  classId: number; // Required in route_prices
+  categoryHeadId: number; // Required in route_prices
+  amount: number;
+  status: 'active' | 'inactive';
+  route?: Route;
+  categoryHead?: CategoryHead;
   class?: {
     id: number;
     name: string;

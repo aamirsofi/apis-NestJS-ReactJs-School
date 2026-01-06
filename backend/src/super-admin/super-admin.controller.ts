@@ -42,8 +42,8 @@ import { CategoryHeadsService } from '../category-heads/category-heads.service';
 import { FeeCategoryType } from '../fee-categories/entities/fee-category.entity';
 import { CreateFeeStructureDto } from '../fee-structures/dto/create-fee-structure.dto';
 import { UpdateFeeStructureDto } from '../fee-structures/dto/update-fee-structure.dto';
-import { CreateRoutePlanDto } from '../route-plans/dto/create-route-plan.dto';
-import { UpdateRoutePlanDto } from '../route-plans/dto/update-route-plan.dto';
+import { CreateRoutePriceDto } from '../route-prices/dto/create-route-price.dto';
+import { UpdateRoutePriceDto } from '../route-prices/dto/update-route-price.dto';
 
 @ApiTags('Super Admin')
 @ApiBearerAuth('JWT-auth')
@@ -285,7 +285,7 @@ export class SuperAdminController {
           {
             id: 1,
             name: 'John Doe',
-            email: 'john@example.com',
+            email: 'su@admin.com',
             role: 'administrator',
             schoolId: 1,
             createdAt: '2024-01-01T00:00:00.000Z',
@@ -787,9 +787,9 @@ export class SuperAdminController {
     return this.superAdminService.removeFeeStructure(+id, +schoolId);
   }
 
-  // ========== ROUTE PLANS ==========
-  @Get('route-plans')
-  @ApiOperation({ summary: 'Get all route plans with pagination (Super Admin only)' })
+  // ========== ROUTE PRICES ==========
+  @Get('route-prices')
+  @ApiOperation({ summary: 'Get all route prices with pagination (Super Admin only)' })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -802,51 +802,43 @@ export class SuperAdminController {
     type: Number,
     description: 'Items per page (default: 10, max: 100)',
   })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Search by name or description',
-  })
   @ApiQuery({ name: 'schoolId', required: false, type: Number, description: 'Filter by school ID' })
   @ApiQuery({ name: 'routeId', required: false, type: Number, description: 'Filter by route ID' })
-  @ApiQuery({ name: 'feeCategoryId', required: false, type: Number, description: 'Filter by fee category ID' })
-  @ApiQuery({ name: 'categoryHeadId', required: false, type: Number, description: 'Filter by category head ID' })
   @ApiQuery({ name: 'classId', required: false, type: Number, description: 'Filter by class ID' })
-  @ApiOkResponse({ description: 'Paginated list of route plans' })
-  getAllRoutePlans(
+  @ApiQuery({ name: 'categoryHeadId', required: false, type: Number, description: 'Filter by category head ID' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by route name, class name, or category head name' })
+  @ApiOkResponse({ description: 'Paginated list of route prices' })
+  getAllRoutePrices(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('search') search?: string,
     @Query('schoolId') schoolId?: string,
     @Query('routeId') routeId?: string,
-    @Query('feeCategoryId') feeCategoryId?: string,
-    @Query('categoryHeadId') categoryHeadId?: string,
     @Query('classId') classId?: string,
+    @Query('categoryHeadId') categoryHeadId?: string,
+    @Query('search') search?: string,
   ) {
-    return this.superAdminService.getAllRoutePlans(
+    return this.superAdminService.getAllRoutePrices(
       page ? +page : 1,
       limit ? +limit : 10,
-      search,
       schoolId ? +schoolId : undefined,
       routeId ? +routeId : undefined,
-      feeCategoryId ? +feeCategoryId : undefined,
-      categoryHeadId ? +categoryHeadId : undefined,
       classId ? +classId : undefined,
+      categoryHeadId ? +categoryHeadId : undefined,
+      search,
     );
   }
 
-  @Get('route-plans/:id')
-  @ApiOperation({ summary: 'Get route plan by ID (Super Admin only)' })
-  @ApiParam({ name: 'id', description: 'Route plan ID', type: Number })
-  @ApiOkResponse({ description: 'Route plan found' })
-  @ApiResponse({ status: 404, description: 'Route plan not found' })
-  getRoutePlanById(@Param('id') id: string) {
-    return this.superAdminService.getRoutePlanById(+id);
+  @Get('route-prices/:id')
+  @ApiOperation({ summary: 'Get route price by ID (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Route price ID', type: Number })
+  @ApiOkResponse({ description: 'Route price found' })
+  @ApiResponse({ status: 404, description: 'Route price not found' })
+  getRoutePriceById(@Param('id') id: string) {
+    return this.superAdminService.getRoutePriceById(+id);
   }
 
-  @Post('route-plans')
-  @ApiOperation({ summary: 'Create a new route plan (Super Admin only)' })
+  @Post('route-prices')
+  @ApiOperation({ summary: 'Create a new route price (Super Admin only)' })
   @ApiQuery({
     name: 'schoolId',
     required: true,
@@ -854,22 +846,22 @@ export class SuperAdminController {
     description: 'School ID',
     example: 1,
   })
-  @ApiOkResponse({ description: 'Route plan created successfully', status: 201 })
+  @ApiOkResponse({ description: 'Route price created successfully', status: 201 })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
-  @ApiResponse({ status: 404, description: 'School, route, or fee category not found' })
-  createRoutePlan(
-    @Body() createRoutePlanDto: CreateRoutePlanDto,
+  @ApiResponse({ status: 404, description: 'School, route, class, or category head not found' })
+  createRoutePrice(
+    @Body() createRoutePriceDto: CreateRoutePriceDto,
     @Query('schoolId') schoolId: string,
   ) {
     if (!schoolId) {
       throw new BadRequestException('schoolId query parameter is required');
     }
-    return this.superAdminService.createRoutePlan(createRoutePlanDto, +schoolId);
+    return this.superAdminService.createRoutePrice(createRoutePriceDto, +schoolId);
   }
 
-  @Patch('route-plans/:id')
-  @ApiOperation({ summary: 'Update route plan (Super Admin only)' })
-  @ApiParam({ name: 'id', description: 'Route plan ID', type: Number })
+  @Patch('route-prices/:id')
+  @ApiOperation({ summary: 'Update route price (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Route price ID', type: Number })
   @ApiQuery({
     name: 'schoolId',
     required: true,
@@ -877,23 +869,23 @@ export class SuperAdminController {
     description: 'School ID',
     example: 1,
   })
-  @ApiOkResponse({ description: 'Route plan updated successfully' })
-  @ApiResponse({ status: 404, description: 'Route plan not found' })
+  @ApiOkResponse({ description: 'Route price updated successfully' })
+  @ApiResponse({ status: 404, description: 'Route price not found' })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
-  updateRoutePlan(
+  updateRoutePrice(
     @Param('id') id: string,
-    @Body() updateRoutePlanDto: UpdateRoutePlanDto,
+    @Body() updateRoutePriceDto: UpdateRoutePriceDto,
     @Query('schoolId') schoolId: string,
   ) {
     if (!schoolId) {
       throw new BadRequestException('schoolId query parameter is required');
     }
-    return this.superAdminService.updateRoutePlan(+id, updateRoutePlanDto, +schoolId);
+    return this.superAdminService.updateRoutePrice(+id, updateRoutePriceDto, +schoolId);
   }
 
-  @Delete('route-plans/:id')
-  @ApiOperation({ summary: 'Delete route plan (Super Admin only)' })
-  @ApiParam({ name: 'id', description: 'Route plan ID', type: Number })
+  @Delete('route-prices/:id')
+  @ApiOperation({ summary: 'Delete route price (Super Admin only)' })
+  @ApiParam({ name: 'id', description: 'Route price ID', type: Number })
   @ApiQuery({
     name: 'schoolId',
     required: true,
@@ -901,13 +893,100 @@ export class SuperAdminController {
     description: 'School ID',
     example: 1,
   })
-  @ApiOkResponse({ description: 'Route plan deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Route plan not found' })
-  @ApiResponse({ status: 400, description: 'Cannot delete - route plan is in use' })
-  removeRoutePlan(@Param('id') id: string, @Query('schoolId') schoolId: string) {
+  @ApiOkResponse({ description: 'Route price deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Route price not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot delete - route price does not belong to school or is referenced by fee structures',
+  })
+  removeRoutePrice(@Param('id') id: string, @Query('schoolId') schoolId: string) {
     if (!schoolId) {
       throw new BadRequestException('schoolId query parameter is required');
     }
-    return this.superAdminService.removeRoutePlan(+id, +schoolId);
+    
+    const numId = parseInt(id, 10);
+    const numSchoolId = parseInt(schoolId, 10);
+    
+    if (isNaN(numId) || numId <= 0) {
+      throw new BadRequestException(`Invalid route price ID: ${id}`);
+    }
+    if (isNaN(numSchoolId) || numSchoolId <= 0) {
+      throw new BadRequestException(`Invalid schoolId: ${schoolId}`);
+    }
+    
+    return this.superAdminService.removeRoutePrice(numId, numSchoolId);
+  }
+
+  @Delete('route-prices/bulk')
+  @ApiOperation({ summary: 'Bulk delete route prices (Super Admin only)' })
+  @ApiQuery({
+    name: 'schoolId',
+    required: true,
+    type: Number,
+    description: 'School ID',
+    example: 1,
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        ids: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Array of route price IDs to delete',
+          example: [1, 2, 3],
+        },
+      },
+      required: ['ids'],
+    },
+  })
+  @ApiOkResponse({
+    description: 'Bulk delete result',
+    schema: {
+      type: 'object',
+      properties: {
+        deleted: { type: 'number', description: 'Number of successfully deleted route prices' },
+        failed: { type: 'number', description: 'Number of failed deletions' },
+        errors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              error: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request or some route prices cannot be deleted' })
+  bulkRemoveRoutePrices(
+    @Body() body: { ids: number[] },
+    @Query('schoolId') schoolId: string,
+  ) {
+    if (!schoolId) {
+      throw new BadRequestException('schoolId query parameter is required');
+    }
+    if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+      throw new BadRequestException('ids array is required and must not be empty');
+    }
+
+    // Simple, direct conversion - no complex validation that could introduce bugs
+    const schoolIdNum = parseInt(schoolId, 10);
+    if (isNaN(schoolIdNum) || schoolIdNum <= 0) {
+      throw new BadRequestException(`Invalid schoolId: ${schoolId}`);
+    }
+
+    // Convert all IDs to integers, filter out invalid ones
+    const ids = body.ids
+      .map(id => parseInt(String(id), 10))
+      .filter(id => !isNaN(id) && id > 0);
+
+    if (ids.length === 0) {
+      throw new BadRequestException('No valid route price IDs provided');
+    }
+
+    return this.superAdminService.bulkRemoveRoutePrices(ids, schoolIdNum);
   }
 }

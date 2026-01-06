@@ -9,7 +9,7 @@ import { Student } from '../students/entities/student.entity';
 import { StudentAcademicRecord } from '../student-academic-records/entities/student-academic-record.entity';
 import { AcademicYear } from '../academic-years/entities/academic-year.entity';
 import { School } from '../schools/entities/school.entity';
-import { RoutePlan } from '../route-plans/entities/route-plan.entity';
+import { RoutePrice } from '../route-prices/entities/route-price.entity';
 import { FeeGenerationScheduler } from './fee-generation.scheduler';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -23,7 +23,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       StudentAcademicRecord,
       AcademicYear,
       School,
-      RoutePlan,
+      RoutePrice,
     ]),
     ScheduleModule,
   ],

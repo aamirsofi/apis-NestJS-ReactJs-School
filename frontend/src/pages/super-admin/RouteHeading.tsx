@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "../../services/api";
 import {
   useRoutesData,
@@ -10,10 +11,7 @@ import RoutesForm from "./components/RoutesForm";
 import RoutesFilters from "./components/RoutesFilters";
 import RoutesTable from "./components/RoutesTable";
 import RoutesDialogs from "./components/RoutesDialogs";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -24,6 +22,7 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export default function RouteHeading() {
+  const queryClient = useQueryClient();
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -44,17 +43,13 @@ export default function RouteHeading() {
   } | null>(null);
 
   // Use custom hook for data fetching
-  const {
-    routes,
-    paginationMeta,
-    loadingRoutes,
-    refetchRoutes,
-  } = useRoutesData({
-    page,
-    limit,
-    search,
-    selectedSchoolId: selectedSchoolId || "",
-  });
+  const { routes, paginationMeta, loadingRoutes, refetchRoutes } =
+    useRoutesData({
+      page,
+      limit,
+      search,
+      selectedSchoolId: selectedSchoolId || "",
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +84,9 @@ export default function RouteHeading() {
 
       const currentSchoolId = formData.schoolId;
 
+      // Invalidate routes cache for all schools (used in Route Prices dropdown)
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+
       if (editingRoute) {
         setEditingRoute(null);
         resetForm();
@@ -115,7 +113,7 @@ export default function RouteHeading() {
       name: "",
       description: "",
       status: "active",
-      schoolId: retainSchool && schoolId ? schoolId : (selectedSchoolId || ""),
+      schoolId: retainSchool && schoolId ? schoolId : selectedSchoolId || "",
     });
   };
 
@@ -154,6 +152,10 @@ export default function RouteHeading() {
       setSuccess("Route deleted successfully!");
       setDeleteDialogOpen(false);
       setDeleteItem(null);
+
+      // Invalidate routes cache for all schools (used in Route Prices dropdown)
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+
       refetchRoutes();
       setTimeout(() => setSuccess(""), 5000);
     } catch (err: any) {
@@ -173,27 +175,6 @@ export default function RouteHeading() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/super-admin/dashboard">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/super-admin/settings/fee-settings/route-plan">Route Plans</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Define Routes</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
       {/* Success/Error Messages */}
       {success && (
         <Card className="border-l-4 border-l-green-400 bg-green-50">

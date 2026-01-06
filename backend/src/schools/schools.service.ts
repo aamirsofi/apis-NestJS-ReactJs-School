@@ -13,7 +13,7 @@ import { Route, RouteStatus } from '../routes/entities/route.entity';
 import { Student } from '../students/entities/student.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
-import { RoutePlan } from '../route-plans/entities/route-plan.entity';
+import { RoutePrice } from '../route-prices/entities/route-price.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -37,8 +37,8 @@ export class SchoolsService {
     private paymentsRepository: Repository<Payment>,
     @InjectRepository(FeeStructure)
     private feeStructuresRepository: Repository<FeeStructure>,
-    @InjectRepository(RoutePlan)
-    private routePlansRepository: Repository<RoutePlan>,
+    @InjectRepository(RoutePrice)
+    private routePricesRepository: Repository<RoutePrice>,
     @InjectRepository(UserRole)
     private userRolesRepository: Repository<UserRole>,
   ) {}
@@ -445,12 +445,12 @@ export class SchoolsService {
     try {
       // Delete in proper order to avoid foreign key violations
       // 1. Route Plans (depends on Routes, FeeCategories, CategoryHeads, Classes)
-      const routePlanCount = await this.routePlansRepository.count({
+      const routePriceCount = await this.routePricesRepository.count({
         where: { schoolId: id },
       });
-      if (routePlanCount > 0) {
-        await this.routePlansRepository.delete({ schoolId: id });
-        console.log(`   ✅ Deleted ${routePlanCount} route plan(s)`);
+      if (routePriceCount > 0) {
+        await this.routePricesRepository.delete({ schoolId: id });
+        console.log(`   ✅ Deleted ${routePriceCount} route price(s)`);
       }
 
       // 2. Routes

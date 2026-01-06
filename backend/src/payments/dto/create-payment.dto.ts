@@ -3,13 +3,16 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PaymentMethod, PaymentStatus } from '../entities/payment.entity';
 
 export class CreatePaymentDto {
-  @ApiProperty({ example: 1, description: 'Student ID (kept for quick queries)' })
+  @ApiProperty({ example: 1, description: 'Student ID' })
   @IsNumber()
   studentId!: number;
 
-  @ApiProperty({ example: 1, description: 'Student Fee Structure ID (the actual fee assigned to student)' })
+  @ApiProperty({ 
+    example: 101, 
+    description: 'Invoice ID (required - create invoice first using POST /invoices)'
+  })
   @IsNumber()
-  studentFeeStructureId!: number;
+  invoiceId!: number;
 
   @ApiProperty({ example: 5000.0, description: 'Payment amount (can be partial)' })
   @IsNumber()

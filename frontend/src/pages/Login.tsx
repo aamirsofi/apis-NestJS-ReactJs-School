@@ -153,7 +153,7 @@ export default function Login() {
           </CardContent>
           <CardFooter className="flex flex-col space-y-2">
             <p className="text-xs text-muted-foreground">
-              Demo credentials: admin@example.com / admin123
+              Demo credentials: su@admin.com / admin123
             </p>
             <Button
               variant="link"

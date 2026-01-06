@@ -278,6 +278,48 @@ export default function FeePlan() {
         },
       },
       {
+        id: "applicableMonths",
+        header: "Applicable Months",
+        cell: ({ row }) => {
+          const category = row.original.category;
+          const applicableMonths = category?.applicableMonths;
+          
+          if (!applicableMonths || applicableMonths.length === 0) {
+            return (
+              <div className="text-xs text-gray-400 italic">
+                One-time
+              </div>
+            );
+          }
+          
+          // Month names mapping
+          const monthNames = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+          ];
+          
+          // Convert month numbers to names and sort
+          const monthLabels = applicableMonths
+            .map((month: number) => monthNames[month - 1])
+            .filter(Boolean);
+          
+          return (
+            <div className="text-xs text-gray-600">
+              {monthLabels.length > 3 ? (
+                <span 
+                  className="font-medium text-indigo-600 cursor-help border-b border-dotted border-indigo-400"
+                  title={monthLabels.join(", ")}
+                >
+                  {monthLabels.length} months
+                </span>
+              ) : (
+                monthLabels.join(", ")
+              )}
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "amount",
         header: ({ column }) => {
           return (

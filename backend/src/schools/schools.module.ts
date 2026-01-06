@@ -12,7 +12,7 @@ import { Route } from '../routes/entities/route.entity';
 import { Student } from '../students/entities/student.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { FeeStructure } from '../fee-structures/entities/fee-structure.entity';
-import { RoutePlan } from '../route-plans/entities/route-plan.entity';
+import { RoutePrice } from '../route-prices/entities/route-price.entity';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -28,7 +28,7 @@ import { UsersModule } from '../users/users.module';
       Student,
       Payment,
       FeeStructure,
-      RoutePlan,
+      RoutePrice,
     ]),
     UsersModule,
   ],

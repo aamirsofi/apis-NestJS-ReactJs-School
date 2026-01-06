@@ -324,7 +324,7 @@ export default function SuperAdminDashboard() {
               value={schoolStats?.totalRoutePlans || 0}
               icon={FiNavigation}
               color="bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-500"
-              link="/super-admin/settings/fee-settings/route-plan"
+              link="/super-admin/settings/fee-settings/route-prices"
               isLoading={loadingSchoolStats}
             />
             <StatCard
@@ -409,7 +409,7 @@ export default function SuperAdminDashboard() {
                 </div>
               </Link>
               <Link
-                to="/super-admin/settings/fee-settings/route-plan"
+                to="/super-admin/settings/fee-settings/route-prices"
                 className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:bg-cyan-50 hover:border-cyan-200 transition-smooth"
               >
                 <div className="p-2 bg-cyan-100 rounded-lg">

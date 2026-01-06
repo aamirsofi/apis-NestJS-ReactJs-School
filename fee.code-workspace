@@ -1,0 +1,13 @@
+{
+  "folders": [
+	{
+		"path": "."
+	},
+	{
+		"path": "../apis"
+	}
+],
+  "settings": {
+    "powershell.cwd": "fee"
+  }
+}

@@ -184,8 +184,28 @@ export default function Layout({ children }: LayoutProps) {
       section: "finance",
       children: [
         {
-          name: "Fee Generation",
-          path: "/super-admin/finance/fee-generation",
+          name: "Fee Registry",
+          path: "/super-admin/finance/fee-registry",
+          icon: FiDollarSign,
+        },
+        {
+          name: "Invoices",
+          path: "/invoices",
+          icon: FiFileText,
+        },
+        {
+          name: "Payments",
+          path: "/payments",
+          icon: FiDollarSign,
+        },
+        {
+          name: "Financial Reports",
+          path: "/reports/financial",
+          icon: FiBarChart2,
+        },
+        {
+          name: "Chart of Accounts",
+          path: "/accounting/chart-of-accounts",
           icon: FiDollarSign,
         },
       ],
@@ -216,8 +236,8 @@ export default function Layout({ children }: LayoutProps) {
               icon: FiCreditCard,
             },
             {
-              name: "Route Plans",
-              path: "/super-admin/settings/fee-settings/route-plan",
+              name: "Route Prices",
+              path: "/super-admin/settings/fee-settings/route-prices",
               icon: FiMapPin,
             },
           ],
@@ -368,9 +388,27 @@ export default function Layout({ children }: LayoutProps) {
       roles: ["administrator"],
     },
     {
+      name: "Invoices",
+      path: "/invoices",
+      icon: FiFileText,
+      roles: ["administrator", "accountant"],
+    },
+    {
       name: "Payments",
       path: "/payments",
       icon: FiCreditCard,
+      roles: ["administrator", "accountant"],
+    },
+    {
+      name: "Financial Reports",
+      path: "/reports/financial",
+      icon: FiBarChart2,
+      roles: ["administrator", "accountant"],
+    },
+    {
+      name: "Chart of Accounts",
+      path: "/accounting/chart-of-accounts",
+      icon: FiDollarSign,
       roles: ["administrator", "accountant"],
     },
   ];

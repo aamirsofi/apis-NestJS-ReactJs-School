@@ -46,7 +46,7 @@ import { DataTable } from "@/components/DataTable";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { useRoutePlanData } from "../../hooks/pages/super-admin/useRoutePlanData";
 import { useRoutePlanImport } from "../../hooks/pages/super-admin/useRoutePlanImport";
-import { routePlanService } from "../../services/routePlanService";
+import { routePriceService } from "../../services/routePriceService";
 import api from "../../services/api";
 import {
   validateSingleModeRoutePlanForm,
@@ -56,7 +56,7 @@ import {
   generateRoutePlanCombinations,
   filterRoutePlanDuplicates,
 } from "../../utils/routePlan";
-import { RoutePlan } from "../../types";
+import { RoutePlan, RoutePrice } from "../../types";
 import { useSchool } from "../../contexts/SchoolContext";
 import RouteHeading from "./RouteHeading";
 
@@ -74,23 +74,19 @@ export default function RoutePlans() {
   const [routePlanMode, setRoutePlanMode] = useState<"add" | "import">("add");
   const [routePlanFormData, setRoutePlanFormData] = useState({
     routeId: "" as string | number,
-    feeCategoryId: "" as string | number,
-    categoryHeadId: "" as string | number | null,
+    categoryHeadId: "" as string | number, // Required for route_prices
     amount: "",
-    classId: "" as string | number,
+    classId: "" as string | number, // Required for route_prices
     status: "active" as "active" | "inactive",
     schoolId: "" as string | number,
   });
   const [createMode, setCreateMode] = useState<"single" | "multiple">("single");
   const [selectedRouteIds, setSelectedRouteIds] = useState<number[]>([]);
-  const [selectedFeeCategoryIds, setSelectedFeeCategoryIds] = useState<
-    number[]
-  >([]);
   const [selectedCategoryHeadIds, setSelectedCategoryHeadIds] = useState<
     number[]
   >([]);
   const [selectedClasses, setSelectedClasses] = useState<number[]>([]);
-  const [editingRoutePlan, setEditingRoutePlan] = useState<RoutePlan | null>(
+  const [editingRoutePlan, setEditingRoutePlan] = useState<RoutePrice | null>(
     null
   );
   const [formResetKey, setFormResetKey] = useState(0);
@@ -100,6 +96,17 @@ export default function RoutePlans() {
     id: number;
     schoolId: number;
   } | null>(null);
+  const [selectedRoutePrices, setSelectedRoutePrices] = useState<RoutePrice[]>(
+    []
+  );
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  // Clear selection when route plans data changes (pagination, search, etc.)
+  useEffect(() => {
+    setSelectedRoutePrices([]);
+    setRowSelection({});
+  }, [routePlanPage, routePlanSearch]);
 
   // Use custom hook for Route Plan data fetching
   const {
@@ -109,8 +116,7 @@ export default function RoutePlans() {
     refetchRoutePlans,
     routes: routePlanRoutes,
     loadingRoutes: loadingRoutePlanRoutes,
-    transportFeeCategories,
-    loadingTransportCategories,
+    // transportFeeCategories removed - not needed for route_prices
     categoryHeads: routePlanCategoryHeads,
     loadingCategoryHeads: loadingRoutePlanCategoryHeads,
     classOptions: routePlanClassOptions,
@@ -157,8 +163,7 @@ export default function RoutePlans() {
   ) => {
     setRoutePlanFormData({
       routeId: "",
-      feeCategoryId: "",
-      categoryHeadId: null,
+      categoryHeadId: "",
       amount: "",
       classId: "",
       status: "active",
@@ -166,7 +171,6 @@ export default function RoutePlans() {
     });
     setCreateMode("single");
     setSelectedRouteIds([]);
-    setSelectedFeeCategoryIds([]);
     setSelectedCategoryHeadIds([]);
     setSelectedClasses([]);
     setFormResetKey((prev) => prev + 1);
@@ -185,7 +189,8 @@ export default function RoutePlans() {
         ? validateMultipleModeRoutePlanForm(
             routePlanFormData,
             selectedRouteIds,
-            selectedFeeCategoryIds,
+            [], // feeCategoryIds deprecated
+            selectedCategoryHeadIds,
             selectedClasses
           )
         : validateSingleModeRoutePlanForm(routePlanFormData);
@@ -204,72 +209,48 @@ export default function RoutePlans() {
 
       if (editingRoutePlan) {
         // Edit mode
-        const planName = generateRoutePlanNameFromIds(
-          parseInt(routePlanFormData.routeId as string),
-          parseInt(routePlanFormData.feeCategoryId as string),
-          routePlanFormData.categoryHeadId
-            ? parseInt(routePlanFormData.categoryHeadId as string)
-            : null,
-          routePlanFormData.classId
-            ? parseInt(routePlanFormData.classId as string)
-            : null,
-          routePlanRoutes,
-          transportFeeCategories,
-          routePlanCategoryHeads,
-          routePlanClassOptions
-        );
-
-        await routePlanService.updateRoutePlan(
+        await routePriceService.updateRoutePrice(
           editingRoutePlan.id,
           currentSchoolId,
           {
             routeId: parseInt(routePlanFormData.routeId as string),
-            feeCategoryId: parseInt(routePlanFormData.feeCategoryId as string),
-            categoryHeadId: routePlanFormData.categoryHeadId
-              ? parseInt(routePlanFormData.categoryHeadId as string)
-              : undefined,
-            classId: routePlanFormData.classId
-              ? parseInt(routePlanFormData.classId as string)
-              : undefined,
-            name: planName,
+            categoryHeadId: parseInt(
+              routePlanFormData.categoryHeadId as string
+            ),
+            classId: parseInt(routePlanFormData.classId as string),
             amount: parseFloat(routePlanFormData.amount),
             status: routePlanFormData.status,
           }
         );
         setEditingRoutePlan(null);
         resetRoutePlanForm(true, currentSchoolId);
-        setSuccess("Route plan updated successfully!");
+        setSuccess("Route price updated successfully!");
       } else {
         // Create mode
         if (createMode === "multiple") {
           // Generate all combinations using utility function
           const combinations = generateRoutePlanCombinations(
             selectedRouteIds,
-            selectedFeeCategoryIds,
+            [], // feeCategoryIds deprecated
             selectedCategoryHeadIds,
             selectedClasses
           );
 
-          // Check for existing route plans to avoid duplicates
-          const existingRoutePlansResponse = await api.instance.get(
-            "/super-admin/route-plans",
-            {
-              params: {
-                schoolId: currentSchoolId,
-                limit: 10000, // Get all to check duplicates
-                page: 1,
-              },
-            }
-          );
-          const existingRoutePlans =
-            existingRoutePlansResponse.data.data ||
-            existingRoutePlansResponse.data ||
-            [];
+          // Check for existing route prices to avoid duplicates
+          const existingRoutePricesResponse =
+            await routePriceService.getRoutePrices({
+              schoolId: currentSchoolId,
+              limit: 10000, // Get all to check duplicates
+              page: 1,
+            });
+          const existingRoutePrices = Array.isArray(existingRoutePricesResponse)
+            ? existingRoutePricesResponse
+            : (existingRoutePricesResponse as any).data || [];
 
           // Filter out duplicates
           const filteredCombinations = filterRoutePlanDuplicates(
             combinations,
-            existingRoutePlans
+            existingRoutePrices
           );
 
           if (filteredCombinations.length === 0) {
@@ -277,29 +258,16 @@ export default function RoutePlans() {
             return;
           }
 
-          // Create all route plans
+          // Create all route prices
           let successCount = 0;
           let errorCount = 0;
 
           for (const combo of filteredCombinations) {
             try {
-              const planName = generateRoutePlanNameFromIds(
-                combo.routeId,
-                combo.feeCategoryId,
-                combo.categoryHeadId,
-                combo.classId,
-                routePlanRoutes,
-                transportFeeCategories,
-                routePlanCategoryHeads,
-                routePlanClassOptions
-              );
-
-              await routePlanService.createRoutePlan(currentSchoolId, {
+              await routePriceService.createRoutePrice(currentSchoolId, {
                 routeId: combo.routeId,
-                feeCategoryId: combo.feeCategoryId,
-                categoryHeadId: combo.categoryHeadId || undefined,
-                classId: combo.classId || undefined,
-                name: planName,
+                categoryHeadId: combo.categoryHeadId,
+                classId: combo.classId,
                 amount: parseFloat(routePlanFormData.amount),
                 status: routePlanFormData.status,
               });
@@ -307,50 +275,34 @@ export default function RoutePlans() {
             } catch (err: unknown) {
               errorCount++;
               // Log error for debugging but don't show to user in bulk import
-              console.error("Failed to create route plan:", getErrorMessage(err));
+              console.error(
+                "Failed to create route price:",
+                getErrorMessage(err)
+              );
             }
           }
 
           resetRoutePlanForm(true, currentSchoolId);
           if (errorCount > 0) {
             setSuccess(
-              `Successfully created ${successCount} route plan(s). ${errorCount} failed.`
+              `Successfully created ${successCount} route price(s). ${errorCount} failed.`
             );
           } else {
-            setSuccess(`Successfully created ${successCount} route plan(s)`);
+            setSuccess(`Successfully created ${successCount} route price(s)`);
           }
         } else {
           // Single create mode
-          const planName = generateRoutePlanNameFromIds(
-            parseInt(routePlanFormData.routeId as string),
-            parseInt(routePlanFormData.feeCategoryId as string),
-            routePlanFormData.categoryHeadId
-              ? parseInt(routePlanFormData.categoryHeadId as string)
-              : null,
-            routePlanFormData.classId
-              ? parseInt(routePlanFormData.classId as string)
-              : null,
-            routePlanRoutes,
-            transportFeeCategories,
-            routePlanCategoryHeads,
-            routePlanClassOptions
-          );
-
-          await routePlanService.createRoutePlan(currentSchoolId, {
+          await routePriceService.createRoutePrice(currentSchoolId, {
             routeId: parseInt(routePlanFormData.routeId as string),
-            feeCategoryId: parseInt(routePlanFormData.feeCategoryId as string),
-            categoryHeadId: routePlanFormData.categoryHeadId
-              ? parseInt(routePlanFormData.categoryHeadId as string)
-              : undefined,
-            classId: routePlanFormData.classId
-              ? parseInt(routePlanFormData.classId as string)
-              : undefined,
-            name: planName,
+            categoryHeadId: parseInt(
+              routePlanFormData.categoryHeadId as string
+            ),
+            classId: parseInt(routePlanFormData.classId as string),
             amount: parseFloat(routePlanFormData.amount),
             status: routePlanFormData.status,
           });
           resetRoutePlanForm(true, currentSchoolId);
-          setSuccess("Route plan created successfully!");
+          setSuccess("Route price created successfully!");
         }
       }
 
@@ -363,14 +315,13 @@ export default function RoutePlans() {
     }
   };
 
-  const handleRoutePlanEdit = (routePlan: RoutePlan) => {
+  const handleRoutePlanEdit = (routePlan: RoutePrice) => {
     setEditingRoutePlan(routePlan);
     setRoutePlanFormData({
       routeId: routePlan.routeId,
-      feeCategoryId: routePlan.feeCategoryId,
-      categoryHeadId: routePlan.categoryHeadId || null,
+      categoryHeadId: routePlan.categoryHeadId,
       amount: routePlan.amount.toString(),
-      classId: routePlan.classId || "",
+      classId: routePlan.classId,
       status: routePlan.status,
       schoolId: routePlan.schoolId,
     });
@@ -388,47 +339,204 @@ export default function RoutePlans() {
 
     try {
       setError("");
-      await routePlanService.deleteRoutePlan(
+      await routePriceService.deleteRoutePrice(
         routePlanDeleteItem.id,
         routePlanDeleteItem.schoolId
       );
-      setSuccess("Route plan deleted successfully!");
+      setSuccess("Route price deleted successfully!");
       setRoutePlanDeleteDialogOpen(false);
       setRoutePlanDeleteItem(null);
       refetchRoutePlans();
       setTimeout(() => setSuccess(""), 5000);
     } catch (err: unknown) {
-      const errorMessage = err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data && typeof err.response.data.message === 'string'
-        ? err.response.data.message
-        : "Failed to delete route plan";
+      const errorMessage = getErrorMessage(err, "Failed to delete route price");
       setError(errorMessage);
       setTimeout(() => setError(""), 5000);
     }
   }, [routePlanDeleteItem, refetchRoutePlans]);
 
-  const handleRoutePlanDeleteClickCallback = useCallback((id: number, schoolId: number) => {
-    handleRoutePlanDeleteClick(id, schoolId);
-  }, []);
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedRoutePrices.length === 0) return;
 
-  const handlePaginationChange = useCallback((pageIndex: number, pageSize: number) => {
-    setRoutePlanPage(pageIndex + 1);
-    setRoutePlanLimit(pageSize);
-  }, []);
+    try {
+      setError("");
+      setSuccess("");
+
+      console.log(
+        "[RoutePlans] Starting bulk delete with selectedRoutePrices:",
+        selectedRoutePrices
+      );
+
+      // Group route prices by schoolId
+      const groupedBySchool = selectedRoutePrices.reduce((acc, rp) => {
+        const schoolId = rp.schoolId;
+        console.log("[RoutePlans] Processing route price:", {
+          id: rp.id,
+          schoolId,
+          type: typeof schoolId,
+          isNaN: isNaN(Number(schoolId)),
+        });
+
+        // Validate schoolId is a valid number
+        const numSchoolId = Number(schoolId);
+        if (
+          !schoolId ||
+          schoolId === null ||
+          schoolId === undefined ||
+          isNaN(numSchoolId)
+        ) {
+          console.warn(
+            "[RoutePlans] Skipping route price with invalid schoolId:",
+            rp.id,
+            "schoolId:",
+            schoolId,
+            "type:",
+            typeof schoolId
+          );
+          return acc;
+        }
+
+        if (!acc[numSchoolId]) {
+          acc[numSchoolId] = [];
+        }
+        acc[numSchoolId].push(rp.id);
+        return acc;
+      }, {} as Record<number, number[]>);
+
+      console.log("[RoutePlans] Grouped by school:", groupedBySchool);
+
+      // Get school IDs and validate they're all valid numbers
+      // Use Object.entries to get both key and value, ensuring correct type handling
+      const schoolEntries = Object.entries(groupedBySchool)
+        .map(([key, ids]) => {
+          const num = Number(key);
+          if (isNaN(num)) {
+            console.warn("[RoutePlans] Invalid schoolId key:", key);
+            return null;
+          }
+          return { schoolId: num, ids };
+        })
+        .filter(
+          (entry): entry is { schoolId: number; ids: number[] } =>
+            entry !== null
+        );
+
+      if (schoolEntries.length === 0) {
+        setError("No valid route prices with school IDs found.");
+        setTimeout(() => setError(""), 5000);
+        return;
+      }
+
+      let totalDeleted = 0;
+      let totalFailed = 0;
+      const allErrors: Array<{ schoolId: number; error: string }> = [];
+
+      // Delete each school's route prices separately
+      for (const { schoolId, ids } of schoolEntries) {
+        // Double-check schoolId is valid
+        if (!schoolId || isNaN(schoolId)) {
+          console.error("[RoutePlans] Invalid schoolId in loop:", schoolId);
+          continue;
+        }
+
+        try {
+          // schoolId is already validated as a number from the entry
+          console.log("[RoutePlans] Deleting route prices:", {
+            schoolId,
+            ids,
+            count: ids.length,
+          });
+          const result = await routePriceService.bulkDeleteRoutePrices(
+            ids,
+            schoolId
+          );
+          totalDeleted += result.deleted;
+          totalFailed += result.failed;
+
+          if (result.errors && result.errors.length > 0) {
+            result.errors.forEach((err: { id: number; error: string }) => {
+              allErrors.push({ schoolId, error: `ID ${err.id}: ${err.error}` });
+            });
+          }
+        } catch (err: unknown) {
+          totalFailed += ids.length;
+          const errorMessage = getErrorMessage(
+            err,
+            "Failed to delete route prices"
+          );
+          allErrors.push({ schoolId, error: errorMessage });
+        }
+      }
+
+      // Show results
+      if (totalFailed > 0) {
+        const errorMessages = allErrors
+          .map((e) => `School ${e.schoolId}: ${e.error}`)
+          .join("; ");
+        setError(
+          `Deleted ${totalDeleted} route price(s). ${totalFailed} failed. ${errorMessages}`
+        );
+      } else {
+        setSuccess(
+          `Successfully deleted ${totalDeleted} route price(s) from ${schoolIds.length} school(s)`
+        );
+      }
+
+      // Clear selection and close dialog
+      setBulkDeleteDialogOpen(false);
+      setSelectedRoutePrices([]);
+      setRowSelection({});
+      refetchRoutePlans();
+
+      setTimeout(() => {
+        setSuccess("");
+        setError("");
+      }, 5000);
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(
+        err,
+        "Failed to delete route prices"
+      );
+      setError(errorMessage);
+      // Clear selection even on error to prevent stale state
+      setSelectedRoutePrices([]);
+      setRowSelection({});
+      setBulkDeleteDialogOpen(false);
+      setTimeout(() => setError(""), 5000);
+    }
+  }, [selectedRoutePrices, refetchRoutePlans]);
+
+  const handleRoutePlanDeleteClickCallback = useCallback(
+    (id: number, schoolId: number) => {
+      handleRoutePlanDeleteClick(id, schoolId);
+    },
+    []
+  );
+
+  const handlePaginationChange = useCallback(
+    (pageIndex: number, pageSize: number) => {
+      setRoutePlanPage(pageIndex + 1);
+      setRoutePlanLimit(pageSize);
+    },
+    []
+  );
 
   const handleSearchChange = useCallback((searchValue: string) => {
     setRoutePlanSearch(searchValue);
     setRoutePlanPage(1);
   }, []);
 
-  const columns: ColumnDef<RoutePlan>[] = useMemo(
+  const columns: ColumnDef<RoutePrice>[] = useMemo(
     () => [
       {
-        accessorKey: "name",
+        id: "name",
         header: ({ column }) => {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2 lg:px-3"
             >
               Name
@@ -437,7 +545,17 @@ export default function RoutePlans() {
           );
         },
         cell: ({ row }) => {
-          return <div className="font-semibold">{row.getValue("name")}</div>;
+          const routePrice = row.original;
+          const routeName =
+            routePrice.route?.name || `Route ${routePrice.routeId}`;
+          const className =
+            routePrice.class?.name || `Class ${routePrice.classId}`;
+          const categoryHeadName = routePrice.categoryHead?.name || "General";
+          return (
+            <div className="font-semibold">
+              {routeName} - {categoryHeadName} ({className})
+            </div>
+          );
         },
       },
       {
@@ -456,34 +574,40 @@ export default function RoutePlans() {
         accessorKey: "route",
         header: "Route",
         cell: ({ row }) => {
-          const route = row.original.route;
+          const routePrice = row.original as RoutePrice;
+          const route = routePrice.route;
+          // Debug: log if route is missing
+          if (!route && routePrice.routeId) {
+            console.warn(
+              `Route relation missing for routeId: ${routePrice.routeId}`,
+              routePrice
+            );
+          }
           return (
             <div className="text-sm text-gray-600">
-              {route?.name || `Route ID: ${row.original.routeId}`}
+              {route?.name || `Route ID: ${routePrice.routeId}`}
             </div>
           );
         },
       },
-      {
-        accessorKey: "feeCategory",
-        header: "Fee Heading",
-        cell: ({ row }) => {
-          const feeCategory = row.original.feeCategory;
-          return (
-            <div className="text-sm text-gray-600">
-              {feeCategory?.name || `Fee ID: ${row.original.feeCategoryId}`}
-            </div>
-          );
-        },
-      },
+      // Fee Category column removed - route_prices uses categoryHeadId directly
       {
         accessorKey: "categoryHead",
         header: "Category Head",
         cell: ({ row }) => {
-          const categoryHead = row.original.categoryHead;
+          const routePrice = row.original as RoutePrice;
+          const categoryHead = routePrice.categoryHead;
+          // Debug: log if categoryHead is missing
+          if (!categoryHead && routePrice.categoryHeadId) {
+            console.warn(
+              `CategoryHead relation missing for categoryHeadId: ${routePrice.categoryHeadId}`,
+              routePrice
+            );
+          }
           return (
             <div className="text-sm text-gray-600">
-              {categoryHead?.name || "General"}
+              {categoryHead?.name ||
+                `Category Head ID: ${routePrice.categoryHeadId}`}
             </div>
           );
         },
@@ -492,10 +616,18 @@ export default function RoutePlans() {
         accessorKey: "class",
         header: "Class",
         cell: ({ row }) => {
-          const classItem = row.original.class;
+          const routePrice = row.original as RoutePrice;
+          const classItem = routePrice.class;
+          // Debug: log if class is missing
+          if (!classItem && routePrice.classId) {
+            console.warn(
+              `Class relation missing for classId: ${routePrice.classId}`,
+              routePrice
+            );
+          }
           return (
             <div className="text-sm text-gray-600">
-              {classItem?.name || `Class ID: ${row.original.classId || "-"}`}
+              {classItem?.name || `Class ID: ${routePrice.classId}`}
             </div>
           );
         },
@@ -506,7 +638,9 @@ export default function RoutePlans() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2 lg:px-3"
             >
               Amount
@@ -516,7 +650,9 @@ export default function RoutePlans() {
         },
         cell: ({ row }) => {
           const amount = parseFloat(row.getValue("amount") as string);
-          return <div className="text-sm font-semibold">₹{amount.toFixed(2)}</div>;
+          return (
+            <div className="text-sm font-semibold">₹{amount.toFixed(2)}</div>
+          );
         },
       },
       {
@@ -525,7 +661,9 @@ export default function RoutePlans() {
           return (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
               className="h-8 px-2 lg:px-3"
             >
               Status
@@ -575,7 +713,9 @@ export default function RoutePlans() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleRoutePlanDeleteClickCallback(plan.id, plan.schoolId)}
+                onClick={() =>
+                  handleRoutePlanDeleteClickCallback(plan.id, plan.schoolId)
+                }
                 className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                 title="Delete"
               >
@@ -620,8 +760,7 @@ export default function RoutePlans() {
       setRoutePlanFormData((prev) => ({
         ...prev,
         routeId: "",
-        feeCategoryId: "",
-        categoryHeadId: null,
+        categoryHeadId: "",
         classId: "",
       }));
     }
@@ -640,14 +779,14 @@ export default function RoutePlans() {
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link to="/super-admin/settings/fee-settings/route-plan">
+              <Link to="/super-admin/settings/fee-settings/route-prices">
                 Settings
               </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Route Plans</BreadcrumbPage>
+            <BreadcrumbPage>Route Prices</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -656,11 +795,11 @@ export default function RoutePlans() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-            Route Plans Management
+            Route Prices Management
           </CardTitle>
           <CardDescription>
-            Define routes and create route plans by combining routes with
-            category heads and transport fee headings
+            Define route prices by combining routes with category heads and
+            classes
           </CardDescription>
         </CardHeader>
       </Card>
@@ -910,129 +1049,11 @@ export default function RoutePlans() {
                             )}
                           </div>
 
-                          {/* Transport Fee Category */}
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-0.5">
-                              Transport Fee Heading{" "}
-                              <span className="text-red-500">*</span>
-                            </label>
-                            {!routePlanFormData.schoolId ? (
-                              <div className="px-2 py-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg">
-                                Select school first
-                              </div>
-                            ) : loadingTransportCategories ? (
-                              <div className="flex items-center justify-center py-1">
-                                <FiLoader className="w-3 h-3 animate-spin text-indigo-600" />
-                              </div>
-                            ) : createMode === "single" ? (
-                              <Select
-                                key={`fee-category-${formResetKey}`}
-                                value={
-                                  routePlanFormData.feeCategoryId &&
-                                  routePlanFormData.feeCategoryId !== ""
-                                    ? routePlanFormData.feeCategoryId.toString()
-                                    : undefined
-                                }
-                                onValueChange={(value) => {
-                                  setRoutePlanFormData({
-                                    ...routePlanFormData,
-                                    feeCategoryId: parseInt(value),
-                                  });
-                                }}
-                                disabled={!routePlanFormData.schoolId}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select transport fee heading..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {transportFeeCategories.map((cat) => (
-                                    <SelectItem
-                                      key={cat.id}
-                                      value={cat.id.toString()}
-                                    >
-                                      {cat.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <div className="space-y-1">
-                                <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-1.5 bg-white">
-                                  {/* Select All */}
-                                  <label className="flex items-center px-1.5 py-1 hover:bg-gray-50 rounded cursor-pointer border-b border-gray-200 mb-0.5 pb-0.5">
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        transportFeeCategories.length > 0 &&
-                                        selectedFeeCategoryIds.length ===
-                                          transportFeeCategories.length
-                                      }
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedFeeCategoryIds(
-                                            transportFeeCategories.map(
-                                              (cat) => cat.id
-                                            )
-                                          );
-                                        } else {
-                                          setSelectedFeeCategoryIds([]);
-                                        }
-                                      }}
-                                      className="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                    />
-                                    <span className="ml-1.5 text-xs font-semibold text-indigo-700">
-                                      All ({transportFeeCategories.length})
-                                    </span>
-                                  </label>
-                                  {transportFeeCategories.map((cat) => (
-                                    <label
-                                      key={cat.id}
-                                      className="flex items-center px-1.5 py-1 hover:bg-gray-50 rounded cursor-pointer"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedFeeCategoryIds.includes(
-                                          cat.id
-                                        )}
-                                        onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setSelectedFeeCategoryIds([
-                                              ...selectedFeeCategoryIds,
-                                              cat.id,
-                                            ]);
-                                          } else {
-                                            setSelectedFeeCategoryIds(
-                                              selectedFeeCategoryIds.filter(
-                                                (id) => id !== cat.id
-                                              )
-                                            );
-                                          }
-                                        }}
-                                        className="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                      />
-                                      <span className="ml-1.5 text-xs text-gray-700">
-                                        {cat.name}
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
-                                {createMode === "multiple" &&
-                                  selectedFeeCategoryIds.length > 0 && (
-                                    <div className="text-xs text-gray-600">
-                                      {selectedFeeCategoryIds.length} selected
-                                    </div>
-                                  )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Category Head */}
+                          {/* Category Head - Required for route_prices */}
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-0.5">
                               Category Head{" "}
-                              <span className="text-gray-400 text-xs">
-                                (Optional)
-                              </span>
+                              <span className="text-red-500">*</span>
                             </label>
                             {!routePlanFormData.schoolId ? (
                               <div className="px-2 py-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg">
@@ -1048,15 +1069,12 @@ export default function RoutePlans() {
                                 value={
                                   routePlanFormData.categoryHeadId
                                     ? routePlanFormData.categoryHeadId.toString()
-                                    : "__EMPTY__"
+                                    : undefined
                                 }
                                 onValueChange={(value) =>
                                   setRoutePlanFormData({
                                     ...routePlanFormData,
-                                    categoryHeadId:
-                                      value === "__EMPTY__"
-                                        ? null
-                                        : parseInt(value),
+                                    categoryHeadId: parseInt(value),
                                   })
                                 }
                                 disabled={!routePlanFormData.schoolId}
@@ -1065,9 +1083,6 @@ export default function RoutePlans() {
                                   <SelectValue placeholder="Select category head..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="__EMPTY__">
-                                    None (General)
-                                  </SelectItem>
                                   {routePlanCategoryHeads.map((ch) => (
                                     <SelectItem
                                       key={ch.id}
@@ -1490,9 +1505,7 @@ export default function RoutePlans() {
                                       <th className="px-2 py-1 text-left">
                                         Route
                                       </th>
-                                      <th className="px-2 py-1 text-left">
-                                        Fee Category
-                                      </th>
+                                      {/* Fee Category column removed - route_prices uses categoryHeadId directly */}
                                       <th className="px-2 py-1 text-left">
                                         Category Head
                                       </th>
@@ -1514,10 +1527,7 @@ export default function RoutePlans() {
                                           {row.routeName ||
                                             `ID: ${row.routeId}`}
                                         </td>
-                                        <td className="px-2 py-1">
-                                          {row.feeCategoryName ||
-                                            `ID: ${row.feeCategoryId}`}
-                                        </td>
+                                        {/* Fee Category column removed - route_prices uses categoryHeadId directly */}
                                         <td className="px-2 py-1">
                                           {row.categoryHeadName || "General"}
                                         </td>
@@ -1620,6 +1630,28 @@ export default function RoutePlans() {
                 {/* Right Side - List */}
                 <Card className="lg:col-span-2">
                   <CardContent className="pt-6">
+                    {/* Bulk Actions */}
+                    {selectedRoutePrices && selectedRoutePrices.length > 0 ? (
+                      <div className="mb-4 flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        <div className="text-sm font-medium text-indigo-900">
+                          {selectedRoutePrices.length} route price(s) selected
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            console.log(
+                              "[RoutePlans] Bulk delete clicked, selected:",
+                              selectedRoutePrices
+                            );
+                            setBulkDeleteDialogOpen(true);
+                          }}
+                        >
+                          <FiTrash2 className="w-4 h-4 mr-2" />
+                          Delete Selected
+                        </Button>
+                      </div>
+                    ) : null}
                     {/* Table */}
                     {loadingRoutePlans ? (
                       <div className="flex items-center justify-center py-12">
@@ -1634,7 +1666,32 @@ export default function RoutePlans() {
                         data={routePlans}
                         searchKey="name"
                         searchPlaceholder="Search route plans..."
-                        enableRowSelection={false}
+                        enableRowSelection={true}
+                        rowSelection={rowSelection}
+                        onRowSelectionChange={(selectedRows) => {
+                          console.log(
+                            "[RoutePlans] Row selection changed:",
+                            selectedRows.length,
+                            selectedRows
+                          );
+                          // Log schoolId for debugging
+                          selectedRows.forEach((row: RoutePrice) => {
+                            console.log("[RoutePlans] Selected row:", {
+                              id: row.id,
+                              schoolId: row.schoolId,
+                              type: typeof row.schoolId,
+                            });
+                          });
+                          setSelectedRoutePrices(selectedRows as RoutePrice[]);
+                          // Update rowSelection state for controlled mode
+                          const newSelection: Record<string, boolean> = {};
+                          selectedRows.forEach((row: RoutePrice) => {
+                            if (row.id) {
+                              newSelection[String(row.id)] = true;
+                            }
+                          });
+                          setRowSelection(newSelection);
+                        }}
                         manualPagination={true}
                         pageCount={routePlanPaginationMeta?.totalPages || 0}
                         totalRows={routePlanPaginationMeta?.total || 0}
@@ -1668,10 +1725,11 @@ export default function RoutePlans() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Route Plan</DialogTitle>
+            <DialogTitle>Delete Route Price</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this route plan? This action
-              cannot be undone.
+              Are you sure you want to delete this route price? This action
+              cannot be undone. If this route price is referenced by fee
+              structures, deletion will be prevented to maintain data integrity.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1686,6 +1744,39 @@ export default function RoutePlans() {
             </Button>
             <Button variant="destructive" onClick={handleRoutePlanDelete}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedRoutePrices.length} Route Price(s)
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedRoutePrices.length}{" "}
+              selected route price(s)? This action cannot be undone. Route
+              prices that are referenced by fee structures will not be deleted
+              to maintain data integrity.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBulkDeleteDialogOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete}>
+              Delete {selectedRoutePrices.length} Item(s)
             </Button>
           </DialogFooter>
         </DialogContent>

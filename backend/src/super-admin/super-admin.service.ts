@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, ILike } from 'typeorm';
+import { Repository, Not, ILike, In } from 'typeorm';
 import { School, SchoolStatus } from '../schools/entities/school.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateSchoolDto } from '../schools/dto/create-school.dto';
@@ -20,12 +20,12 @@ import { CreateFeeCategoryDto } from '../fee-categories/dto/create-fee-category.
 import { UpdateFeeCategoryDto } from '../fee-categories/dto/update-fee-category.dto';
 import { CreateFeeStructureDto } from '../fee-structures/dto/create-fee-structure.dto';
 import { UpdateFeeStructureDto } from '../fee-structures/dto/update-fee-structure.dto';
-import { CategoryHead } from '../category-heads/entities/category-head.entity';
+import { CategoryHead, CategoryHeadStatus } from '../category-heads/entities/category-head.entity';
 import { Class, ClassStatus } from '../classes/entities/class.entity';
 import { Route } from '../routes/entities/route.entity';
-import { RoutePlan } from '../route-plans/entities/route-plan.entity';
-import { CreateRoutePlanDto } from '../route-plans/dto/create-route-plan.dto';
-import { UpdateRoutePlanDto } from '../route-plans/dto/update-route-plan.dto';
+import { RoutePrice, RoutePriceStatus } from '../route-prices/entities/route-price.entity';
+import { CreateRoutePriceDto } from '../route-prices/dto/create-route-price.dto';
+import { UpdateRoutePriceDto } from '../route-prices/dto/update-route-price.dto';
 
 @Injectable()
 export class SuperAdminService {
@@ -48,8 +48,8 @@ export class SuperAdminService {
     private classesRepository: Repository<Class>,
     @InjectRepository(Route)
     private routesRepository: Repository<Route>,
-    @InjectRepository(RoutePlan)
-    private routePlansRepository: Repository<RoutePlan>,
+    @InjectRepository(RoutePrice)
+    private routePricesRepository: Repository<RoutePrice>,
     private schoolsService: SchoolsService,
     private usersService: UsersService,
     private userRolesService: UserRolesService,
@@ -137,11 +137,11 @@ export class SuperAdminService {
 
     // Calculate statistics
     const [
-      totalRoutePlans,
+      totalRoutePrices,
       totalClasses,
       totalCategoryHeads,
     ] = await Promise.all([
-      this.routePlansRepository.count({ where: { schoolId: id } }),
+      this.routePricesRepository.count({ where: { schoolId: id } }),
       this.classesRepository.count({ where: { schoolId: id, status: ClassStatus.ACTIVE } }),
       this.categoryHeadsRepository.count({ where: { schoolId: id } }),
     ]);
@@ -165,7 +165,7 @@ export class SuperAdminService {
         .then(result => parseFloat(result?.total || '0')),
       totalFeeStructures: feeStructures.length,
       activeFeeStructures: feeStructures.filter(fs => fs.status === 'active').length,
-      totalRoutePlans,
+      totalRoutePrices,
       totalClasses,
       totalCategoryHeads,
     };
@@ -1030,327 +1030,6 @@ export class SuperAdminService {
     return { message: 'Fee structure deleted successfully' };
   }
 
-  // ========== ROUTE PLANS MANAGEMENT ==========
-  async getAllRoutePlans(
-    page: number = 1,
-    limit: number = 10,
-    search?: string,
-    schoolId?: number,
-    routeId?: number,
-    feeCategoryId?: number,
-    categoryHeadId?: number,
-    classId?: number,
-  ) {
-    const { skip, limit: take } = getPaginationParams(page, limit);
-
-    const queryBuilder = this.routePlansRepository
-      .createQueryBuilder('rp')
-      .leftJoinAndSelect('rp.school', 'school')
-      .leftJoinAndSelect('rp.route', 'route')
-      .leftJoinAndSelect('rp.feeCategory', 'feeCategory')
-      .leftJoinAndSelect('rp.categoryHead', 'categoryHead')
-      .leftJoinAndSelect('rp.class', 'class');
-
-    // Apply filters
-    if (schoolId) {
-      queryBuilder.andWhere('rp.schoolId = :schoolId', { schoolId });
-    }
-
-    if (routeId) {
-      queryBuilder.andWhere('rp.routeId = :routeId', { routeId });
-    }
-
-    if (feeCategoryId) {
-      queryBuilder.andWhere('rp.feeCategoryId = :feeCategoryId', { feeCategoryId });
-    }
-
-    if (categoryHeadId !== undefined) {
-      if (categoryHeadId === null) {
-        queryBuilder.andWhere('rp.categoryHeadId IS NULL');
-      } else {
-        queryBuilder.andWhere('rp.categoryHeadId = :categoryHeadId', { categoryHeadId });
-      }
-    }
-
-    if (classId !== undefined) {
-      if (classId === null) {
-        queryBuilder.andWhere('rp.classId IS NULL');
-      } else {
-        queryBuilder.andWhere('rp.classId = :classId', { classId });
-      }
-    }
-
-    // Search by name or description
-    if (search && search.trim()) {
-      queryBuilder.andWhere('(rp.name ILike :search OR rp.description ILike :search)', {
-        search: `%${search.trim()}%`,
-      });
-    }
-
-    queryBuilder.orderBy('rp.createdAt', 'DESC');
-
-    const [routePlans, total] = await queryBuilder.skip(skip).take(take).getManyAndCount();
-
-    return createPaginatedResponse(routePlans, total, page, limit);
-  }
-
-  async getRoutePlanById(id: number) {
-    const routePlan = await this.routePlansRepository.findOne({
-      where: { id },
-      relations: ['school', 'route', 'feeCategory', 'categoryHead', 'class'],
-    });
-
-    if (!routePlan) {
-      throw new NotFoundException(`Route plan with ID ${id} not found`);
-    }
-
-    return routePlan;
-  }
-
-  async createRoutePlan(createRoutePlanDto: CreateRoutePlanDto, schoolId: number) {
-    // Verify school exists
-    const school = await this.schoolsRepository.findOne({ where: { id: schoolId } });
-    if (!school) {
-      throw new NotFoundException(`School with ID ${schoolId} not found`);
-    }
-
-    // Verify route exists and belongs to school
-    const route = await this.routesRepository.findOne({
-      where: { id: createRoutePlanDto.routeId },
-    });
-    if (!route) {
-      throw new NotFoundException(`Route with ID ${createRoutePlanDto.routeId} not found`);
-    }
-    if (route.schoolId !== schoolId) {
-      throw new BadRequestException(`Route does not belong to school with ID ${schoolId}`);
-    }
-
-    // Verify fee category exists, belongs to school, and is of type transport
-    const feeCategory = await this.feeCategoriesRepository.findOne({
-      where: { id: createRoutePlanDto.feeCategoryId },
-    });
-    if (!feeCategory) {
-      throw new NotFoundException(
-        `Fee category with ID ${createRoutePlanDto.feeCategoryId} not found`,
-      );
-    }
-    if (feeCategory.schoolId !== schoolId) {
-      throw new BadRequestException(`Fee category does not belong to school with ID ${schoolId}`);
-    }
-    if (feeCategory.type !== FeeCategoryType.TRANSPORT) {
-      throw new BadRequestException(
-        `Fee category must be of type "transport". Found type: "${feeCategory.type}"`,
-      );
-    }
-
-    // Verify category head if provided
-    if (createRoutePlanDto.categoryHeadId) {
-      const categoryHead = await this.categoryHeadsRepository.findOne({
-        where: { id: createRoutePlanDto.categoryHeadId },
-      });
-      if (!categoryHead) {
-        throw new NotFoundException(
-          `Category head with ID ${createRoutePlanDto.categoryHeadId} not found`,
-        );
-      }
-      if (categoryHead.schoolId !== schoolId) {
-        throw new BadRequestException(
-          `Category head does not belong to school with ID ${schoolId}`,
-        );
-      }
-    }
-
-    // Verify class if provided
-    if (createRoutePlanDto.classId) {
-      const classEntity = await this.classesRepository.findOne({
-        where: { id: createRoutePlanDto.classId },
-      });
-      if (!classEntity) {
-        throw new NotFoundException(`Class with ID ${createRoutePlanDto.classId} not found`);
-      }
-      if (classEntity.schoolId !== schoolId) {
-        throw new BadRequestException(`Class does not belong to school with ID ${schoolId}`);
-      }
-    }
-
-    // Check for duplicate name within school
-    const existing = await this.routePlansRepository.findOne({
-      where: {
-        name: createRoutePlanDto.name,
-        schoolId,
-      },
-    });
-    if (existing) {
-      throw new BadRequestException(
-        `Route plan with name "${createRoutePlanDto.name}" already exists for this school`,
-      );
-    }
-
-    const routePlan = this.routePlansRepository.create({
-      ...createRoutePlanDto,
-      schoolId,
-    });
-
-    return await this.routePlansRepository.save(routePlan);
-  }
-
-  async updateRoutePlan(
-    id: number,
-    updateRoutePlanDto: UpdateRoutePlanDto,
-    schoolId: number,
-  ) {
-    const routePlan = await this.routePlansRepository.findOne({
-      where: { id },
-      relations: ['school', 'route', 'feeCategory', 'categoryHead', 'class'],
-    });
-
-    if (!routePlan) {
-      throw new NotFoundException(`Route plan with ID ${id} not found`);
-    }
-
-    // Verify school matches
-    if (routePlan.schoolId !== schoolId) {
-      throw new BadRequestException(`Route plan does not belong to school with ID ${schoolId}`);
-    }
-
-    // Verify route if being updated
-    if (updateRoutePlanDto.routeId) {
-      const route = await this.routesRepository.findOne({
-        where: { id: updateRoutePlanDto.routeId },
-      });
-      if (!route) {
-        throw new NotFoundException(`Route with ID ${updateRoutePlanDto.routeId} not found`);
-      }
-      if (route.schoolId !== schoolId) {
-        throw new BadRequestException(`Route does not belong to school with ID ${schoolId}`);
-      }
-    }
-
-    // Verify fee category if being updated
-    if (updateRoutePlanDto.feeCategoryId) {
-      const feeCategory = await this.feeCategoriesRepository.findOne({
-        where: { id: updateRoutePlanDto.feeCategoryId },
-      });
-      if (!feeCategory) {
-        throw new NotFoundException(
-          `Fee category with ID ${updateRoutePlanDto.feeCategoryId} not found`,
-        );
-      }
-      if (feeCategory.schoolId !== schoolId) {
-        throw new BadRequestException(`Fee category does not belong to school with ID ${schoolId}`);
-      }
-      if (feeCategory.type !== FeeCategoryType.TRANSPORT) {
-        throw new BadRequestException(
-          `Fee category must be of type "transport". Found type: "${feeCategory.type}"`,
-        );
-      }
-    }
-
-    // Verify category head if being updated
-    if (updateRoutePlanDto.categoryHeadId !== undefined) {
-      if (updateRoutePlanDto.categoryHeadId) {
-        const categoryHead = await this.categoryHeadsRepository.findOne({
-          where: { id: updateRoutePlanDto.categoryHeadId },
-        });
-        if (!categoryHead) {
-          throw new NotFoundException(
-            `Category head with ID ${updateRoutePlanDto.categoryHeadId} not found`,
-          );
-        }
-        if (categoryHead.schoolId !== schoolId) {
-          throw new BadRequestException(
-            `Category head does not belong to school with ID ${schoolId}`,
-          );
-        }
-      }
-    }
-
-    // Verify class if being updated
-    if (updateRoutePlanDto.classId !== undefined) {
-      if (updateRoutePlanDto.classId) {
-        const classEntity = await this.classesRepository.findOne({
-          where: { id: updateRoutePlanDto.classId },
-        });
-        if (!classEntity) {
-          throw new NotFoundException(`Class with ID ${updateRoutePlanDto.classId} not found`);
-        }
-        if (classEntity.schoolId !== schoolId) {
-          throw new BadRequestException(`Class does not belong to school with ID ${schoolId}`);
-        }
-      }
-    }
-
-    // Check for duplicate name if name is being updated
-    if (updateRoutePlanDto.name) {
-      const existing = await this.routePlansRepository.findOne({
-        where: {
-          name: updateRoutePlanDto.name,
-          schoolId,
-        },
-      });
-      if (existing && existing.id !== id) {
-        throw new BadRequestException(
-          `Route plan with name "${updateRoutePlanDto.name}" already exists for this school`,
-        );
-      }
-    }
-
-    // Update fields
-    Object.assign(routePlan, updateRoutePlanDto);
-
-    return await this.routePlansRepository.save(routePlan);
-  }
-
-  async removeRoutePlan(id: number, schoolId: number) {
-    const routePlan = await this.routePlansRepository.findOne({
-      where: { id },
-      relations: ['feeCategory'],
-    });
-
-    if (!routePlan) {
-      throw new NotFoundException(`Route plan with ID ${id} not found`);
-    }
-
-    // Verify school matches
-    if (routePlan.schoolId !== schoolId) {
-      throw new BadRequestException(`Route plan does not belong to school with ID ${schoolId}`);
-    }
-
-    // Check if route plan has associated fee structures (transport fees)
-    // Route plans define transport fees, and fee structures may use the same fee category
-    const feeStructuresUsingCategory = await this.feeStructuresRepository.find({
-      where: {
-        feeCategoryId: routePlan.feeCategoryId,
-        schoolId: schoolId,
-      },
-      relations: ['payments', 'studentStructures'],
-    });
-
-    if (feeStructuresUsingCategory.length > 0) {
-      // Count total payments and student assignments
-      let totalStudentAssignments = 0;
-
-      for (const feeStructure of feeStructuresUsingCategory) {
-        // Payments are now linked to StudentFeeStructure, not FeeStructure directly
-        totalStudentAssignments += feeStructure.studentStructures?.length || 0;
-      }
-
-      const issues: string[] = [];
-      if (totalStudentAssignments > 0) {
-        issues.push(`${totalStudentAssignments} student assignment(s)`);
-      }
-
-      if (issues.length > 0) {
-        throw new BadRequestException(
-          `Cannot delete route plan. It is associated with ${feeStructuresUsingCategory.length} fee structure(s) that have ${issues.join(' and ')}. Please remove or reassign them first.`,
-        );
-      }
-    }
-
-    await this.routePlansRepository.remove(routePlan);
-    return { message: 'Route plan deleted successfully' };
-  }
-
   // ========== SCHOOL CLASSES ==========
   async getSchoolClasses(schoolId: number): Promise<string[]> {
     // Verify school exists
@@ -1374,4 +1053,355 @@ export class SuperAdminService {
 
     return uniqueClasses;
   }
+
+  // ========== ROUTE PRICES MANAGEMENT ==========
+  async getAllRoutePrices(
+    page: number = 1,
+    limit: number = 10,
+    schoolId?: number,
+    routeId?: number,
+    classId?: number,
+    categoryHeadId?: number,
+    search?: string,
+  ) {
+    const { skip, limit: take } = getPaginationParams(page, limit);
+
+    const queryBuilder = this.routePricesRepository
+      .createQueryBuilder('rp')
+      .leftJoinAndSelect('rp.school', 'school')
+      .leftJoinAndSelect('rp.route', 'route')
+      .leftJoinAndSelect('rp.class', 'class')
+      .leftJoinAndSelect('rp.categoryHead', 'categoryHead');
+
+    // Apply filters
+    if (schoolId) {
+      queryBuilder.andWhere('rp.schoolId = :schoolId', { schoolId });
+    }
+
+    if (routeId) {
+      queryBuilder.andWhere('rp.routeId = :routeId', { routeId });
+    }
+
+    if (classId) {
+      queryBuilder.andWhere('rp.classId = :classId', { classId });
+    }
+
+    if (categoryHeadId) {
+      queryBuilder.andWhere('rp.categoryHeadId = :categoryHeadId', { categoryHeadId });
+    }
+
+    // Apply search filter
+    if (search && search.trim()) {
+      queryBuilder.andWhere(
+        '(route.name ILIKE :search OR class.name ILIKE :search OR categoryHead.name ILIKE :search)',
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    queryBuilder.orderBy('rp.createdAt', 'DESC');
+
+    const [routePrices, total] = await queryBuilder.skip(skip).take(take).getManyAndCount();
+
+    // Ensure relations are loaded (debug: log first item to verify)
+    if (routePrices.length > 0) {
+      const first = routePrices[0];
+      if (!first.route || !first.class || !first.categoryHead) {
+        console.warn('[RoutePrices] Missing relations in response:', {
+          routeId: first.routeId,
+          hasRoute: !!first.route,
+          classId: first.classId,
+          hasClass: !!first.class,
+          categoryHeadId: first.categoryHeadId,
+          hasCategoryHead: !!first.categoryHead,
+        });
+      }
+    }
+
+    return createPaginatedResponse(routePrices, total, page, limit);
+  }
+
+  async getRoutePriceById(id: number) {
+    const routePrice = await this.routePricesRepository.findOne({
+      where: { id },
+      relations: ['school', 'route', 'class', 'categoryHead'],
+    });
+
+    if (!routePrice) {
+      throw new NotFoundException(`Route price with ID ${id} not found`);
+    }
+
+    return routePrice;
+  }
+
+  async createRoutePrice(createRoutePriceDto: CreateRoutePriceDto, schoolId: number) {
+    // Validate route exists
+    const route = await this.routesRepository.findOne({
+      where: { id: createRoutePriceDto.routeId, schoolId },
+    });
+
+    if (!route) {
+      throw new NotFoundException(`Route with ID ${createRoutePriceDto.routeId} not found`);
+    }
+
+    // Validate class exists
+    const classEntity = await this.classesRepository.findOne({
+      where: { id: createRoutePriceDto.classId, schoolId },
+    });
+
+    if (!classEntity) {
+      throw new NotFoundException(`Class with ID ${createRoutePriceDto.classId} not found`);
+    }
+
+    // Validate category head exists
+    const categoryHead = await this.categoryHeadsRepository.findOne({
+      where: { id: createRoutePriceDto.categoryHeadId, schoolId },
+    });
+
+    if (!categoryHead) {
+      throw new NotFoundException(
+        `Category head with ID ${createRoutePriceDto.categoryHeadId} not found`,
+      );
+    }
+
+    // Check if route price already exists (unique constraint)
+    const existing = await this.routePricesRepository.findOne({
+      where: {
+        schoolId,
+        routeId: createRoutePriceDto.routeId,
+        classId: createRoutePriceDto.classId,
+        categoryHeadId: createRoutePriceDto.categoryHeadId,
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        `A route price already exists for "${route.name}" route, "${classEntity.name}" class, and "${categoryHead.name}" category head. Please edit the existing entry or choose different values.`,
+      );
+    }
+
+    const routePrice = this.routePricesRepository.create({
+      ...createRoutePriceDto,
+      schoolId,
+      status: createRoutePriceDto.status || RoutePriceStatus.ACTIVE,
+    });
+
+    return await this.routePricesRepository.save(routePrice);
+  }
+
+  async updateRoutePrice(
+    id: number,
+    updateRoutePriceDto: UpdateRoutePriceDto,
+    schoolId: number,
+  ) {
+    const routePrice = await this.routePricesRepository.findOne({
+      where: { id },
+    });
+
+    if (!routePrice) {
+      throw new NotFoundException(`Route price with ID ${id} not found`);
+    }
+
+    if (routePrice.schoolId !== schoolId) {
+      throw new BadRequestException(`Route price does not belong to school with ID ${schoolId}`);
+    }
+
+    // Validate route if being updated
+    if (updateRoutePriceDto.routeId) {
+      const route = await this.routesRepository.findOne({
+        where: { id: updateRoutePriceDto.routeId, schoolId },
+      });
+
+      if (!route) {
+        throw new NotFoundException(`Route with ID ${updateRoutePriceDto.routeId} not found`);
+      }
+    }
+
+    // Validate class if being updated
+    if (updateRoutePriceDto.classId) {
+      const classEntity = await this.classesRepository.findOne({
+        where: { id: updateRoutePriceDto.classId, schoolId },
+      });
+
+      if (!classEntity) {
+        throw new NotFoundException(`Class with ID ${updateRoutePriceDto.classId} not found`);
+      }
+    }
+
+    // Validate category head if being updated
+    if (updateRoutePriceDto.categoryHeadId) {
+      const categoryHead = await this.categoryHeadsRepository.findOne({
+        where: { id: updateRoutePriceDto.categoryHeadId, schoolId },
+      });
+
+      if (!categoryHead) {
+        throw new NotFoundException(
+          `Category head with ID ${updateRoutePriceDto.categoryHeadId} not found`,
+        );
+      }
+    }
+
+    // Check unique constraint if any key fields are being updated
+    if (
+      updateRoutePriceDto.routeId ||
+      updateRoutePriceDto.classId ||
+      updateRoutePriceDto.categoryHeadId
+    ) {
+      const finalRouteId = updateRoutePriceDto.routeId ?? routePrice.routeId;
+      const finalClassId = updateRoutePriceDto.classId ?? routePrice.classId;
+      const finalCategoryHeadId =
+        updateRoutePriceDto.categoryHeadId ?? routePrice.categoryHeadId;
+
+      const existing = await this.routePricesRepository.findOne({
+        where: {
+          schoolId,
+          routeId: finalRouteId,
+          classId: finalClassId,
+          categoryHeadId: finalCategoryHeadId,
+        },
+      });
+
+      if (existing && existing.id !== id) {
+        // Fetch names for better error message
+        const route = await this.routesRepository.findOne({
+          where: { id: finalRouteId, schoolId },
+        });
+        const classEntity = await this.classesRepository.findOne({
+          where: { id: finalClassId, schoolId },
+        });
+        const categoryHead = await this.categoryHeadsRepository.findOne({
+          where: { id: finalCategoryHeadId, schoolId },
+        });
+
+        const routeName = route?.name || `ID ${finalRouteId}`;
+        const className = classEntity?.name || `ID ${finalClassId}`;
+        const categoryHeadName = categoryHead?.name || `ID ${finalCategoryHeadId}`;
+
+        throw new BadRequestException(
+          `A route price already exists for "${routeName}" route, "${className}" class, and "${categoryHeadName}" category head. Please edit the existing entry or choose different values.`,
+        );
+      }
+    }
+
+    Object.assign(routePrice, updateRoutePriceDto);
+    return await this.routePricesRepository.save(routePrice);
+  }
+
+  async removeRoutePrice(id: number, schoolId: number) {
+    // Validate inputs
+    if (!id || isNaN(id) || id <= 0) {
+      throw new BadRequestException(`Invalid route price ID: ${id}`);
+    }
+    if (!schoolId || isNaN(schoolId) || schoolId <= 0) {
+      throw new BadRequestException(`Invalid schoolId: ${schoolId}`);
+    }
+
+    const routePrice = await this.routePricesRepository.findOne({
+      where: { id },
+    });
+
+    if (!routePrice) {
+      throw new NotFoundException(`Route price with ID ${id} not found`);
+    }
+
+    if (routePrice.schoolId !== schoolId) {
+      throw new BadRequestException(`Route price does not belong to school with ID ${schoolId}`);
+    }
+
+    // Check if route price has valid categoryHeadId and classId for FK check
+    if (routePrice.categoryHeadId && routePrice.classId &&
+        typeof routePrice.categoryHeadId === 'number' && 
+        typeof routePrice.classId === 'number') {
+      
+      // Check if route price is referenced by fee structures
+      const feeStructures = await this.feeStructuresRepository
+        .createQueryBuilder('fs')
+        .leftJoinAndSelect('fs.category', 'category')
+        .where('fs.schoolId = :schoolId', { schoolId })
+        .andWhere('fs.categoryHeadId = :categoryHeadId', { categoryHeadId: routePrice.categoryHeadId })
+        .andWhere('fs.classId = :classId', { classId: routePrice.classId })
+        .andWhere('category.type = :type', { type: FeeCategoryType.TRANSPORT })
+        .getMany();
+
+      if (feeStructures.length > 0) {
+        throw new BadRequestException(
+          `Cannot delete route price: It is referenced by ${feeStructures.length} fee structure(s). Please remove or update the related fee structures first.`,
+        );
+      }
+    }
+
+    await this.routePricesRepository.remove(routePrice);
+    return { message: 'Route price deleted successfully' };
+  }
+
+  async bulkRemoveRoutePrices(ids: number[], schoolId: number) {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('No route price IDs provided');
+    }
+
+    // Direct query with both conditions
+    const routePrices = await this.routePricesRepository.find({
+      where: { id: In(ids), schoolId },
+    });
+
+    if (routePrices.length === 0) {
+      throw new NotFoundException('No route prices found with the provided IDs');
+    }
+
+    if (routePrices.length !== ids.length) {
+      throw new BadRequestException(
+        `Some route prices not found or do not belong to school ${schoolId}`,
+      );
+    }
+
+    const deleted: number[] = [];
+    const failed: Array<{ id: number; error: string }> = [];
+
+    for (const routePrice of routePrices) {
+      try {
+        // Validate that routePrice has valid IDs before checking FK constraints
+        if (!routePrice.categoryHeadId || !routePrice.classId || 
+            typeof routePrice.categoryHeadId !== 'number' || 
+            typeof routePrice.classId !== 'number') {
+          // Skip FK check if data is invalid, just try to delete
+          // If there's a real FK constraint, PostgreSQL will catch it
+          await this.routePricesRepository.remove(routePrice);
+          deleted.push(routePrice.id);
+          continue;
+        }
+
+        // Check if route price is referenced by fee structures
+        const feeStructures = await this.feeStructuresRepository
+          .createQueryBuilder('fs')
+          .leftJoinAndSelect('fs.category', 'category')
+          .where('fs.schoolId = :schoolId', { schoolId })
+          .andWhere('fs.categoryHeadId = :categoryHeadId', { categoryHeadId: routePrice.categoryHeadId })
+          .andWhere('fs.classId = :classId', { classId: routePrice.classId })
+          .andWhere('category.type = :type', { type: FeeCategoryType.TRANSPORT })
+          .getMany();
+
+        if (feeStructures.length > 0) {
+          failed.push({
+            id: routePrice.id,
+            error: `Referenced by ${feeStructures.length} fee structure(s)`,
+          });
+          continue;
+        }
+
+        await this.routePricesRepository.remove(routePrice);
+        deleted.push(routePrice.id);
+      } catch (error) {
+        failed.push({
+          id: routePrice.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    return {
+      deleted: deleted.length,
+      failed: failed.length,
+      errors: failed,
+    };
+  }
+
 }

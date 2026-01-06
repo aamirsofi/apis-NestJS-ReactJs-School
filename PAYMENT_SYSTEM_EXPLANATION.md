@@ -225,3 +225,6 @@ Example: `REC-20260104-0001`
 - Payment history is automatically displayed below student fees
 - Shows all payments for the selected student and academic year
 
+
+
+

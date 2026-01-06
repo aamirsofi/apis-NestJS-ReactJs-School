@@ -1,7 +1,9 @@
 # How to Add Students - Step by Step Guide
 
 ## Overview
+
 With the new academic year structure, adding a student is now a **two-step process**:
+
 1. **Create Student** - Add permanent student information
 2. **Assign Academic Record** - Assign the student to a class for the current academic year
 
@@ -31,13 +33,15 @@ Before adding students, make sure you have a current academic year set up:
 1. Navigate to **Students** page (from main menu)
 2. Click **"Add Student"** button
 3. Fill in the **required fields**:
-   - **Student ID** * (e.g., "STU001")
-   - **First Name** *
-   - **Last Name** *
-   - **Email** *
-   - **Admission Date** *
+
+   - **Student ID** \* (e.g., "STU001")
+   - **First Name** \*
+   - **Last Name** \*
+   - **Email** \*
+   - **Admission Date** \*
 
 4. Fill in **optional fields**:
+
    - **Date of Birth**
    - **Gender** (Male/Female/Other)
    - **Blood Group** (e.g., O+, A-, etc.)
@@ -47,6 +51,7 @@ Before adding students, make sure you have a current academic year set up:
    - **Status** (Active/Inactive/Graduated/Transferred)
 
 5. Fill in **Parent/Guardian Information** (optional):
+
    - **Parent Name**
    - **Relation** (Father/Mother/Guardian)
    - **Parent Email**
@@ -69,7 +74,7 @@ After creating the student:
 3. Click **"Assign class"**
 4. Fill in the academic record form:
    - **Academic Year**: Automatically shows current year (read-only)
-   - **Class** *: Select from dropdown (e.g., "1st", "2nd", "10th", etc.)
+   - **Class** \*: Select from dropdown (e.g., "1st", "2nd", "10th", etc.)
    - **Section**: Optional (e.g., "A", "B", "C")
    - **Roll Number**: Optional (e.g., "001", "002")
 5. Click **"Assign Class"**
@@ -139,16 +144,19 @@ After creating the student:
 ### ⚠️ Common Scenarios
 
 #### Scenario 1: New Student Admission
+
 1. Create student → Fill permanent info
 2. Assign class → Select current year's class
 3. Done!
 
 #### Scenario 2: Student Promotion (Next Year)
+
 1. Navigate to Academic Years → Create next year
 2. Use promotion feature (coming soon) or manually assign new class
 3. Student's history is preserved
 
 #### Scenario 3: Bulk Import
+
 - Bulk import still works (creates students)
 - After import, assign classes individually or use bulk assignment (coming soon)
 
@@ -157,15 +165,19 @@ After creating the student:
 ## Troubleshooting
 
 ### Problem: "No current academic year found"
+
 **Solution**: Go to Academic Years page and create/set a current academic year
 
 ### Problem: "Class not found" when assigning
+
 **Solution**: Make sure classes are created first (Settings → Academics → Classes)
 
 ### Problem: Student shows "Not assigned" but I assigned them
+
 **Solution**: Refresh the page or check if the academic record was created successfully
 
 ### Problem: Can't see "Assign class" button
+
 **Solution**: Make sure you're viewing the Students page and the student doesn't already have an academic record
 
 ---
@@ -197,7 +209,7 @@ POST /students
   "studentId": "STU001",
   "firstName": "John",
   "lastName": "Doe",
-  "email": "john@example.com",
+  "email": "su@admin.com",
   "admissionDate": "2024-04-01",
   "dateOfBirth": "2010-05-15",
   "gender": "male",
@@ -219,4 +231,3 @@ POST /student-academic-records
 ---
 
 **Need Help?** Check the Students page or Academic Years page for more details!
-

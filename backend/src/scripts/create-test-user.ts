@@ -18,7 +18,7 @@ async function bootstrap() {
     console.log(`✅ Using existing school: ${school.name} (ID: ${school.id})`);
   } else {
     console.log('⚠️  No school found. Creating a test school...');
-    const adminUser = await usersService.findByEmail('admin@example.com');
+    const adminUser = await usersService.findByEmail('su@admin.com');
     if (!adminUser) {
       console.error('❌ Admin user not found. Please run "npm run create:admin" first.');
       await app.close();

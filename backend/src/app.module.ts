@@ -28,6 +28,10 @@ import { SettingsModule } from './settings/settings.module';
 import { BackupModule } from './backup/backup.module';
 import { UploadModule } from './upload/upload.module';
 import { FeeGenerationModule } from './fee-generation/fee-generation.module';
+import { AccountingModule } from './accounting/accounting.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { ReceiptsModule } from './receipts/receipts.module';
+import { ReportsModule } from './reports/reports.module';
 import { DatabaseConfig } from './database/database.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -83,6 +87,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     BackupModule,
     UploadModule,
     FeeGenerationModule,
+    AccountingModule,
+    InvoicesModule,
+    ReceiptsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

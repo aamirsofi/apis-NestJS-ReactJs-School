@@ -99,7 +99,7 @@ export function FeePlanForm({
       <div>
         <div className="flex items-center justify-between mb-0.5">
           <label className="block text-xs font-medium text-gray-700">
-            Fee Heading <span className="text-red-500">*</span>
+            Fee Heading (School Fees Only) <span className="text-red-500">*</span>
           </label>
           {formData.schoolId && feeCategories.length > 0 && (
             <Button
@@ -115,6 +115,9 @@ export function FeePlanForm({
             </Button>
           )}
         </div>
+        <p className="text-xs text-gray-500 mb-1">
+          Note: Transport fees are managed via Route Prices (Settings → Route Prices)
+        </p>
         {!formData.schoolId ? (
           <div className="px-2 py-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg">
             Select school first

@@ -17,29 +17,28 @@ export function generateRoutePlanName(
 ): string {
   const { routeName, feeCategoryName, categoryHeadName, className } = components;
 
-  const baseName = routeName || "Route Plan";
-  const feeCategoryPart = feeCategoryName ? ` - ${feeCategoryName}` : "";
+  const baseName = routeName || "Route Price";
+  const feeCategoryPart = feeCategoryName ? ` - ${feeCategoryName}` : ""; // Deprecated
   const categoryHeadPart = categoryHeadName ? ` - ${categoryHeadName}` : "";
   const classPart = className ? ` (${className})` : "";
 
-  return `${baseName}${feeCategoryPart}${categoryHeadPart}${classPart}`;
+  return `${baseName}${categoryHeadPart}${classPart}`;
 }
 
 /**
- * Generate route plan name from IDs (requires lookup arrays)
+ * Generate route plan name from IDs (updated for route_prices - no feeCategoryId)
  */
 export function generateRoutePlanNameFromIds(
   routeId: number,
-  feeCategoryId: number,
+  feeCategoryId: number | undefined, // Deprecated but kept for compatibility
   categoryHeadId: number | null | undefined,
   classId: number | null | undefined,
   routes: Array<{ id: number; name: string }>,
-  feeCategories: Array<{ id: number; name: string }>,
+  feeCategories: Array<{ id: number; name: string }>, // Deprecated but kept for compatibility
   categoryHeads: Array<{ id: number; name: string }>,
   classes: Array<{ id: number; name: string }>
 ): string {
   const route = routes.find((r) => r.id === routeId);
-  const feeCategory = feeCategories.find((cat) => cat.id === feeCategoryId);
   const categoryHead = categoryHeadId
     ? categoryHeads.find((ch) => ch.id === categoryHeadId)
     : null;
@@ -49,7 +48,7 @@ export function generateRoutePlanNameFromIds(
 
   return generateRoutePlanName({
     routeName: route?.name,
-    feeCategoryName: feeCategory?.name,
+    feeCategoryName: undefined, // No longer used for route_prices
     categoryHeadName: categoryHead?.name,
     className: classItem?.name,
   });

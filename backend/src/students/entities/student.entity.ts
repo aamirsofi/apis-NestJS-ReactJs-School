@@ -14,7 +14,6 @@ import { Payment } from '../../payments/entities/payment.entity';
 import { StudentFeeStructure } from '../../student-fee-structures/entities/student-fee-structure.entity';
 import { StudentAcademicRecord } from '../../student-academic-records/entities/student-academic-record.entity';
 import { Route } from '../../routes/entities/route.entity';
-import { RoutePlan } from '../../route-plans/entities/route-plan.entity';
 import { CategoryHead } from '../../category-heads/entities/category-head.entity';
 
 export enum StudentStatus {
@@ -107,8 +106,6 @@ export class Student {
   @Column({ nullable: true })
   routeId?: number; // Assigned route
 
-  @Column({ nullable: true })
-  routePlanId?: number; // Assigned route plan (bus fee structure)
 
   @Column({ nullable: true, length: 50 })
   busNumber?: string;
@@ -195,9 +192,6 @@ export class Student {
   @JoinColumn({ name: 'routeId' })
   route?: Route;
 
-  @ManyToOne(() => RoutePlan, { nullable: true })
-  @JoinColumn({ name: 'routePlanId' })
-  routePlan?: RoutePlan;
 
   @ManyToOne(() => CategoryHead, { nullable: true })
   @JoinColumn({ name: 'categoryHeadId' })

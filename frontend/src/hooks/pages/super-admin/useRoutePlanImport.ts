@@ -185,16 +185,16 @@ export function useRoutePlanImport({
         return;
       }
 
-      // Fetch existing route plans for duplicate checking
-      const existingRoutePlansResponse = await api.instance.get(
-        "/super-admin/route-plans",
+      // Fetch existing route prices for duplicate checking
+      const existingRoutePricesResponse = await api.instance.get(
+        "/super-admin/route-prices",
         {
           params: { schoolId: importSchoolId, limit: 10000 },
         }
       );
       const existingRoutePlans =
-        existingRoutePlansResponse.data.data ||
-        existingRoutePlansResponse.data ||
+        existingRoutePricesResponse.data.data ||
+        existingRoutePricesResponse.data ||
         [];
 
       const results: ImportResult = {
@@ -280,7 +280,7 @@ export function useRoutePlanImport({
           }
 
           await api.instance.post(
-            `/super-admin/route-plans?schoolId=${importSchoolId}`,
+            `/super-admin/route-prices?schoolId=${importSchoolId}`,
             payload
           );
           results.success++;

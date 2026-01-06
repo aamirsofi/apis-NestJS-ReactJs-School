@@ -46,12 +46,12 @@ export class PaymentsController {
   @Get()
   @ApiOperation({ summary: 'Get all payments' })
   @ApiQuery({ name: 'studentId', required: false, type: Number, description: 'Filter by student ID' })
-  @ApiQuery({ name: 'studentFeeStructureId', required: false, type: Number, description: 'Filter by student fee structure ID' })
+  @ApiQuery({ name: 'invoiceId', required: false, type: Number, description: 'Filter by invoice ID' })
   @ApiResponse({ status: 200, description: 'List of payments' })
-  findAll(@Request() req: any, @Query('studentId') studentId?: string, @Query('studentFeeStructureId') studentFeeStructureId?: string) {
+  findAll(@Request() req: any, @Query('studentId') studentId?: string, @Query('invoiceId') invoiceId?: string) {
     const schoolId = req.school?.id || req.user.schoolId;
-    if (studentFeeStructureId) {
-      return this.paymentsService.findByStudentFeeStructure(+studentFeeStructureId, schoolId);
+    if (invoiceId) {
+      return this.paymentsService.findByInvoice(+invoiceId, schoolId);
     }
     if (studentId) {
       return this.paymentsService.findByStudent(+studentId, schoolId);

@@ -5,10 +5,10 @@
 export interface RoutePlanFormData {
   schoolId: string | number;
   routeId: string | number;
-  feeCategoryId: string | number;
-  categoryHeadId: string | number | null;
+  feeCategoryId?: string | number; // Optional/deprecated for route_prices
+  categoryHeadId: string | number; // Required for route_prices
   amount: string;
-  classId: string | number;
+  classId: string | number; // Required for route_prices
   status: "active" | "inactive";
 }
 
@@ -62,21 +62,31 @@ export function validateRoute(
 }
 
 /**
- * Validate transport fee category selection
+ * Validate transport fee category selection (deprecated for route_prices)
  */
 export function validateTransportFeeCategory(
-  feeCategoryId: string | number
+  feeCategoryId: string | number | undefined
 ): ValidationResult {
-  const feeCategoryIdNum =
-    typeof feeCategoryId === "string"
-      ? parseInt(feeCategoryId, 10)
-      : feeCategoryId;
+  // This is no longer required for route_prices, but kept for backward compatibility
+  return { isValid: true };
+}
+
+/**
+ * Validate category head selection (required for route_prices)
+ */
+export function validateCategoryHead(
+  categoryHeadId: string | number | null | undefined
+): ValidationResult {
+  const categoryHeadIdNum =
+    typeof categoryHeadId === "string"
+      ? parseInt(categoryHeadId, 10)
+      : categoryHeadId;
   if (
-    !feeCategoryIdNum ||
-    feeCategoryIdNum === 0 ||
-    isNaN(feeCategoryIdNum)
+    !categoryHeadIdNum ||
+    categoryHeadIdNum === 0 ||
+    isNaN(categoryHeadIdNum)
   ) {
-    return { isValid: false, error: "Please select a transport fee heading" };
+    return { isValid: false, error: "Please select a category head" };
   }
   return { isValid: true };
 }
@@ -92,7 +102,7 @@ export function validateClass(classId: string | number): ValidationResult {
 }
 
 /**
- * Validate form data for single mode
+ * Validate form data for single mode (updated for route_prices)
  */
 export function validateSingleModeRoutePlanForm(
   formData: RoutePlanFormData
@@ -106,8 +116,8 @@ export function validateSingleModeRoutePlanForm(
   const amountValidation = validateAmount(formData.amount);
   if (!amountValidation.isValid) return amountValidation;
 
-  const feeCategoryValidation = validateTransportFeeCategory(formData.feeCategoryId);
-  if (!feeCategoryValidation.isValid) return feeCategoryValidation;
+  const categoryHeadValidation = validateCategoryHead(formData.categoryHeadId);
+  if (!categoryHeadValidation.isValid) return categoryHeadValidation;
 
   const classValidation = validateClass(formData.classId);
   if (!classValidation.isValid) return classValidation;
@@ -116,12 +126,13 @@ export function validateSingleModeRoutePlanForm(
 }
 
 /**
- * Validate form data for multiple mode
+ * Validate form data for multiple mode (updated for route_prices)
  */
 export function validateMultipleModeRoutePlanForm(
   formData: RoutePlanFormData,
   selectedRouteIds: number[],
-  selectedFeeCategoryIds: number[],
+  selectedFeeCategoryIds: number[], // Deprecated but kept for compatibility
+  selectedCategoryHeadIds: number[], // Added for route_prices
   selectedClasses: number[]
 ): ValidationResult {
   const schoolValidation = validateSchool(formData.schoolId);
@@ -134,8 +145,8 @@ export function validateMultipleModeRoutePlanForm(
     return { isValid: false, error: "Please select at least one route" };
   }
 
-  if (selectedFeeCategoryIds.length === 0) {
-    return { isValid: false, error: "Please select at least one transport fee heading" };
+  if (selectedCategoryHeadIds.length === 0) {
+    return { isValid: false, error: "Please select at least one category head" };
   }
 
   if (selectedClasses.length === 0) {
@@ -146,7 +157,7 @@ export function validateMultipleModeRoutePlanForm(
 }
 
 /**
- * Validate form data for edit mode
+ * Validate form data for edit mode (updated for route_prices)
  */
 export function validateEditRoutePlanForm(
   formData: RoutePlanFormData
@@ -160,8 +171,8 @@ export function validateEditRoutePlanForm(
   const amountValidation = validateAmount(formData.amount);
   if (!amountValidation.isValid) return amountValidation;
 
-  const feeCategoryValidation = validateTransportFeeCategory(formData.feeCategoryId);
-  if (!feeCategoryValidation.isValid) return feeCategoryValidation;
+  const categoryHeadValidation = validateCategoryHead(formData.categoryHeadId);
+  if (!categoryHeadValidation.isValid) return categoryHeadValidation;
 
   const classValidation = validateClass(formData.classId);
   if (!classValidation.isValid) return classValidation;

@@ -112,12 +112,15 @@ export function useFeePlanData({
         page: 1,
       });
       // Handle both paginated and direct array responses
+      let categories: FeeCategory[] = [];
       if (response?.data && Array.isArray(response.data)) {
-        return response.data;
+        categories = response.data;
       } else if (Array.isArray(response)) {
-        return response;
+        categories = response;
       }
-      return [];
+      
+      // Filter out transport fee categories - they should use Route Prices instead
+      return categories.filter(cat => cat.type !== 'transport');
     },
     enabled: !!formSchoolId,
   });

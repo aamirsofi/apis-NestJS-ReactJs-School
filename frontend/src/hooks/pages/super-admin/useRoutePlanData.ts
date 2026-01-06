@@ -3,7 +3,8 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import api from "../../../services/api";
 import { schoolService, School } from "../../../services/schoolService";
 import { routeService } from "../../../services/routeService";
-import { RoutePlan, FeeCategory, CategoryHead, Route } from "../../../types";
+import { RoutePlan, RoutePrice, FeeCategory, CategoryHead, Route } from "../../../types";
+import { routePriceService } from "../../../services/routePriceService";
 
 interface PaginationMeta {
   total: number;
@@ -23,8 +24,8 @@ interface UseRoutePlanDataParams {
 }
 
 interface UseRoutePlanDataReturn {
-  // Route Plans
-  routePlans: RoutePlan[];
+  // Route Prices (updated from Route Plans)
+  routePlans: RoutePrice[]; // Using RoutePrice type now
   paginationMeta: PaginationMeta | null;
   loadingRoutePlans: boolean;
   refetchRoutePlans: () => void;
@@ -58,15 +59,17 @@ export function useRoutePlanData({
   selectedSchoolId,
   formSchoolId,
 }: UseRoutePlanDataParams): UseRoutePlanDataReturn {
-  // TanStack Query for route plans
+  // TanStack Query for route prices (updated from route plans)
   const {
     data: routePlansData,
     isLoading: loadingRoutePlans,
     refetch: refetchRoutePlans,
   } = useQuery({
-    queryKey: ["routePlans", page, limit, search, selectedSchoolId],
+    queryKey: ["routePrices", page, limit, search, selectedSchoolId],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page, limit };
+      const params: Record<string, string | number | undefined> = {};
+      if (page) params.page = page;
+      if (limit) params.limit = limit;
       if (search.trim()) {
         params.search = search.trim();
       }
@@ -74,22 +77,23 @@ export function useRoutePlanData({
         params.schoolId = selectedSchoolId;
       }
 
-      const response = await api.instance.get("/super-admin/route-plans", {
-        params,
-      });
+      const response = await routePriceService.getRoutePrices(params);
 
-      if (response.data.data && response.data.meta) {
-        return {
-          data: response.data.data,
-          meta: response.data.meta,
-        };
-      } else if (Array.isArray(response.data)) {
+      // Handle paginated response
+      if (response && 'data' in response && 'meta' in response) {
         return {
           data: response.data,
+          meta: response.meta,
+        };
+      } 
+      // Handle array response
+      else if (Array.isArray(response)) {
+        return {
+          data: response,
           meta: {
-            total: response.data.length,
+            total: response.length,
             page: 1,
-            limit: response.data.length,
+            limit: response.length,
             totalPages: 1,
             hasNextPage: false,
             hasPrevPage: false,
@@ -100,7 +104,7 @@ export function useRoutePlanData({
     },
   });
 
-  const routePlans: RoutePlan[] = useMemo(
+  const routePlans: RoutePrice[] = useMemo(
     () => routePlansData?.data || [],
     [routePlansData?.data]
   );
@@ -127,33 +131,11 @@ export function useRoutePlanData({
     return routesData.data;
   }, [routesData]);
 
-  // TanStack Query for transport fee categories (Fee Headings of type transport)
-  const { data: transportCategoriesData, isLoading: loadingTransportCategories } = useQuery({
-    queryKey: ["transportFeeCategories", formSchoolId],
-    queryFn: async () => {
-      if (!formSchoolId) return [];
-      const params: Record<string, string | number> = {
-        page: 1,
-        limit: 1000,
-        schoolId: formSchoolId,
-        type: "transport",
-      };
-
-      const response = await api.instance.get("/super-admin/fee-categories", {
-        params,
-      });
-
-      if (response.data.data && Array.isArray(response.data.data)) {
-        return response.data.data.filter((cat: FeeCategory) => cat.type === "transport");
-      } else if (Array.isArray(response.data)) {
-        return response.data.filter((cat: FeeCategory) => cat.type === "transport");
-      }
-      return [];
-    },
-    enabled: !!formSchoolId,
-  });
-
-  const transportFeeCategories: FeeCategory[] = transportCategoriesData || [];
+  // Transport fee categories are no longer needed for route_prices
+  // (categoryHeadId is used directly instead of feeCategoryId)
+  // Keeping this for backward compatibility but it won't be used
+  const transportFeeCategories: FeeCategory[] = [];
+  const loadingTransportCategories = false;
 
   // TanStack Query for category heads
   const { data: categoryHeadsData, isLoading: loadingCategoryHeads } = useQuery({

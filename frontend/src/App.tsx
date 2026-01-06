@@ -24,12 +24,17 @@ import Announcements from "./pages/super-admin/Announcements";
 import Analytics from "./pages/super-admin/Analytics";
 import Reports from "./pages/super-admin/Reports";
 import SystemSettings from "./pages/super-admin/SystemSettings";
-import FeeGeneration from "./pages/super-admin/FeeGeneration";
+import FeeRegistry from "./pages/super-admin/FeeRegistry";
 import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProtectedLayoutRoute from "./components/ProtectedLayoutRoute";
 import Layout from "./components/Layout";
 import { ShadcnDemo } from "./components/ShadcnDemo";
+import Invoices from "./pages/Invoices";
+import CreateInvoice from "./pages/CreateInvoice";
+import InvoiceDetail from "./pages/InvoiceDetail";
+import FinancialReports from "./pages/FinancialReports";
+import ChartOfAccounts from "./pages/ChartOfAccounts";
 
 // Create a query client
 const queryClient = new QueryClient({
@@ -138,9 +143,9 @@ function App() {
                   </ProtectedLayoutRoute>
                 }
               />
-              {/* Route Plans - Contains both "Define Routes" and "Plan Routes" tabs */}
+              {/* Route Prices - Contains both "Define Routes" and "Plan Routes" tabs */}
               <Route
-                path="/super-admin/settings/fee-settings/route-plan"
+                path="/super-admin/settings/fee-settings/route-prices"
                 element={
                   <ProtectedLayoutRoute>
                     <RoutePlans />
@@ -148,10 +153,10 @@ function App() {
                 }
               />
               <Route
-                path="/super-admin/finance/fee-generation"
+                path="/super-admin/finance/fee-registry"
                 element={
                   <ProtectedLayoutRoute>
-                    <FeeGeneration />
+                    <FeeRegistry />
                   </ProtectedLayoutRoute>
                 }
               />
@@ -325,6 +330,61 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              
+              {/* Invoice Management Routes */}
+              <Route
+                path="/invoices"
+                element={
+                  <ProtectedRoute>
+                    <Invoices />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/new"
+                element={
+                  <ProtectedRoute>
+                    <CreateInvoice />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id"
+                element={
+                  <ProtectedRoute>
+                    <InvoiceDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id/edit"
+                element={
+                  <ProtectedRoute>
+                    <CreateInvoice />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Financial Reports Routes */}
+              <Route
+                path="/reports/financial"
+                element={
+                  <ProtectedRoute>
+                    <FinancialReports />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Accounting Routes */}
+              <Route
+                path="/accounting/chart-of-accounts"
+                element={
+                  <ProtectedRoute>
+                    <ChartOfAccounts />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Default redirect */}
               <Route
                 path="/"

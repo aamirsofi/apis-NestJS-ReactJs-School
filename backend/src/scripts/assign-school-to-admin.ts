@@ -10,7 +10,7 @@ async function assignSchoolToAdmin() {
 
   // Find super admin user
   const admin = await userRepository.findOne({
-    where: { email: 'admin@example.com' },
+    where: { email: 'su@admin.com' },
   });
 
   if (!admin) {
