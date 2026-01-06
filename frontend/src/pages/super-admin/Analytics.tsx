@@ -1,35 +1,18 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FiBarChart2, FiTrendingUp, FiTrendingDown, FiDollarSign, FiMapPin, FiUsers, FiCalendar } from "react-icons/fi";
 import { DataTable } from "@/components/DataTable";
 import { ColumnDef } from "@tanstack/react-table";
-
-interface RevenueData {
-  id: number;
-  period: string;
-  totalRevenue: number;
-  totalPayments: number;
-  averagePayment: number;
-  growthRate: number;
-  paymentCount: number;
-}
-
-interface SchoolPerformance {
-  id: number;
-  schoolName: string;
-  totalStudents: number;
-  totalRevenue: number;
-  averageFee: number;
-  collectionRate: number;
-  growthRate: number;
-  status: "excellent" | "good" | "average" | "needs_attention";
-}
+import { useSchool } from "../../contexts/SchoolContext";
+import { analyticsService, RevenueData, SchoolPerformance } from "../../services/analytics.service";
 
 export default function Analytics() {
   const location = useLocation();
+  const { selectedSchoolId } = useSchool();
   const [activeTab, setActiveTab] = useState("overview");
 
   // Set active tab based on URL
@@ -42,6 +25,24 @@ export default function Analytics() {
       setActiveTab("overview");
     }
   }, [location.pathname]);
+
+  // Fetch analytics data
+  const { data: overviewStats, isLoading: loadingOverview } = useQuery({
+    queryKey: ['analyticsOverview', selectedSchoolId],
+    queryFn: () => analyticsService.getOverview(selectedSchoolId),
+    enabled: !!selectedSchoolId,
+  });
+
+  const { data: revenueData = [], isLoading: loadingRevenue } = useQuery({
+    queryKey: ['analyticsRevenue', selectedSchoolId],
+    queryFn: () => analyticsService.getRevenueAnalytics(selectedSchoolId),
+    enabled: !!selectedSchoolId,
+  });
+
+  const { data: schoolPerformanceData = [], isLoading: loadingSchools } = useQuery({
+    queryKey: ['analyticsSchools'],
+    queryFn: () => analyticsService.getSchoolPerformance(),
+  });
 
   // Revenue Columns
   const revenueColumns: ColumnDef<RevenueData>[] = [
@@ -214,21 +215,6 @@ export default function Analytics() {
     },
   ];
 
-  // Mock data - replace with actual API calls
-  const revenueData: RevenueData[] = [];
-  const schoolPerformanceData: SchoolPerformance[] = [];
-
-  // Overview Stats (mock data)
-  const overviewStats = {
-    totalRevenue: 0,
-    totalPayments: 0,
-    averagePayment: 0,
-    growthRate: 0,
-    totalSchools: 0,
-    totalStudents: 0,
-    collectionRate: 0,
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -258,85 +244,120 @@ export default function Analytics() {
 
         <TabsContent value="overview" className="space-y-4">
           {/* Overview Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <FiDollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">₹{overviewStats.totalRevenue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  {overviewStats.growthRate >= 0 ? (
-                    <span className="text-green-600 flex items-center gap-1">
-                      <FiTrendingUp className="h-3 w-3" />
-                      +{overviewStats.growthRate.toFixed(1)}% from last period
-                    </span>
-                  ) : (
-                    <span className="text-red-600 flex items-center gap-1">
-                      <FiTrendingDown className="h-3 w-3" />
-                      {overviewStats.growthRate.toFixed(1)}% from last period
-                    </span>
-                  )}
-                </p>
-              </CardContent>
-            </Card>
+          {loadingOverview ? (
+            <div className="text-center py-12">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading analytics...</p>
+            </div>
+          ) : overviewStats ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                    <FiDollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">₹{overviewStats.totalRevenue.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {overviewStats.growthRate >= 0 ? (
+                        <span className="text-green-600 flex items-center gap-1">
+                          <FiTrendingUp className="h-3 w-3" />
+                          +{overviewStats.growthRate.toFixed(1)}% from last year
+                        </span>
+                      ) : (
+                        <span className="text-red-600 flex items-center gap-1">
+                          <FiTrendingDown className="h-3 w-3" />
+                          {overviewStats.growthRate.toFixed(1)}% from last year
+                        </span>
+                      )}
+                    </p>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
-                <FiDollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overviewStats.totalPayments.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Average: ₹{overviewStats.averagePayment.toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
+                    <FiDollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{overviewStats.totalPayments.toLocaleString()}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Average: ₹{Math.round(overviewStats.averagePayment).toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Schools</CardTitle>
-                <FiMapPin className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overviewStats.totalSchools}</div>
-                <p className="text-xs text-muted-foreground">Active schools</p>
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                    <FiUsers className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{overviewStats.totalStudents}</div>
+                    <p className="text-xs text-muted-foreground">Active students</p>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
-                <FiBarChart2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overviewStats.collectionRate.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">
-                  {overviewStats.collectionRate >= 80 ? "Excellent" : overviewStats.collectionRate >= 60 ? "Good" : "Needs Improvement"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Insights</CardTitle>
-              <CardDescription>
-                Key metrics and trends at a glance
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <FiBarChart2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No data available</h3>
-                <p className="text-gray-600">
-                  Analytics data will appear here once you have payment and school data
-                </p>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
+                    <FiBarChart2 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{overviewStats.collectionRate.toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">
+                      {overviewStats.collectionRate >= 80 ? "Excellent" : overviewStats.collectionRate >= 60 ? "Good" : "Needs Improvement"}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <FiBarChart2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No data available</h3>
+              <p className="text-gray-600">Select a school to view analytics</p>
+            </div>
+          )}
+
+          {overviewStats && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Insights</CardTitle>
+                <CardDescription>
+                  Year-to-date performance summary
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Revenue (YTD)</p>
+                      <p className="text-2xl font-bold text-blue-600">₹{overviewStats.totalRevenue.toLocaleString()}</p>
+                    </div>
+                    <FiDollarSign className="h-8 w-8 text-blue-600" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-600">Collection Efficiency</p>
+                      <p className="text-2xl font-bold text-green-600">{overviewStats.collectionRate.toFixed(1)}%</p>
+                    </div>
+                    <FiTrendingUp className="h-8 w-8 text-green-600" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
+                    <div>
+                      <p className="text-sm text-gray-600">Active Students</p>
+                      <p className="text-2xl font-bold text-purple-600">{overviewStats.totalStudents}</p>
+                    </div>
+                    <FiUsers className="h-8 w-8 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="revenue" className="space-y-4">
@@ -344,11 +365,16 @@ export default function Analytics() {
             <CardHeader>
               <CardTitle>Revenue Analytics</CardTitle>
               <CardDescription>
-                Track revenue trends, payment patterns, and growth metrics
+                Track revenue trends, payment patterns, and growth metrics (Last 12 months)
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {revenueData.length === 0 ? (
+              {loadingRevenue ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Loading revenue data...</p>
+                </div>
+              ) : revenueData.length === 0 ? (
                 <div className="text-center py-12">
                   <FiDollarSign className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No revenue data</h3>
@@ -372,7 +398,12 @@ export default function Analytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {schoolPerformanceData.length === 0 ? (
+              {loadingSchools ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Loading school performance...</p>
+                </div>
+              ) : schoolPerformanceData.length === 0 ? (
                 <div className="text-center py-12">
                   <FiMapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No performance data</h3>

@@ -32,6 +32,7 @@ import { AccountingModule } from './accounting/accounting.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { ReportsModule } from './reports/reports.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { DatabaseConfig } from './database/database.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -91,6 +92,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     InvoicesModule,
     ReceiptsModule,
     ReportsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

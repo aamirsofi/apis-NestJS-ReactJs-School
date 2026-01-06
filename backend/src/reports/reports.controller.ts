@@ -8,8 +8,13 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('trial-balance')
-  async getTrialBalance(@Request() req: any, @Query('asOfDate') asOfDate?: string) {
-    const schoolId = req.user?.schoolId;
+  async getTrialBalance(
+    @Request() req: any,
+    @Query('asOfDate') asOfDate?: string,
+    @Query('schoolId') querySchoolId?: number,
+  ) {
+    // Priority: JWT schoolId > query param > subdomain middleware
+    const schoolId = req.user?.schoolId || querySchoolId || req.school?.id;
     if (!schoolId) {
       throw new Error('School ID not found in request');
     }
@@ -23,8 +28,10 @@ export class ReportsController {
     @Request() req: any,
     @Query('fromDate') fromDate: string,
     @Query('toDate') toDate: string,
+    @Query('schoolId') querySchoolId?: number,
   ) {
-    const schoolId = req.user?.schoolId;
+    // Priority: JWT schoolId > query param > subdomain middleware
+    const schoolId = req.user?.schoolId || querySchoolId || req.school?.id;
     if (!schoolId) {
       throw new Error('School ID not found in request');
     }
@@ -33,8 +40,13 @@ export class ReportsController {
   }
 
   @Get('balance-sheet')
-  async getBalanceSheet(@Request() req: any, @Query('asOfDate') asOfDate: string) {
-    const schoolId = req.user?.schoolId;
+  async getBalanceSheet(
+    @Request() req: any,
+    @Query('asOfDate') asOfDate: string,
+    @Query('schoolId') querySchoolId?: number,
+  ) {
+    // Priority: JWT schoolId > query param > subdomain middleware
+    const schoolId = req.user?.schoolId || querySchoolId || req.school?.id;
     if (!schoolId) {
       throw new Error('School ID not found in request');
     }
@@ -47,8 +59,10 @@ export class ReportsController {
     @Request() req: any,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('schoolId') querySchoolId?: number,
   ) {
-    const schoolId = req.user?.schoolId;
+    // Priority: JWT schoolId > query param > subdomain middleware
+    const schoolId = req.user?.schoolId || querySchoolId || req.school?.id;
     if (!schoolId) {
       throw new Error('School ID not found in request');
     }
@@ -61,8 +75,12 @@ export class ReportsController {
   }
 
   @Get('outstanding-dues')
-  async getStudentOutstandingDues(@Request() req: any) {
-    const schoolId = req.user?.schoolId;
+  async getStudentOutstandingDues(
+    @Request() req: any,
+    @Query('schoolId') querySchoolId?: number,
+  ) {
+    // Priority: JWT schoolId > query param > subdomain middleware
+    const schoolId = req.user?.schoolId || querySchoolId || req.school?.id;
     if (!schoolId) {
       throw new Error('School ID not found in request');
     }

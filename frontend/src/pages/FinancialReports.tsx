@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import Layout from '../components/Layout';
 import { reportsService } from '../services/reports.service';
 import { useSchool } from '../contexts/SchoolContext';
 import { FiFileText, FiTrendingUp, FiDollarSign, FiAlertCircle } from 'react-icons/fi';
@@ -20,42 +19,41 @@ export default function FinancialReports() {
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
 
   const { data: trialBalance = [], isLoading: loadingTrialBalance } = useQuery({
-    queryKey: ['trialBalance', asOfDate],
-    queryFn: () => reportsService.getTrialBalance(asOfDate),
+    queryKey: ['trialBalance', asOfDate, selectedSchoolId],
+    queryFn: () => reportsService.getTrialBalance(asOfDate, selectedSchoolId),
     enabled: !!selectedSchoolId,
   });
 
   const { data: profitLoss, isLoading: loadingPL } = useQuery({
-    queryKey: ['profitLoss', fromDate, toDate],
-    queryFn: () => reportsService.getProfitAndLoss(fromDate, toDate),
+    queryKey: ['profitLoss', fromDate, toDate, selectedSchoolId],
+    queryFn: () => reportsService.getProfitAndLoss(fromDate, toDate, selectedSchoolId),
     enabled: !!selectedSchoolId,
   });
 
   const { data: balanceSheet, isLoading: loadingBS } = useQuery({
-    queryKey: ['balanceSheet', asOfDate],
-    queryFn: () => reportsService.getBalanceSheet(asOfDate),
+    queryKey: ['balanceSheet', asOfDate, selectedSchoolId],
+    queryFn: () => reportsService.getBalanceSheet(asOfDate, selectedSchoolId),
     enabled: !!selectedSchoolId,
   });
 
   const { data: feeCollection, isLoading: loadingCollection } = useQuery({
-    queryKey: ['feeCollection', fromDate, toDate],
-    queryFn: () => reportsService.getFeeCollectionSummary(fromDate, toDate),
+    queryKey: ['feeCollection', fromDate, toDate, selectedSchoolId],
+    queryFn: () => reportsService.getFeeCollectionSummary(fromDate, toDate, selectedSchoolId),
     enabled: !!selectedSchoolId,
   });
 
   const { data: outstandingDues = [], isLoading: loadingDues } = useQuery({
-    queryKey: ['outstandingDues'],
-    queryFn: () => reportsService.getOutstandingDues(),
+    queryKey: ['outstandingDues', selectedSchoolId],
+    queryFn: () => reportsService.getOutstandingDues(selectedSchoolId),
     enabled: !!selectedSchoolId,
   });
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Financial Reports</h1>
-          <p className="text-gray-600 mt-1">View accounting and financial reports</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Financial Reports</h1>
+        <p className="text-gray-600 mt-1">View accounting and financial reports</p>
+      </div>
 
         <Tabs defaultValue="trial-balance" className="space-y-4">
           <TabsList>
@@ -375,8 +373,7 @@ export default function FinancialReports() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </Layout>
+    </div>
   );
 }
 

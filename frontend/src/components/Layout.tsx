@@ -166,16 +166,6 @@ export default function Layout({ children }: LayoutProps) {
           path: "/super-admin/reports/financial",
           icon: FiFileText,
         },
-        {
-          name: "School Reports",
-          path: "/super-admin/reports/schools",
-          icon: FiMapPin,
-        },
-        {
-          name: "User Reports",
-          path: "/super-admin/reports/users",
-          icon: FiUser,
-        },
       ],
     },
     {
@@ -192,11 +182,6 @@ export default function Layout({ children }: LayoutProps) {
           name: "Invoices",
           path: "/invoices",
           icon: FiFileText,
-        },
-        {
-          name: "Financial Reports",
-          path: "/reports/financial",
-          icon: FiBarChart2,
         },
         {
           name: "Chart of Accounts",

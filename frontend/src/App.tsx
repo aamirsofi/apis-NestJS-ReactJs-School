@@ -21,7 +21,6 @@ import RoutePlans from "./pages/super-admin/RoutePlans";
 import AcademicYears from "./pages/super-admin/AcademicYears";
 import Announcements from "./pages/super-admin/Announcements";
 import Analytics from "./pages/super-admin/Analytics";
-import Reports from "./pages/super-admin/Reports";
 import SystemSettings from "./pages/super-admin/SystemSettings";
 import FeeRegistry from "./pages/super-admin/FeeRegistry";
 import Profile from "./pages/Profile";
@@ -248,23 +247,7 @@ function App() {
                 path="/super-admin/reports/financial"
                 element={
                   <ProtectedLayoutRoute>
-                    <Reports />
-                  </ProtectedLayoutRoute>
-                }
-              />
-              <Route
-                path="/super-admin/reports/schools"
-                element={
-                  <ProtectedLayoutRoute>
-                    <Reports />
-                  </ProtectedLayoutRoute>
-                }
-              />
-              <Route
-                path="/super-admin/reports/users"
-                element={
-                  <ProtectedLayoutRoute>
-                    <Reports />
+                    <FinancialReports />
                   </ProtectedLayoutRoute>
                 }
               />
@@ -321,7 +304,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
+
               {/* Invoice Management Routes */}
               <Route
                 path="/invoices"
@@ -360,9 +343,9 @@ function App() {
               <Route
                 path="/reports/financial"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedLayoutRoute>
                     <FinancialReports />
-                  </ProtectedRoute>
+                  </ProtectedLayoutRoute>
                 }
               />
 
